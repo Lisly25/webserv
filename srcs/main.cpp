@@ -5,14 +5,20 @@
 
 int main(int ac, char **av)
 {
-    if (ac != 2)
-        return (WebErrors::printerror(ARG_ERROR));
-    else
+    if (ac == 2)
     {
-        std::ifstream file(av[1]);
-        if (!file.is_open())
-            return (WebErrors::printerror(ARG_ERROR));
+        try
+        {
+            ConfigParser parser(av[1]);
+            parser.parse();
+            std::cout << "Passes Here --> " << parser.getCgiPass() << " " << parser.getProxyPass() << "\n\n";
+        }
+        catch (std::exception &e) {
+            WebErrors::printerror(e.what());
+        }
     }
+    else
+        return (WebErrors::printerror(ARG_ERROR));
     std::cout << "helloworld\n";
     return (0);
 }

@@ -8,7 +8,6 @@
 
 namespace WebErrors
 {
-
     class BaseException : public std::exception
     {
     public:
@@ -29,7 +28,7 @@ namespace WebErrors
             : BaseException("Error opening config file: " + filename) {}
     };
 
-    static int printerror(const std::string &e)
+    inline int printerror(const std::string &e)
     {
         std::cerr << e << std::endl;
         return -1;
