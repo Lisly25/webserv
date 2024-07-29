@@ -25,8 +25,8 @@ re: fclean $(NAME)
 
 # TESTS ----
 
-proxy-pass-test: up unpack-test $(NAME)
-	./webserv ./tests/nginx_test.conf
+proxy-cgi-test: up unpack-test $(NAME)
+	./webserv ./tests/proxy-cgi-test.conf
 
 up:
 	mkdir -p ./docker-services/homer
