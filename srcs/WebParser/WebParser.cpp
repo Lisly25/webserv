@@ -1,14 +1,14 @@
-#include "ConfigParser.hpp"
+#include "WebParser.hpp"
 #include "WebErrors.hpp"
 
-ConfigParser::ConfigParser(const std::string &filename) 
+WebParser::WebParser(const std::string &filename) 
 :  _filename(filename), _file(filename)
 {
     if (!_file.is_open())
         throw WebErrors::FileOpenException(_filename);
 }
 
-bool ConfigParser::parse()
+bool WebParser::parse()
 {
     std::string line;
     while (std::getline(_file, line))
@@ -22,7 +22,7 @@ bool ConfigParser::parse()
     return true;
 }
 
-void ConfigParser::parseProxyPass(const std::string &line)
+void WebParser::parseProxyPass(const std::string &line)
 {
     size_t pos = line.find("http://");
     if (pos != std::string::npos)
@@ -32,7 +32,7 @@ void ConfigParser::parseProxyPass(const std::string &line)
     }
 }
 
-void ConfigParser::parseCgiPass(const std::string &line)
+void WebParser::parseCgiPass(const std::string &line)
 {
     size_t pos = line.find("tests/");
     if (pos != std::string::npos)
@@ -42,6 +42,6 @@ void ConfigParser::parseCgiPass(const std::string &line)
     }
 }
 
-std::string ConfigParser::getProxyPass() const { return _proxyPass; }
+std::string WebParser::getProxyPass() const { return _proxyPass; }
 
-std::string ConfigParser::getCgiPass() const { return _cgiPass; }
+std::string WebParser::getCgiPass() const { return _cgiPass; }

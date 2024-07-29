@@ -1,7 +1,7 @@
 #include "WebServer.hpp"
 #include "WebErrors.hpp"
 #include <fstream>
-#include "ConfigParser/ConfigParser.hpp"
+#include "WebParser/WebParser.hpp"
 
 int main(int ac, char **av)
 {
@@ -9,7 +9,7 @@ int main(int ac, char **av)
     {
         try
         {
-            ConfigParser parser(av[1]);
+            WebParser parser(av[1]);
             parser.parse();
             std::cout << "Passes Here --> " << parser.getCgiPass() << " " << parser.getProxyPass() << "\n\n";
         }
@@ -19,6 +19,5 @@ int main(int ac, char **av)
     }
     else
         return (WebErrors::printerror(ARG_ERROR));
-    std::cout << "helloworld\n";
     return (0);
 }

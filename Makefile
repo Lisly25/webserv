@@ -1,7 +1,7 @@
 SRC = $(shell find srcs -name *.cpp)
 OBJS = $(SRC:.cpp=.o)
 CXX = c++
-CPPFLAGS = -Wall -Wextra -Werror -std=c++11 -pedantic -I./headers
+CPPFLAGS = -Wall -Wextra -Werror -std=c++11 -pedantic $(addprefix -I, $(shell find srcs -type d))
 NAME = webserv
 
 DOCKER_COMPOSE_FILE := ./docker-services/docker-compose.yml

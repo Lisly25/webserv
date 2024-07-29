@@ -4,14 +4,14 @@
 #include <fstream>
 #include <string>
 
-class ConfigParser
+class WebParser
 {
 public:
-    ConfigParser(const std::string &filename);
-    ~ConfigParser() = default;
+    WebParser(const std::string &filename);
+    ~WebParser() = default;
 
-    ConfigParser(const ConfigParser &) = delete;
-    ConfigParser &operator=(const ConfigParser &) = delete;
+    WebParser(const WebParser &) = delete;
+    WebParser &operator=(const WebParser &) = delete;
     
     bool        parse();
     std::string getProxyPass() const;
