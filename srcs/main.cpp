@@ -1,14 +1,12 @@
 #include "WebServer.hpp"
 #include "WebErrors.hpp"
 #include <fstream>
+#include "ConfigParser/ConfigParser.hpp"
 
 int main(int ac, char **av)
 {
     if (ac != 2)
-    {
-        std::cerr << ARG_ERROR;
-        return (-1);
-    }
+        return (WebErrors::printerror(ARG_ERROR));
     else
     {
         std::ifstream file(av[1]);

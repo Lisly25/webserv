@@ -1,16 +1,37 @@
-#pragma once 
+#pragma once
 
 #include <iostream>
+#include <exception>
+#include <string>
 
-#define ARG_ERROR "Invalid amount of arguments! Run like this --> \
-./webserv [configuration file]\n"
+#define ARG_ERROR "\nInvalid amount of arguments! Run like this --> ./webserv [configuration file]\n"
 
-class WebErrors
+namespace WebErrors
 {
+
+    class BaseException : public std::exception
+    {
     public:
-        static int printerror(const std::string &e)
+        explicit BaseException(const std::string &message) : _message(message) {}
+
+        virtual const char* what() const noexcept override
         {
-            std::cerr << e << std::endl;
-            return (-1);
+            return _message.c_str();
         }
-};
+
+    private:
+        std::string _message;
+    };
+
+    class FileOpenException : public BaseException {
+    public:
+        explicit FileOpenException(const std::string &filename)
+            : BaseException("Error opening config file: " + filename) {}
+    };
+
+    static int printerror(const std::string &e)
+    {
+        std::cerr << e << std::endl;
+        return -1;
+    }
+}
