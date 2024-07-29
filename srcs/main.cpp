@@ -12,6 +12,12 @@ int main(int ac, char **av)
             WebParser parser(av[1]);
             parser.parse();
             std::cout << "Passes Here --> " << parser.getCgiPass() << " " << parser.getProxyPass() << "\n\n";
+        
+            // Ports below 1024 require root access so use above 
+            // The occupied ports can be checked from cat /etc/services
+            // Modify the listen port from the conf and the server_name
+            WebServer server(parser.getProxyPass(), 4242);
+            server.start();
         }
         catch (std::exception &e) {
             WebErrors::printerror(e.what());

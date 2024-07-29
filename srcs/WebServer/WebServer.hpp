@@ -10,10 +10,10 @@ public:
     void start();
 
 private:
-    int createServerSocket(int port);
-    void handleClient(int clientSocket);
+    int                 _serverSocket;
+    std::string         _proxyPass;
+    struct sockaddr_in  _serverAddr;
 
-    std::string _proxyPass;
-    int _serverSocket;
-    struct sockaddr_in _serverAddr;
+    int     createServerSocket(int port);
+    void    handleClient(int clientSocket);
 };

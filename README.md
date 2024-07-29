@@ -25,5 +25,8 @@ mydomain.com:4242
 
 
 
+#### in browser use the fn + f12 and network tab to see if the requests go trough and with what HTTP status codes are the requests returning 200 = OK
+
+
 
 
