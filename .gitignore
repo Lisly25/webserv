@@ -2,6 +2,12 @@ compile_commands.json
 .cache/
 webserv
 
-
+# Ignore all other but the compose 
 docker-services/*
 !docker-services/docker-compose.yml
+
+
+# Ignore everything in the tests but not the *.conf and the tar
+/tests/*
+!/tests/*.gz
+!/tests/*.conf
