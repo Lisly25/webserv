@@ -1,4 +1,5 @@
 #include "WebServer.hpp"
+#include <fcntl.h>
 #include <iostream>
 #include <cstring>
 #include <unistd.h>
@@ -9,6 +10,23 @@
 WebServer::WebServer(const std::string &proxyPass, int port)
     : _proxyPass(proxyPass) {
     _serverSocket = createServerSocket(port);
+    setNonBlocking(_serverSocket);
+}
+
+void WebServer::setNonBlocking(int socket)
+{
+    // get the current flags
+    int flags = fcntl(socket, F_GETFL, 0);
+    if (flags < 0) {
+        perror("fcntl(F_GETFL)");
+        exit(EXIT_FAILURE);
+    }
+
+    // set 
+    if (fcntl(socket, F_SETFL, flags | O_NONBLOCK) < 0) {
+        perror("fcntl(F_SETFL)");
+        exit(EXIT_FAILURE);
+    }
 }
 
 WebServer::~WebServer() {
@@ -89,6 +107,7 @@ void WebServer::handleClient(int clientSocket) {
     close(clientSocket);
     freeaddrinfo(res);
 }
+
 void WebServer::start() {
     std::cout << "Server is running. Press Ctrl+C to stop.\n";
 
@@ -96,9 +115,13 @@ void WebServer::start() {
         struct sockaddr_in clientAddr;
         socklen_t clientLen = sizeof(clientAddr);
         int clientSocket = accept(_serverSocket, (struct sockaddr *)&clientAddr, &clientLen);
-        if (clientSocket < 0) {
-            perror("Error accepting connection");
-            continue;
+          if (clientSocket < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                continue;
+            } else {
+                perror("Error accepting connection");
+                continue;
+            }
         }
 
         handleClient(clientSocket);

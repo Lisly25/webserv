@@ -16,4 +16,5 @@ private:
 
     int     createServerSocket(int port);
     void    handleClient(int clientSocket);
+    void    setNonBlocking(int socket);
 };
