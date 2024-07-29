@@ -1,0 +1,10 @@
+services:
+  homer:
+    container_name: homer
+    image: b4bz/homer:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./homer:/www/assets
+    environment:
+      - INIT_ASSETS=1

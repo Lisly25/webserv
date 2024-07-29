@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <iostream>
+#include "WebErrors.hpp"
 
 class WebServer
 {

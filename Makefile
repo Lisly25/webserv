@@ -17,4 +17,24 @@ fclean: clean
 
 re: fclean $(NAME)
 
-.PHONY: all clean fclean re
+
+# TESTS ----
+
+DOCKER_COMPOSE_FILE := ./docker-services/docker-compose.yml
+
+proxy-pass-test: up $(NAME)
+	./webserv ./tests/nginx_test.conf
+
+up:
+	mkdir -p ./docker-services/homer
+	chmod 777 ./docker-services/homer
+	docker compose -f $(DOCKER_COMPOSE_FILE) up -d || @docker-compose -f $(DOCKER_COMPOSE_FILE) up -d
+	docker compose -f $(DOCKER_COMPOSE_FILE) logs || @docker-compose -f $(DOCKER_COMPOSE_FILE) logs
+
+down:
+	@docker compose -f $(DOCKER_COMPOSE_FILE) down || @docker-compose -f $(DOCKER_COMPOSE_FILE) down
+
+# ---
+
+
+.PHONY: all clean fclean re proxy-pass-test compose-up compose-down
