@@ -13,7 +13,7 @@ all: $(NAME)
 $(NAME): $(OBJS)
 	$(CXX) $(CPPFLAGS) $(OBJS) -o $(NAME)
 
-clean:
+clean: down
 	$(RM) $(OBJS)
 
 fclean: clean
