@@ -40,6 +40,9 @@ down:
 unpack-test: $(TARBALL)
 	tar -xvzf $(TARBALL) -C $(TESTS_DIR)
 
+conf-parse-test:
+	c++ -Wall -Wextra -Werror srcs/WebErrors/WebErrors.cpp srcs/WebParser/WebParser.cpp srcs/config_parse_test_main.cpp -I srcs/WebErrors -lstdc++fs -o parseTest
+
 # ---
 
-.PHONY: all clean fclean re proxy-pass-test up down unpack-test
+.PHONY: all clean fclean re proxy-pass-test up down unpack-test conf-parse-test
