@@ -10,11 +10,12 @@ public:
     void start();
 
 private:
+    static bool         _running;
     int                 _serverSocket;
     std::string         _proxyPass;
     struct sockaddr_in  _serverAddr;
 
     int     createServerSocket(int port);
     void    handleClient(int clientSocket);
-    void    setNonBlocking(int socket);
+    void    setServerSocketFlags(int socket);
 };

@@ -30,3 +30,5 @@ mydomain.com:4242
 
 
 
+Proxy_pass passes the requests to other server off loads the work from our server and the server its passed to in this examples a docker containers have their own CGI to handle the code execution and generate the reponse for the user. 
+

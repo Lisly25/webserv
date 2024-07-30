@@ -1,4 +1,5 @@
 #include "WebErrors.hpp"
+#include <cstring>
 
 namespace WebErrors
 {
@@ -14,7 +15,10 @@ namespace WebErrors
 
     int printerror(const std::string &e)
     {
-        std::cerr << e << std::endl;
+        if (errno != 0)
+            std::cerr << e << ": " << strerror(errno) << std::endl;
+        else
+            std::cerr << e << std::endl;
         return -1;
     }
 }

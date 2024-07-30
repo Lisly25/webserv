@@ -3,6 +3,7 @@
 #include <iostream>
 #include <exception>
 #include <string>
+#include <errno.h>
 
 #define ARG_ERROR "\nInvalid amount of arguments! Run like this --> ./webserv [configuration file]\n"
 
