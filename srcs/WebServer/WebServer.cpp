@@ -2,6 +2,7 @@
 #include "ScopedSocket.hpp"
 #include "ScopedSocket/ScopedSocket.hpp"
 #include "WebErrors.hpp"
+#include <csignal>
 #include <fcntl.h>
 #include <iostream>
 #include <cstring>
@@ -9,6 +10,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+
+bool WebServer::_running = true;
 
 WebServer::WebServer(const std::string &proxyPass, int port)
     : _proxyPass(proxyPass)
@@ -62,39 +65,43 @@ void WebServer::handleClient(int clientSocket)
     char            buffer[4096];
     ssize_t         bytesRead = recv(client.get(), buffer, sizeof(buffer), 0);
     addrinfo        hints{};
-    addrinfo        *res;
+    addrinfo        *res = nullptr;
 
     if (bytesRead <= 0)
-        return (WebErrors::printerror("Error reading from client socket"), void());
+        throw WebErrors::ClientException("Error reading from client socket");
 
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
     if (getaddrinfo("localhost", "8080", &hints, &res) != 0)
-        return (WebErrors::printerror("Error resolving proxy host"), void());
+        throw WebErrors::ClientException("Error resolving proxy host");
 
     ScopedSocket proxySocket(socket(res->ai_family, res->ai_socktype, res->ai_protocol));
+
     if (proxySocket.get() < 0 || connect(proxySocket.get(), res->ai_addr, res->ai_addrlen) < 0)
-        return (WebErrors::printerror("Error connecting to proxy server"), freeaddrinfo(res));
+        throw WebErrors::ClientException("Error connecting to proxy server", res);
 
     if (send(proxySocket.get(), buffer, bytesRead, 0) < 0)
-        return (WebErrors::printerror("Error sending to proxy server"), freeaddrinfo(res));
+        throw WebErrors::ClientException("Error sending to proxy server", res);
 
     while ((bytesRead = recv(proxySocket.get(), buffer, sizeof(buffer), 0)) > 0)
     {
         if (send(client.get(), buffer, bytesRead, 0) < 0)
-           return (WebErrors::printerror("Error sending to client socket"), freeaddrinfo(res));
+            throw WebErrors::ClientException("Error sending to client socket", res);
     }
     if (bytesRead < 0)
-        WebErrors::printerror("Error reading from proxy server");
+        throw WebErrors::ClientException("Error reading from proxy server", res);
+
     freeaddrinfo(res);
 }
+
 
 void WebServer::start()
 {
     std::cout << "Server is running. Press Ctrl+C to stop.\n";
+    signal(SIGINT, [](int signum) { (void)signum; WebServer::_running = false; });
 
-    while (true)
+    while (_running)
     {
         struct sockaddr_in clientAddr;
         socklen_t clientLen = sizeof(clientAddr);
@@ -109,6 +116,15 @@ void WebServer::start()
                 continue;
             }
         }
-        handleClient(clientSocket);
+        try
+        {
+            handleClient(clientSocket);
+        }
+        catch (const WebErrors::ClientException &e)
+        {
+            WebErrors::printerror(e.what());
+        }
     }
+
+    std::cout << "Server stopped.\n";
 }

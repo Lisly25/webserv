@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <exception>
+#include <netdb.h>
 #include <string>
 #include <errno.h>
 
@@ -20,9 +21,19 @@ namespace WebErrors
         std::string _message;
     };
 
-    class FileOpenException : public BaseException {
+    class FileOpenException : public BaseException
+    {
     public:
         explicit FileOpenException(const std::string &filename);
+    };
+
+    class ClientException : public BaseException
+    {
+    public:
+        explicit ClientException(const std::string &message, addrinfo* res = nullptr);
+        ~ClientException();
+    private:
+        addrinfo* _res;
     };
 
     int printerror(const std::string &e);

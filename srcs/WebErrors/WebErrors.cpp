@@ -13,6 +13,13 @@ namespace WebErrors
     FileOpenException::FileOpenException(const std::string &filename)
         : BaseException("Error opening config file: " + filename) {}
 
+    /* Handles exceptions happening in the client handling in server */
+    ClientException::ClientException(const std::string &message, addrinfo* res)
+        : BaseException(message), _res(res) { }
+
+    ClientException::~ClientException() { if (_res) freeaddrinfo(_res); }
+    
+    
     int printerror(const std::string &e)
     {
         if (errno != 0)
