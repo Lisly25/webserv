@@ -24,5 +24,10 @@ namespace WebErrors
         explicit FileOpenException(const std::string &filename);
     };
 
+    class ConfigFormatException : public BaseException {
+    public:
+        explicit ConfigFormatException(std::string error_msg);
+    };
+
     int printerror(const std::string &e);
 }
