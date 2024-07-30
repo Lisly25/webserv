@@ -1,5 +1,6 @@
 #include "WebParser.hpp"
 #include "WebErrors.hpp"
+#include <filesystem>
 
 WebParser::WebParser(const std::string &filename) 
 :  _filename(filename), _file(filename)
@@ -45,3 +46,14 @@ void WebParser::parseCgiPass(const std::string &line)
 std::string WebParser::getProxyPass() const { return _proxyPass; }
 
 std::string WebParser::getCgiPass() const { return _cgiPass; }
+
+/* checkFormat will verify basic requirements:
+- file extension
+- are directives always followed by semicolons
+- are {}s always closed
+- ... */
+
+bool WebParser::checkFormat(void)
+{
+
+}
