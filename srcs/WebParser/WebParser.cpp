@@ -16,6 +16,8 @@ bool WebParser::parse()
     std::string line;
     while (std::getline(_file, line))
     {
+        if (!checkSemicolon(line))
+            throw WebErrors::ConfigFormatException("Error: directives in config files must be followed by semicolons");
         if (line.find("proxy_pass") != std::string::npos)
             parseProxyPass(line);
         if (line.find("cgi_pass") != std::string::npos)
@@ -54,6 +56,20 @@ std::string WebParser::getCgiPass() const { return _cgiPass; }
 - are directives always followed by semicolons
 - are {}s always closed
 - ... */
+
+bool WebParser::checkSemicolon(std::string line)
+{
+    int   i = line.length();
+
+    while (isspace(line[i]) && i > 0)
+        i--;
+    if (i == 0)
+        return (true);
+    i--;
+    if (isalnum(line[i]) && (line[i] != ';' && line[i] != '{' && line[i] != '}'))
+        return (false);
+    return (true);
+}
 
 bool WebParser::checkFormat(void)
 {
