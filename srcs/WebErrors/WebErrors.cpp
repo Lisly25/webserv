@@ -1,5 +1,6 @@
 #include "WebErrors.hpp"
 #include <cstring>
+#include "WebServer.hpp"
 
 namespace WebErrors
 {
@@ -14,10 +15,14 @@ namespace WebErrors
         : BaseException("Error opening config file: " + filename) {}
 
     /* Handles exceptions happening in the client handling in server */
-    ClientException::ClientException(const std::string &message, addrinfo* res)
-        : BaseException(message), _res(res) { }
+    ClientException::ClientException(const std::string &message, addrinfo* res, WebServer* server, int clientSocket)
+        : BaseException(message), _res(res), _server(server), _clientSocket(clientSocket) { }
 
-    ClientException::~ClientException() { if (_res) freeaddrinfo(_res); }
+    ClientException::~ClientException()
+    {
+        if (_res) freeaddrinfo(_res);
+        if (_server && _clientSocket != -1) _server->removeClientSocket(_clientSocket);
+    }
     
     
     int printerror(const std::string &e)
@@ -28,4 +33,9 @@ namespace WebErrors
             std::cerr << e << std::endl;
         return -1;
     }
+
+    /* Server Exceptions in the server */
+    ServerException::ServerException(const std::string &message)
+        : BaseException(message) { }
+    ServerException::~ServerException() {}
 }
