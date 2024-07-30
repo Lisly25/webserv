@@ -12,6 +12,9 @@ namespace WebErrors
     FileOpenException::FileOpenException(const std::string &filename)
         : BaseException("Error opening config file: " + filename) {}
 
+    ConfigFormatException::ConfigFormatException(std::string error_msg)
+        : BaseException(error_msg) {}
+
     int printerror(const std::string &e)
     {
         std::cerr << e << std::endl;
