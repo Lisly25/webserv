@@ -41,7 +41,7 @@ unpack-test: $(TARBALL)
 	tar -xvzf $(TARBALL) -C $(TESTS_DIR)
 
 conf-parse-test:
-	c++ -Wall -Wextra -Werror -std=c++17 srcs/WebErrors/WebErrors.cpp srcs/WebParser/WebParser.cpp srcs/config_parse_test_main.cpp -I srcs/WebErrors -lstdc++fs -o parseTest
+	c++ -Wall -Wextra -Werror -std=c++17 -ggdb3 srcs/WebErrors/WebErrors.cpp srcs/WebParser/WebParser.cpp srcs/config_parse_test_main.cpp -I srcs/WebErrors -lstdc++fs -o parseTest
 
 # ---
 
