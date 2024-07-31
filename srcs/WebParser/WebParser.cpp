@@ -16,6 +16,8 @@ bool WebParser::parse()
     std::string line;
     while (std::getline(_file, line))
     {
+        if (checkComment(line))
+            continue;
         if (!checkSemicolon(line))
             throw WebErrors::ConfigFormatException("Error: directives in config files must be followed by semicolons");
         if (line.find("proxy_pass") != std::string::npos)
@@ -59,7 +61,7 @@ std::string WebParser::getCgiPass() const { return _cgiPass; }
 
 bool WebParser::checkSemicolon(std::string line)
 {
-    int   i = line.length();
+    int i = line.length();
 
     while (isspace(line[i]) && i > 0)
         i--;
@@ -69,6 +71,18 @@ bool WebParser::checkSemicolon(std::string line)
     if (isalnum(line[i]) && (line[i] != ';' && line[i] != '{' && line[i] != '}'))
         return (false);
     return (true);
+}
+
+bool WebParser::checkComment(std::string line)
+{
+    int i = 0;
+    int lineLength = line.length();
+
+    while (i < lineLength && isspace(line[i]))
+        i++;
+    if (line[i] == '#')
+        return (true);
+    return (false);
 }
 
 bool WebParser::checkFormat(void)

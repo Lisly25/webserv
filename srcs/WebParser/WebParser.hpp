@@ -27,5 +27,6 @@ private:
     void parseProxyPass(const std::string &line);
     void parseCgiPass(const std::string &line);
     bool checkSemicolon(std::string line);
+    bool checkComment(std::string line);
     bool checkFormat(void);
 };
