@@ -74,7 +74,6 @@ bool WebParser::checkSemicolon(std::string line)
     i--;
     if (isalnum(line[i]) && (line[i] != ';' && line[i] != '{' && line[i] != '}'))
         return (false);
-    std::cout << "Processed line " << line << std::endl;
     return (true);
 }
 
@@ -98,13 +97,9 @@ bool WebParser::checkBraces(std::string line)
     while (line[i])
     {
         if (line[i] == '{')
-        {
-            std::cout << "Found an opening brace!" << std::endl;
             _bracePairCheckStack.push(line[i]);
-        }
         else if (line[i] == '}')
         {
-            std::cout << "Found a closing brace!" << std::endl;
             if (_bracePairCheckStack.empty())
                 return (false);
             if (_bracePairCheckStack.top() == '{')
