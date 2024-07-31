@@ -1,4 +1,5 @@
 #include "WebServer.hpp"
+#include "RequestHandler/RequestHandler.hpp"
 #include "WebErrors.hpp"
 #include <csignal>
 #include <fcntl.h>
@@ -11,6 +12,7 @@
 #include <sys/epoll.h>
 
 bool WebServer::_running = true;
+RequestHandler WebServer::_requestHandler;
 
 WebServer::WebServer(WebParser &parser, int port) : _parser(parser)
 {
@@ -54,11 +56,10 @@ int WebServer::createServerSocket(int port)
         setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
         throw WebErrors::ServerException("Error opening or configuring server socket");
 
-    memset(&_serverAddr, 0, sizeof(_serverAddr));
+    std::memset(&_serverAddr, 0, sizeof(_serverAddr));
     _serverAddr.sin_family = AF_INET;
     _serverAddr.sin_addr.s_addr = INADDR_ANY;
     _serverAddr.sin_port = htons(port);
-
     if (bind(serverSocket, (struct sockaddr *)&_serverAddr, sizeof(_serverAddr)) < 0)
         throw WebErrors::ServerException("Error binding server socket");
 
@@ -84,66 +85,26 @@ void WebServer::removeClientSocket(int clientSocket)
     close(clientSocket);
 }
 
-void WebServer::handleClient(int clientSocket)
-{
-    char        buffer[4096];
-    addrinfo    hints{};
-    addrinfo    *res = nullptr;
-    ssize_t     bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
-
-    if (bytesRead <= 0)
-        throw WebErrors::ClientException("Error reading from client socket", nullptr, this, clientSocket);
-
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-
-    if (getaddrinfo("localhost", "8080", &hints, &res) != 0)
-        throw WebErrors::ClientException("Error resolving proxy host", nullptr, this, clientSocket);
-
-    const int proxySocket = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-
-    if (proxySocket < 0 || connect(proxySocket, res->ai_addr, res->ai_addrlen) < 0)
-        throw WebErrors::ClientException("Error connecting to proxy server", res, this, clientSocket);
-
-    if (send(proxySocket, buffer, bytesRead, 0) < 0)
-        throw WebErrors::ClientException("Error sending to proxy server", res, this, clientSocket);
-
-    while ((bytesRead = recv(proxySocket, buffer, sizeof(buffer), 0)) > 0)
-    {
-        if (send(clientSocket, buffer, bytesRead, 0) < 0)
-            throw WebErrors::ClientException("Error sending to client socket", res, this, clientSocket);
+void WebServer::handleClient(int clientSocket) {
+    try {
+        _requestHandler.handleRequest(clientSocket);
+    } catch (const WebErrors::ClientException &e) {
+        WebErrors::printerror(e.what());
     }
-    if (bytesRead < 0)
-        throw WebErrors::ClientException("Error reading from proxy server", res, this, clientSocket);
-    freeaddrinfo(res);
-    close(proxySocket);
 }
 
 void WebServer::acceptClient()
 {
-    struct sockaddr_in  clientAddr;
-    socklen_t           clientLen = sizeof(clientAddr);
-    const int           clientSocket = accept(_serverSocket, (struct sockaddr *)&clientAddr, &clientLen);
+    struct sockaddr_in clientAddr;
+    socklen_t clientLen = sizeof(clientAddr);
+    const int clientSocket = accept(_serverSocket, (struct sockaddr *)&clientAddr, &clientLen);
 
-    if (clientSocket < 0)
-    {
+    if (clientSocket < 0) {
         if (errno != EAGAIN && errno != EWOULDBLOCK)
             WebErrors::printerror("Error accepting connection");
         return;
     }
     addClientSocket(clientSocket);
-}
-
-void WebServer::processClient(int clientSocket)
-{
-    try
-    {
-        handleClient(clientSocket);
-    }
-    catch (const WebErrors::ClientException &e)
-    {
-        WebErrors::printerror(e.what());
-    }
 }
 
 void WebServer::handleEvents(int eventCount)
@@ -155,7 +116,7 @@ void WebServer::handleEvents(int eventCount)
             if (_events[i].data.fd == _serverSocket)
                 acceptClient();
             else
-                processClient(_events[i].data.fd);
+               handleClient(_events[i].data.fd);
         }
     }
 }
@@ -163,7 +124,7 @@ void WebServer::handleEvents(int eventCount)
 void WebServer::start()
 {
     std::cout << "Server is running. Press Ctrl+C to stop.\n";
-    signal(SIGINT, [](int signum) { (void)signum; WebServer::_running = false; });
+    std::signal(SIGINT, [](int signum) { (void)signum; WebServer::_running = false; });
 
     while (_running)
     {

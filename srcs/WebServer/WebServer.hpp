@@ -1,5 +1,6 @@
 #pragma once
 
+#include "RequestHandler/RequestHandler.hpp"
 #include "WebParser.hpp"
 #include <string>
 #include <netinet/in.h>
@@ -8,7 +9,8 @@
 #include <netinet/tcp.h>
 #include <vector>
 
-class WebServer {
+class WebServer
+{
 public:
     WebServer(WebParser &parser, int port);
     ~WebServer();
@@ -19,13 +21,14 @@ public:
     void removeClientSocket(int clientSocket);
 
 private:
-    static bool         _running;
-    int                 _serverSocket;
-    int                 _epollFd;
-    WebParser           &_parser;
-    struct sockaddr_in  _serverAddr;
-    static const int    MAX_EVENTS = 100;
-    epoll_event         _events[MAX_EVENTS];
+    static bool             _running;
+    int                     _serverSocket;
+    int                     _epollFd;
+    WebParser               &_parser;
+    struct sockaddr_in      _serverAddr;
+    static const int        MAX_EVENTS = 100;
+    epoll_event             _events[MAX_EVENTS];
+    static RequestHandler   _requestHandler;
 
     int     createServerSocket(int port);
     void    handleClient(int clientSocket);
@@ -33,5 +36,5 @@ private:
     void    addClientSocket(int clientSocket);
     void    handleEvents(int eventCount);
     void    acceptClient(void);
-    void    processClient(int clientSocket);
+
 };
