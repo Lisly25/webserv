@@ -33,6 +33,7 @@ mydomain.com:4242
 + directives must be followed by ';'
 + unclosed braces '{}' are not allowed
 + Currently, the only accepted format for contexts is
+  	```
 	server {
 		...
 	}
@@ -43,6 +44,7 @@ mydomain.com:4242
 	{
 		...
 	}
+	```
 
 	This latter format will throw an error (but arguably shouldn't - will get back to this)
 
