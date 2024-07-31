@@ -14,6 +14,9 @@ namespace WebErrors
     FileOpenException::FileOpenException(const std::string &filename)
         : BaseException("Error opening config file: " + filename) {}
 
+    ConfigFormatException::ConfigFormatException(std::string error_msg)
+        : BaseException(error_msg) {}
+
     /* Handles exceptions happening in the client handling in server */
     ClientException::ClientException(const std::string &message, addrinfo* res, WebServer* server, int clientSocket)
         : BaseException(message), _res(res), _server(server), _clientSocket(clientSocket) { }
@@ -23,7 +26,6 @@ namespace WebErrors
         if (_res) freeaddrinfo(_res);
         if (_server && _clientSocket != -1) _server->removeClientSocket(_clientSocket);
     }
-    
     
     int printerror(const std::string &e)
     {

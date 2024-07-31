@@ -4,6 +4,9 @@
 WebParser::WebParser(const std::string &filename) 
 :  _filename(filename), _file(filename)
 {
+    std::filesystem::path filePath = filename;
+    if (filePath.extension() != ".conf")//.extension is a function from c++17 --> change -std flag in Makefile if we keep this. + add compiler flag -lstdc++fs
+        throw WebErrors::ConfigFormatException("Error: configuration file must have .conf extension");
     if (!_file.is_open())
         throw WebErrors::FileOpenException(_filename);
 }
@@ -13,11 +16,19 @@ bool WebParser::parse()
     std::string line;
     while (std::getline(_file, line))
     {
+        if (checkComment(line))
+            continue;
+        if (!checkBraces(line))
+            throw WebErrors::ConfigFormatException("Error: unclosed braces");
+        if (!checkSemicolon(line))
+            throw WebErrors::ConfigFormatException("Error: directives in config files must be followed by semicolons");
         if (line.find("proxy_pass") != std::string::npos)
             parseProxyPass(line);
         if (line.find("cgi_pass") != std::string::npos)
             parseCgiPass(line);
     }
+    if (!_bracePairCheckStack.empty())
+        throw WebErrors::ConfigFormatException("Error: unclosed braces");
     _file.close();
     return true;
 }
@@ -45,3 +56,63 @@ void WebParser::parseCgiPass(const std::string &line)
 std::string WebParser::getProxyPass() const { return _proxyPass; }
 
 std::string WebParser::getCgiPass() const { return _cgiPass; }
+
+/* checkFormat will verify basic requirements:
+- file extension
+- are directives always followed by semicolons
+- are {}s always closed
+- ... */
+
+bool WebParser::checkSemicolon(std::string line)
+{
+    int i = line.length();
+
+    while (isspace(line[i]) && i > 0)
+        i--;
+    if (i == 0)
+        return (true);
+    i--;
+    if (isalnum(line[i]) && (line[i] != ';' && line[i] != '{' && line[i] != '}'))
+        return (false);
+    return (true);
+}
+
+bool WebParser::checkComment(std::string line)
+{
+    int i = 0;
+    int lineLength = line.length();
+
+    while (i < lineLength && isspace(line[i]))
+        i++;
+    if (line[i] == '#')
+        return (true);
+    return (false);
+}
+
+//no good, need to parse the whole file to verify if all braces are closed
+bool WebParser::checkBraces(std::string line)
+{
+    int i = 0;
+   
+    while (line[i])
+    {
+        if (line[i] == '{')
+            _bracePairCheckStack.push(line[i]);
+        else if (line[i] == '}')
+        {
+            if (_bracePairCheckStack.empty())
+                return (false);
+            if (_bracePairCheckStack.top() == '{')
+                _bracePairCheckStack.pop();
+            else
+                return (false);
+        }
+        i++;
+    }
+    return (true);
+}
+
+bool WebParser::checkFormat(void)
+{
+    return (true);
+}

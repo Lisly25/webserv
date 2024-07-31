@@ -1,7 +1,7 @@
 SRC = $(shell find srcs -name *.cpp)
 OBJS = $(SRC:.cpp=.o)
 CXX = c++
-CPPFLAGS = -Wall -Wextra -Werror -std=c++11 -pedantic $(addprefix -I, $(shell find srcs -type d))
+CPPFLAGS = -Wall -Wextra -Werror -std=c++17 -pedantic $(addprefix -I, $(shell find srcs -type d))
 NAME = webserv
 
 DOCKER_COMPOSE_FILE := ./docker-services/docker-compose.yml
@@ -40,6 +40,9 @@ down:
 unpack-test: $(TARBALL)
 	tar -xvzf $(TARBALL) -C $(TESTS_DIR)
 
+conf-parse-test:
+	c++ -Wall -Wextra -Werror -std=c++17 -ggdb3 srcs/WebErrors/WebErrors.cpp srcs/WebParser/WebParser.cpp srcs/config_parse_test_main.cpp -I srcs/WebErrors -lstdc++fs -o parseTest
+
 # ---
 
-.PHONY: all clean fclean re proxy-pass-test up down unpack-test
+.PHONY: all clean fclean re proxy-pass-test up down unpack-test conf-parse-test
