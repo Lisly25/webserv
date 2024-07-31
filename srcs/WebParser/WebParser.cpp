@@ -4,7 +4,7 @@
 WebParser::WebParser(const std::string &filename) 
 :  _filename(filename), _file(filename)
 {
-    std::experimental::filesystem::path filePath = filename;
+    std::filesystem::path filePath = filename;
     if (filePath.extension() != ".conf")//.extension is a function from c++17 --> change -std flag in Makefile if we keep this. + add compiler flag -lstdc++fs
         throw WebErrors::ConfigFormatException("Error: configuration file must have .conf extension");
     if (!_file.is_open())
