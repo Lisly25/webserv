@@ -27,6 +27,25 @@ mydomain.com:4242
 
 #### in browser use the fn + f12 and network tab to see if the requests go trough and with what HTTP status codes are the requests returning 200 = OK
 
+### Configuration file setup
 
++ the file extension must be .conf
++ directives must be followed by ';'
++ unclosed braces '{}' are not allowed
++ Currently, the only accepted format for contexts is
+	server {
+		...
+	}
+
+	as opposed to
+
+	server
+	{
+		...
+	}
+
+	This latter format will throw an error (but arguably shouldn't - will get back to this)
+
++ lines where the first non/whitespace character is '#' are treated as comments - inline comments are not (yet?) implemented
 
 
