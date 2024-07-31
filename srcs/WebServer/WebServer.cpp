@@ -12,8 +12,7 @@
 
 bool WebServer::_running = true;
 
-WebServer::WebServer(const std::string &proxyPass, int port)
-    : _proxyPass(proxyPass)
+WebServer::WebServer(WebParser &parser, int port) : _parser(parser)
 {
     _serverSocket = createServerSocket(port);
     setSocketFlags(_serverSocket);
@@ -23,7 +22,7 @@ WebServer::WebServer(const std::string &proxyPass, int port)
         throw WebErrors::ServerException("Error creating epoll instance");
 
     epoll_event event;
-    event.events = EPOLLIN;
+    event.events = EPOLLIN | EPOLLET;
     event.data.fd = _serverSocket;
 
     if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, _serverSocket, &event) == -1)
@@ -120,44 +119,62 @@ void WebServer::handleClient(int clientSocket)
     close(proxySocket);
 }
 
+void WebServer::acceptClient()
+{
+    struct sockaddr_in  clientAddr;
+    socklen_t           clientLen = sizeof(clientAddr);
+    const int           clientSocket = accept(_serverSocket, (struct sockaddr *)&clientAddr, &clientLen);
+
+    if (clientSocket < 0)
+    {
+        if (errno != EAGAIN && errno != EWOULDBLOCK)
+            WebErrors::printerror("Error accepting connection");
+        return;
+    }
+    addClientSocket(clientSocket);
+}
+
+void WebServer::processClient(int clientSocket)
+{
+    try
+    {
+        handleClient(clientSocket);
+    }
+    catch (const WebErrors::ClientException &e)
+    {
+        WebErrors::printerror(e.what());
+    }
+}
+
+void WebServer::handleEvents(int eventCount)
+{
+    for (int i = 0; i < eventCount; ++i)
+    {
+        if (_events[i].events & EPOLLIN)
+        {
+            if (_events[i].data.fd == _serverSocket)
+                acceptClient();
+            else
+                processClient(_events[i].data.fd);
+        }
+    }
+}
+
 void WebServer::start()
 {
     std::cout << "Server is running. Press Ctrl+C to stop.\n";
     signal(SIGINT, [](int signum) { (void)signum; WebServer::_running = false; });
 
-
     while (_running)
     {
         int eventCount = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
-        if (eventCount == -1) {
+        if (eventCount == -1)
+        {
             if (errno == EINTR) continue;
             WebErrors::printerror("Epoll wait error");
-            break;
+            continue;
         }
-
-        for (int i = 0; i < eventCount; ++i) {
-            if (_events[i].events & EPOLLIN) {
-                if (_events[i].data.fd == _serverSocket) {
-                    struct sockaddr_in clientAddr;
-                    socklen_t clientLen = sizeof(clientAddr);
-                    int clientSocket = accept(_serverSocket, (struct sockaddr *)&clientAddr, &clientLen);
-                    if (clientSocket < 0) {
-                        if (errno != EAGAIN && errno != EWOULDBLOCK) {
-                            WebErrors::printerror("Error accepting connection");
-                        }
-                        continue;
-                    }
-                    addClientSocket(clientSocket);
-                } else {
-                    try {
-                        handleClient(_events[i].data.fd);
-                    } catch (const WebErrors::ClientException &e) {
-                        WebErrors::printerror(e.what());
-                    }
-                }
-            }
-        }
+        handleEvents(eventCount);
     }
-
     std::cout << "Server stopped.\n";
 }
