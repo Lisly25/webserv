@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include <filesystem>
+#include <stack>
 
 class WebParser
 {
@@ -19,14 +20,16 @@ public:
     std::string getCgiPass() const;
 
 private:
-    std::string     _filename;
-    std::ifstream   _file;
-    std::string     _proxyPass;
-    std::string     _cgiPass;
+    std::string         _filename;
+    std::ifstream       _file;
+    std::string         _proxyPass;
+    std::string         _cgiPass;
+    std::stack<char>    _bracePairCheckStack;
 
     void parseProxyPass(const std::string &line);
     void parseCgiPass(const std::string &line);
     bool checkSemicolon(std::string line);
     bool checkComment(std::string line);
+    bool checkBraces(std::string line);
     bool checkFormat(void);
 };

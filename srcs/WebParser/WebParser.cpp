@@ -18,6 +18,8 @@ bool WebParser::parse()
     {
         if (checkComment(line))
             continue;
+        if (!checkBraces(line))
+            throw WebErrors::ConfigFormatException("Error: unclosed braces");
         if (!checkSemicolon(line))
             throw WebErrors::ConfigFormatException("Error: directives in config files must be followed by semicolons");
         if (line.find("proxy_pass") != std::string::npos)
@@ -25,6 +27,8 @@ bool WebParser::parse()
         if (line.find("cgi_pass") != std::string::npos)
             parseCgiPass(line);
     }
+    if (!_bracePairCheckStack.empty())
+        throw WebErrors::ConfigFormatException("Error: unclosed braces");
     _file.close();
     return true;
 }
@@ -70,6 +74,7 @@ bool WebParser::checkSemicolon(std::string line)
     i--;
     if (isalnum(line[i]) && (line[i] != ';' && line[i] != '{' && line[i] != '}'))
         return (false);
+    std::cout << "Processed line " << line << std::endl;
     return (true);
 }
 
@@ -83,6 +88,33 @@ bool WebParser::checkComment(std::string line)
     if (line[i] == '#')
         return (true);
     return (false);
+}
+
+//no good, need to parse the whole file to verify if all braces are closed
+bool WebParser::checkBraces(std::string line)
+{
+    int i = 0;
+   
+    while (line[i])
+    {
+        if (line[i] == '{')
+        {
+            std::cout << "Found an opening brace!" << std::endl;
+            _bracePairCheckStack.push(line[i]);
+        }
+        else if (line[i] == '}')
+        {
+            std::cout << "Found a closing brace!" << std::endl;
+            if (_bracePairCheckStack.empty())
+                return (false);
+            if (_bracePairCheckStack.top() == '{')
+                _bracePairCheckStack.pop();
+            else
+                return (false);
+        }
+        i++;
+    }
+    return (true);
 }
 
 bool WebParser::checkFormat(void)
