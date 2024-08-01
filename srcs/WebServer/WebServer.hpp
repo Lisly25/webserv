@@ -29,7 +29,7 @@ private:
     struct sockaddr_in      _serverAddr;
     static const int        MAX_EVENTS = 100;
     epoll_event             _events[MAX_EVENTS];
-    static RequestHandler   _requestHandler;
+    RequestHandler          _requestHandler;
 
     int     createServerSocket(int port);
     void    handleClient(int clientSocket);

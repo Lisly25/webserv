@@ -13,12 +13,10 @@
 #include <sys/epoll.h>
 
 bool WebServer::_running = true;
-RequestHandler WebServer::_requestHandler(-1);
 
 WebServer::WebServer(WebParser &parser, int port)
-    : _serverSocket(createServerSocket(port)), _parser(parser)
+    : _serverSocket(createServerSocket(port)), _epollFd(epoll_create(1)), _parser(parser), _requestHandler(_epollFd)
 {
-    _epollFd = epoll_create(1);
     if (_epollFd == -1)
         throw WebErrors::ServerException("Error creating epoll instance");
 
@@ -28,6 +26,7 @@ WebServer::WebServer(WebParser &parser, int port)
     if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, _serverSocket.get(), &event) == -1)
         throw WebErrors::ServerException("Error adding server socket to epoll");
 }
+
 
 WebServer::~WebServer() { close(_epollFd); }
 
@@ -53,12 +52,6 @@ int WebServer::createServerSocket(int port)
     return serverSocket.release();
 }
 
-void WebServer::removeClientSocket(int clientSocket)
-{
-    epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
-    close(clientSocket);
-}
-
 // ACCEPT THE CLIENT CONNECTION AND ADD IT TO THE EPOLL POOL
 void WebServer::acceptAddClient()
 {
@@ -78,37 +71,45 @@ void WebServer::acceptAddClient()
     clientSocket.release();
 }
 
+void WebServer::removeClientSocket(int clientSocket)
+{
+    epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
+    close(clientSocket);
+    clientSocket = -1;
+}
+
 void WebServer::handleIncomingData(int clientSocket)
 {
-    try
-    {
-        if (clientSocket == _serverSocket.get()) // New clients fd matches the server socket fd in first event then added to the pool
-                acceptAddClient();
+    try {
+        if (clientSocket == _serverSocket.get())
+            acceptAddClient();
         else
-            _requestHandler.handleRequest(clientSocket); // Handle existing user request
+            _requestHandler.handleRequest(clientSocket);
     }
-    catch (const WebErrors::ClientException &e)
-    {
+    catch (const WebErrors::ClientException &e) {
         std::cerr << e.what() << std::endl;
     }
 }
 
-//void WebServer::handleOutgoingData(int clientSocket) { TO DO }
-
-void WebServer::handleEvents(int eventCount)
+void WebServer::handleOutgoingData(int socket)
 {
-    for (int i = 0; i < eventCount; ++i)
-    {
-        if (_events[i].events & EPOLLIN) // EPOLLIN is set when there is data to read from client socket (recv())
-        {
-            handleIncomingData(_events[i].data.fd);
-        }
-        /*else if (_events[i].events & EPOLLOUT) // EPOLLOUT is set when the socket is ready to send data to the client (send())
-        {
-            handleOutgoingData(_events[i].data.fd);
-        }*/
+    try {
+        _requestHandler.handleProxyResponse(socket);
+    }
+    catch (const WebErrors::ClientException &e) {
+        std::cerr << e.what() << std::endl;
     }
 }
+
+void WebServer::handleEvents(int eventCount) {
+    for (int i = 0; i < eventCount; ++i) {
+        if (_events[i].events & EPOLLIN)
+            handleIncomingData(_events[i].data.fd);
+        else if (_events[i].events & EPOLLOUT)
+            handleOutgoingData(_events[i].data.fd);
+    }
+}
+
 
 void WebServer::start()
 {
