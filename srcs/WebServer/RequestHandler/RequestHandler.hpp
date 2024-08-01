@@ -17,7 +17,7 @@ private:
     addrinfo*   _proxyInfo;
 
     bool    parseRequest(const char* request, ssize_t length);
-    void    handleCgiRequest(const char* request, ssize_t length);
-    void    handleProxyRequest(int clientSocket, const char* request, ssize_t length);
+    void    handleCgiPass(const char* request, ssize_t length);
+    void    handleProxyPass(int clientSocket, const char* request, ssize_t length);
     void    resolveProxyAddress();
 };

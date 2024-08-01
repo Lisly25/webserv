@@ -19,30 +19,43 @@ void RequestHandler::handleRequest(int clientSocket)
 
     if (bytesRead <= 0)
         throw WebErrors::ClientException("Error reading from client socket", nullptr, nullptr, clientSocket);
-
-        // Add other methods later
-
-    //if (parseRequest(buffer, bytesRead))
-    //    handleCgiRequest(buffer, bytesRead);
-    //else
-
-    handleProxyRequest(clientSocket, buffer, bytesRead);
+    try
+    {
+        //if (parseRequest(buffer, bytesRead))
+        //    handleCgiRequest(buffer, bytesRead);
+        handleProxyPass(clientSocket, buffer, bytesRead);
+    }
+    catch (const WebErrors::ClientException &e)
+    {
+        throw;
+    }
 }
 
 // Find the locations from the config file
 bool RequestHandler::parseRequest(const char* request, ssize_t length)
 {
-    std::string req(request, length);
-    return req.find("/cgi-bin/") != std::string::npos;
+
+/**  CHECK THAT FROM WAHT LOCATION USER WANTS THE DATA AND DOES THE 
+    *   DO WE PASS THE DATA TO CGI OR PROXY TO OTHER SERVER
+    location /perse
+    {
+        proxy_pass http://localhost:8080;
+        cgi_pass /usr/bin/php-cgi;
+    }
+ */
+
+    (void )request;
+    (void )length;
+    return false;
 }
 
-void RequestHandler::handleCgiRequest(const char* request, ssize_t length)
+void RequestHandler::handleCgiPass(const char* request, ssize_t length)
 {
    (void )request;
     (void )length;
 }
 
-void RequestHandler::handleProxyRequest(int clientSocket, const char* request, ssize_t length)
+void RequestHandler::handleProxyPass(int clientSocket, const char* request, ssize_t length)
 {
     const int   proxySocket = socket(_proxyInfo->ai_family, _proxyInfo->ai_socktype, _proxyInfo->ai_protocol);
     char        buffer[4096];
@@ -73,7 +86,6 @@ void RequestHandler::resolveProxyAddress()
     hints.ai_flags = AI_PASSIVE;    // Allows bind
 
     // Only one proxy running on 8080, (homer docker container)
-    if (getaddrinfo("localhost", "8080", &hints, &_proxyInfo) != 0) {
+    if (getaddrinfo("localhost", "8080", &hints, &_proxyInfo) != 0)
         throw WebErrors::ClientException("Error resolving proxy host", nullptr, nullptr, -1);
-    }
 }

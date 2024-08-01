@@ -49,8 +49,8 @@ WebServer::~WebServer()
 
 int WebServer::createServerSocket(int port)
 {
-    int opt = 1;
-    const int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    int         opt = 1;
+    const int   serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 
     if (serverSocket < 0 || 
         setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
@@ -73,7 +73,7 @@ void WebServer::addClientSocket(int clientSocket)
 {
     setSocketFlags(clientSocket);
     epoll_event event;
-    event.events = EPOLLIN | EPOLLET;
+    event.events = EPOLLIN | EPOLLET | EPOLLEXCLUSIVE;
     event.data.fd = clientSocket;
     if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, clientSocket, &event) == -1)
         throw WebErrors::ServerException("Error adding client socket to epoll");
@@ -83,14 +83,6 @@ void WebServer::removeClientSocket(int clientSocket)
 {
     epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
     close(clientSocket);
-}
-
-void WebServer::handleClient(int clientSocket) {
-    try {
-        _requestHandler.handleRequest(clientSocket);
-    } catch (const WebErrors::ClientException &e) {
-        WebErrors::printerror(e.what());
-    }
 }
 
 void WebServer::acceptClient()
@@ -107,17 +99,31 @@ void WebServer::acceptClient()
     addClientSocket(clientSocket);
 }
 
+void WebServer::handleClient(int clientSocket)
+{
+    try {
+        _requestHandler.handleRequest(clientSocket);
+    } catch (const WebErrors::ClientException &e) {
+        WebErrors::printerror(e.what());
+    }
+}
+
 void WebServer::handleEvents(int eventCount)
 {
     for (int i = 0; i < eventCount; ++i)
     {
-        if (_events[i].events & EPOLLIN)
+        if (_events[i].events & EPOLLIN) // EPOLLIN is set when there is data to read from client socket (recv())
         {
             if (_events[i].data.fd == _serverSocket)
                 acceptClient();
             else
                handleClient(_events[i].data.fd);
         }
+        /* EPOLLOOUT is set when the socket is ready to send data to the client (send())
+        else if (_events[i].events & EPOLLOUT)
+        {
+            send(_events[i].data.fd, _events[i]); // Implement send logic similar to the found project
+        }*/
     }
 }
 
