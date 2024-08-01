@@ -130,7 +130,7 @@ bool WebParser::checkBracePairs(std::string line)
 
 bool WebParser::checkBracesPerLine(std::string line)
 {
-    int braceCount;
+    int braceCount = 0;
     int i = 0;
 
     while (line[i])
@@ -194,6 +194,7 @@ ssize_t  WebParser::locateContextEnd(size_t contextStart)
 {
     int leftBraceCount = 1;
     int rightBraceCount = 0;
+    ssize_t contextEnd = -1;
 
     contextStart++;
     while (contextStart < _configFile.size())
@@ -206,10 +207,18 @@ ssize_t  WebParser::locateContextEnd(size_t contextStart)
                 rightBraceCount++;
         }
         if (leftBraceCount == rightBraceCount)
-            return (contextStart);
+            contextEnd = contextStart;
         contextStart++;
     }
-    return (-1);
+    if (contextEnd == -1)
+        return (-1);
+    //verifying that the line containing the closing brace contains only whitespaces besides the brace - we already know there is only one brace, and it is a closing one
+    for (size_t i = 0; i < _configFile[contextEnd].length(); i++)
+    {
+        if (!isspace(_configFile[contextStart][i]) && _configFile[contextStart][i] != '}')
+            return (-1);
+    }
+    return (contextEnd);
 }
 
 void WebParser::parseServer(void)
