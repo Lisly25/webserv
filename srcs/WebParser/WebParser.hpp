@@ -52,6 +52,9 @@ private:
     bool        checkComment(std::string line);
     std::string removeInLineComment(std::string line);
     bool        checkBraces(std::string line);
-    //bool verifyKeyword(std::string line, std::string keyword, bool isContext);
-    //void parseServer(std::string line);
+    bool        locateContextStart(std::string line, std::string contextName);
+    size_t      locateContextEnd(size_t start);
+    void        parseServer(void);
+    void        extractServerInfo(size_t contextStart);
+    void        extractLocationInfo(size_t contextStart);
 };

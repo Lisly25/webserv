@@ -5,7 +5,7 @@ WebParser::WebParser(const std::string &filename)
 :  _filename(filename), _file(filename)
 {
     std::filesystem::path filePath = filename;
-    if (filePath.extension() != ".conf")//.extension is a function from c++17 --> change -std flag in Makefile if we keep this. + add compiler flag -lstdc++fs
+    if (filePath.extension() != ".conf")//.extension is a function from c++17
         throw WebErrors::ConfigFormatException("Error: configuration file must have .conf extension");
     if (!_file.is_open())
         throw WebErrors::FileOpenException(_filename);
@@ -31,8 +31,6 @@ bool WebParser::parse()
         {
             std::cerr << e.what() << std::endl;
         }
-        //if (line.find("server") != std::string::npos)
-        //    parseServer(line);
         if (line.find("proxy_pass") != std::string::npos)
             parseProxyPass(line);
         if (line.find("cgi_pass") != std::string::npos)
@@ -41,6 +39,7 @@ bool WebParser::parse()
     if (!_bracePairCheckStack.empty())
         throw WebErrors::ConfigFormatException("Error: unclosed braces");
     _file.close();
+    parseServer();
     return true;
 }
 
@@ -67,12 +66,6 @@ void WebParser::parseCgiPass(const std::string &line)
 std::string WebParser::getProxyPass() const { return _proxyPass; }
 
 std::string WebParser::getCgiPass() const { return _cgiPass; }
-
-/* checkFormat will verify basic requirements:
-- file extension
-- are directives always followed by semicolons
-- are {}s always closed
-- ... */
 
 bool WebParser::checkSemicolon(std::string line)
 {
@@ -108,7 +101,6 @@ std::string WebParser::removeInLineComment(std::string line)
     if (hashtagLocation == std::string::npos)
         return (line);
     line = line.substr(0, hashtagLocation);
-    std::cout << "Line after comment removal: " << line << std::endl;
     return (line);
 }
 
@@ -134,31 +126,76 @@ bool WebParser::checkBraces(std::string line)
     return (true);
 }
 
-//this is meant to check that a line contains just a keyword, and no other substrings)
-// - if isContext is true,it will expect a '{' at the end of the string
-// - if isContext is false, it will just verify that the string starts with keyword, and is followed by a whitespace char
-/*bool WebParser::verifyKeyword(std::string line, std::string keyword, bool isContext)
+/*
+The context format we expect is:
+server {
+    ...
+}
+whitespaces can be added anywhere, and at least one whitespace is expected between the context name and the opening brace
+*/
+
+bool    WebParser::locateContextStart(std::string line, std::string contextName)
 {
-    int keyword_start = line.find(keyword);
-    int i = 0;
-    while (i < keyword_start)
+    size_t keywordStart = line.find(contextName);
+
+    if (keywordStart == std::string::npos)
+        return (false);
+
+    size_t i = 0;
+
+    while (i < keywordStart)
     {
         if (!isspace(line[i]))
             return (false);
         i++;
     }
-    i += keyword.length();
-    while (i < line.length() && isspace(line[i]))
+
+    size_t j;
+
+    i += contextName.length();
+    j = i;
+
+    while (isspace(line[i]))
+        i++;
+    if (i == j)
+        return (false);
+    if (line[i] != '{')
+        return (false);
+    if (i < line.length())
+        i++;
+    while (line[i])
     {
-        if (isContext)
-            return (true);
+        if (!isspace(line[i]))
+            return (false);
         i++;
     }
-    if (!isContext)
-        return (false);
-}*/
+    return (true);
+}
 
-/*void WebParser::parseServer(std::string line)
+size_t  locateContextEnd(size_t contextStart)
 {
-    
-}*/
+
+}
+
+void WebParser::parseServer(void)
+{
+    size_t i;
+
+    i = 0;
+    while (i < _configFile.size())
+    {
+        if (locateContextStart(_configFile[i], "server") == true)
+        {
+            extractServerInfo(i);
+            i = 0;        
+        }
+        i++;
+    }
+    //Here we need to check if the _servers vector is empty, throw an exception if it is
+}
+
+void WebParser::extractServerInfo(size_t contextStart)
+{
+    size_t  contextEnd = locateContextEnd(contextStart);
+
+}
