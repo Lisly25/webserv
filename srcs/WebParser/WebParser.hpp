@@ -38,18 +38,19 @@ public:
 
 private:
 
-    std::string         _filename;
-    std::ifstream       _file;
-    std::string         _proxyPass;
-    std::string         _cgiPass;
-    std::stack<char>    _bracePairCheckStack;
-    std::vector<Server> _servers;
+    std::vector<std::string> _configFile;
+    std::string              _filename;
+    std::ifstream            _file;
+    std::string             _proxyPass;
+    std::string             _cgiPass;
+    std::stack<char>        _bracePairCheckStack;
+    std::vector<Server>     _servers;
 
     void parseProxyPass(const std::string &line);
     void parseCgiPass(const std::string &line);
     bool checkSemicolon(std::string line);
     bool checkComment(std::string line);
     bool checkBraces(std::string line);
-    bool verifyKeyword(std::string line, std::string keyword, bool isContext);
-    void parseServer(std::string line);
+    //bool verifyKeyword(std::string line, std::string keyword, bool isContext);
+    //void parseServer(std::string line);
 };

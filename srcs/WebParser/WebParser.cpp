@@ -22,8 +22,16 @@ bool WebParser::parse()
             throw WebErrors::ConfigFormatException("Error: unclosed braces");
         if (!checkSemicolon(line))
             throw WebErrors::ConfigFormatException("Error: directives in config files must be followed by semicolons");
-        if (line.find("server") != std::string::npos)
-            parseServer(line);
+        try
+        {
+            _configFile.push_back(line);
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << std::endl;
+        }
+        //if (line.find("server") != std::string::npos)
+        //    parseServer(line);
         if (line.find("proxy_pass") != std::string::npos)
             parseProxyPass(line);
         if (line.find("cgi_pass") != std::string::npos)
@@ -117,7 +125,7 @@ bool WebParser::checkBraces(std::string line)
 //this is meant to check that a line contains just a keyword, and no other substrings)
 // - if isContext is true,it will expect a '{' at the end of the string
 // - if isContext is false, it will just verify that the string starts with keyword, and is followed by a whitespace char
-bool WebParser::verifyKeyword(std::string line, std::string keyword, bool isContext)
+/*bool WebParser::verifyKeyword(std::string line, std::string keyword, bool isContext)
 {
     int keyword_start = line.find(keyword);
     int i = 0;
@@ -136,9 +144,9 @@ bool WebParser::verifyKeyword(std::string line, std::string keyword, bool isCont
     }
     if (!isContext)
         return (false);
-}
+}*/
 
-void WebParser::parseServer(std::string line)
+/*void WebParser::parseServer(std::string line)
 {
     
-}
+}*/
