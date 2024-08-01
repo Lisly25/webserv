@@ -215,7 +215,7 @@ ssize_t  WebParser::locateContextEnd(size_t contextStart)
     //verifying that the line containing the closing brace contains only whitespaces besides the brace - we already know there is only one brace, and it is a closing one
     for (size_t i = 0; i < _configFile[contextEnd].length(); i++)
     {
-        if (!isspace(_configFile[contextStart][i]) && _configFile[contextStart][i] != '}')
+        if (!isspace(_configFile[contextEnd][i]) && _configFile[contextEnd][i] != '}')
             return (-1);
     }
     return (contextEnd);
@@ -230,7 +230,10 @@ void WebParser::parseServer(void)
     {
         if (locateContextStart(_configFile[i], "server") == true)
         {
-            extractServerInfo(i);
+            ssize_t  contextEnd = locateContextEnd(i);
+            if (contextEnd == -1)
+                throw WebErrors::ConfigFormatException("Error: context not closed properly");
+            extractServerInfo(i, contextEnd);
             i = 0;        
         }
         i++;
@@ -238,11 +241,7 @@ void WebParser::parseServer(void)
     //Here we need to check if the _servers vector is empty, throw an exception if it is
 }
 
-void WebParser::extractServerInfo(size_t contextStart)
+void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
 {
-    ssize_t  contextEnd = locateContextEnd(contextStart);
-    if (contextEnd == -1)
-        throw WebErrors::ConfigFormatException("Error: context not closed properly");
-    std::cout << "Server context ends at line " << contextEnd << std::endl;
-
+    std::cout << "Server context starts at " << contextStart << " and ends at line " << contextEnd << std::endl;
 }

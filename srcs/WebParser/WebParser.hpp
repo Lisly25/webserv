@@ -56,6 +56,6 @@ private:
     bool        locateContextStart(std::string line, std::string contextName);
     ssize_t     locateContextEnd(size_t contextStart);
     void        parseServer(void);
-    void        extractServerInfo(size_t contextStart);
+    void        extractServerInfo(size_t contextStart, size_t contextEnd);
     void        extractLocationInfo(size_t contextStart);
 };
