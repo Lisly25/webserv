@@ -2,7 +2,7 @@
 #include "WebErrors.hpp"
 #include <unistd.h>
 
-RequestHandler::RequestHandler(void) : _proxyInfo(nullptr)
+RequestHandler::RequestHandler(int epollFd) : _proxyInfo(nullptr), _epollFd(epollFd)
 {
     resolveProxyAddress();
 }
@@ -10,6 +10,7 @@ RequestHandler::RequestHandler(void) : _proxyInfo(nullptr)
 RequestHandler::~RequestHandler()
 {
     freeaddrinfo(_proxyInfo);
+    _proxyInfo = nullptr;
 }
 
 void RequestHandler::handleRequest(int clientSocket)

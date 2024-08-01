@@ -23,7 +23,7 @@ public:
 private:
     static bool             _running;
     int                     _serverSocket;
-    int                     _epollFd;
+    int                     _epollFd = -1;
     WebParser               &_parser;
     struct sockaddr_in      _serverAddr;
     static const int        MAX_EVENTS = 100;
@@ -35,6 +35,9 @@ private:
     void    setSocketFlags(int socket);
     void    addClientSocket(int clientSocket);
     void    handleEvents(int eventCount);
-    void    acceptClient(void);
+    void    acceptAddClient(void);
+
+
+    void    handleIncomingData(int clientSocket);
 
 };

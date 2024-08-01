@@ -12,14 +12,14 @@
 #include <sys/epoll.h>
 
 bool WebServer::_running = true;
-RequestHandler WebServer::_requestHandler;
+RequestHandler WebServer::_requestHandler(-1);
 
 WebServer::WebServer(WebParser &parser, int port) : _parser(parser)
 {
     _serverSocket = createServerSocket(port);
     setSocketFlags(_serverSocket);
 
-    _epollFd = epoll_create1(0);
+    _epollFd = epoll_create(1);
     if (_epollFd == -1)
         throw WebErrors::ServerException("Error creating epoll instance");
 
@@ -69,42 +69,44 @@ int WebServer::createServerSocket(int port)
     return serverSocket;
 }
 
-void WebServer::addClientSocket(int clientSocket)
-{
-    setSocketFlags(clientSocket);
-    epoll_event event;
-    event.events = EPOLLIN | EPOLLET | EPOLLEXCLUSIVE;
-    event.data.fd = clientSocket;
-    if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, clientSocket, &event) == -1)
-        throw WebErrors::ServerException("Error adding client socket to epoll");
-}
-
 void WebServer::removeClientSocket(int clientSocket)
 {
     epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
     close(clientSocket);
 }
 
-void WebServer::acceptClient()
+void WebServer::acceptAddClient()
 {
-    struct sockaddr_in clientAddr;
-    socklen_t clientLen = sizeof(clientAddr);
-    const int clientSocket = accept(_serverSocket, (struct sockaddr *)&clientAddr, &clientLen);
+    struct sockaddr_in  clientAddr;
+    epoll_event         event;
+    socklen_t           clientLen = sizeof(clientAddr);
+    const int           clientSocket = accept(_serverSocket, (struct sockaddr *)&clientAddr, &clientLen);
 
-    if (clientSocket < 0) {
+    if (clientSocket < 0)
+    {
         if (errno != EAGAIN && errno != EWOULDBLOCK)
-            WebErrors::printerror("Error accepting connection");
-        return;
+        throw WebErrors::ServerException("Error accepting client connection");
     }
-    addClientSocket(clientSocket);
+
+    setSocketFlags(clientSocket);
+    event.events = EPOLLIN | EPOLLET | EPOLLEXCLUSIVE;
+    event.data.fd = clientSocket;
+    if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, clientSocket, &event) == -1)
+        throw WebErrors::ServerException("Error adding client socket to epoll");
 }
 
-void WebServer::handleClient(int clientSocket)
+void WebServer::handleIncomingData(int clientSocket)
 {
-    try {
-        _requestHandler.handleRequest(clientSocket);
-    } catch (const WebErrors::ClientException &e) {
-        WebErrors::printerror(e.what());
+    try
+    {
+        if (clientSocket == _serverSocket)
+                acceptAddClient();
+        else
+            _requestHandler.handleRequest(clientSocket);
+    }
+    catch (const WebErrors::ClientException &e)
+    {
+        std::cerr << e.what() << std::endl;
     }
 }
 
@@ -114,15 +116,12 @@ void WebServer::handleEvents(int eventCount)
     {
         if (_events[i].events & EPOLLIN) // EPOLLIN is set when there is data to read from client socket (recv())
         {
-            if (_events[i].data.fd == _serverSocket)
-                acceptClient();
-            else
-               handleClient(_events[i].data.fd);
+            handleIncomingData(_events[i].data.fd);
         }
-        /* EPOLLOOUT is set when the socket is ready to send data to the client (send())
+        /* EPOLLOUT is set when the socket is ready to send data to the client (send())
         else if (_events[i].events & EPOLLOUT)
-        {
-            send(_events[i].data.fd, _events[i]); // Implement send logic similar to the found project
+        { EPOLLOUT 
+            handleOutgoingData(_events[i].data.fd);
         }*/
     }
 }
