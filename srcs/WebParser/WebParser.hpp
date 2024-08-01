@@ -46,11 +46,12 @@ private:
     std::stack<char>        _bracePairCheckStack;
     std::vector<Server>     _servers;
 
-    void parseProxyPass(const std::string &line);
-    void parseCgiPass(const std::string &line);
-    bool checkSemicolon(std::string line);
-    bool checkComment(std::string line);
-    bool checkBraces(std::string line);
+    void        parseProxyPass(const std::string &line);
+    void        parseCgiPass(const std::string &line);
+    bool        checkSemicolon(std::string line);
+    bool        checkComment(std::string line);
+    std::string removeInLineComment(std::string line);
+    bool        checkBraces(std::string line);
     //bool verifyKeyword(std::string line, std::string keyword, bool isContext);
     //void parseServer(std::string line);
 };

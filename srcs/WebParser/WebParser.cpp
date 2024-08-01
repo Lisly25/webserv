@@ -18,6 +18,7 @@ bool WebParser::parse()
     {
         if (checkComment(line))
             continue;
+        line = removeInLineComment(line);
         if (!checkBraces(line))
             throw WebErrors::ConfigFormatException("Error: unclosed braces");
         if (!checkSemicolon(line))
@@ -99,7 +100,18 @@ bool WebParser::checkComment(std::string line)
     return (false);
 }
 
-//no good, need to parse the whole file to verify if all braces are closed
+std::string WebParser::removeInLineComment(std::string line)
+{
+    size_t hashtagLocation;
+
+    hashtagLocation = line.find_first_of('#');
+    if (hashtagLocation == std::string::npos)
+        return (line);
+    line = line.substr(0, hashtagLocation);
+    std::cout << "Line after comment removal: " << line << std::endl;
+    return (line);
+}
+
 bool WebParser::checkBraces(std::string line)
 {
     int i = 0;
