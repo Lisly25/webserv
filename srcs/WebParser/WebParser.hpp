@@ -51,9 +51,10 @@ private:
     bool        checkSemicolon(std::string line);
     bool        checkComment(std::string line);
     std::string removeInLineComment(std::string line);
-    bool        checkBraces(std::string line);
+    bool        checkBracePairs(std::string line);
+    bool        checkBracesPerLine(std::string line);
     bool        locateContextStart(std::string line, std::string contextName);
-    ssize_t      locateContextEnd(size_t contextStart);
+    ssize_t     locateContextEnd(size_t contextStart);
     void        parseServer(void);
     void        extractServerInfo(size_t contextStart);
     void        extractLocationInfo(size_t contextStart);

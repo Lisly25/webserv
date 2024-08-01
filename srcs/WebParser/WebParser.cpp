@@ -11,7 +11,6 @@ WebParser::WebParser(const std::string &filename)
         throw WebErrors::FileOpenException(_filename);
 }
 
-//should also add a checker against multiple braces on a line
 bool WebParser::parse()
 {
     std::string line;
@@ -20,8 +19,10 @@ bool WebParser::parse()
         if (checkComment(line))
             continue;
         line = removeInLineComment(line);
-        if (!checkBraces(line))
+        if (!checkBracePairs(line))
             throw WebErrors::ConfigFormatException("Error: unclosed braces");
+        if (!checkBracesPerLine(line))
+            throw WebErrors::ConfigFormatException("Error: multiple braces on one line");
         if (!checkSemicolon(line))
             throw WebErrors::ConfigFormatException("Error: directives in config files must be followed by semicolons");
         try
@@ -105,7 +106,7 @@ std::string WebParser::removeInLineComment(std::string line)
     return (line);
 }
 
-bool WebParser::checkBraces(std::string line)
+bool WebParser::checkBracePairs(std::string line)
 {
     int i = 0;
    
@@ -125,6 +126,22 @@ bool WebParser::checkBraces(std::string line)
         i++;
     }
     return (true);
+}
+
+bool WebParser::checkBracesPerLine(std::string line)
+{
+    int braceCount;
+    int i = 0;
+
+    while (line[i])
+    {
+        if (line[i] == '{' || line[i] == '}')
+            braceCount++;
+        i++;
+    }
+    if (braceCount <= 1)
+        return (true);
+    return (false);
 }
 
 /*
