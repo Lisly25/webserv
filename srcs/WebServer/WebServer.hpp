@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RequestHandler/RequestHandler.hpp"
+#include "ScopedSocket.hpp"
 #include "WebParser.hpp"
 #include <string>
 #include <netinet/in.h>
@@ -22,7 +23,7 @@ public:
 
 private:
     static bool             _running;
-    int                     _serverSocket;
+    ScopedSocket            _serverSocket;
     int                     _epollFd = -1;
     WebParser               &_parser;
     struct sockaddr_in      _serverAddr;
@@ -37,7 +38,7 @@ private:
     void    handleEvents(int eventCount);
     void    acceptAddClient(void);
 
-
-    void    handleIncomingData(int clientSocket);
+    void    handleOutgoingData(int clientSocket); // send()
+    void    handleIncomingData(int clientSocket); // recv()
 
 };

@@ -16,4 +16,6 @@ public:
 
 private:
     int     _fd;
+
+    void    setSocketFlags(int flags);
 };
