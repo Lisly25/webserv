@@ -11,6 +11,7 @@ WebParser::WebParser(const std::string &filename)
         throw WebErrors::FileOpenException(_filename);
 }
 
+//should also add a checker against multiple braces on a line
 bool WebParser::parse()
 {
     std::string line;
@@ -172,9 +173,26 @@ bool    WebParser::locateContextStart(std::string line, std::string contextName)
     return (true);
 }
 
-size_t  locateContextEnd(size_t contextStart)
+ssize_t  WebParser::locateContextEnd(size_t contextStart)
 {
+    int leftBraceCount = 1;
+    int rightBraceCount = 0;
 
+    contextStart++;
+    while (contextStart < _configFile.size())
+    {
+        for (size_t i = 0; i < _configFile[contextStart].length(); i++)
+        {
+            if (_configFile[contextStart][i] == '{')
+                leftBraceCount++;
+            else if (_configFile[contextStart][i] == '}')
+                rightBraceCount++;
+        }
+        if (leftBraceCount == rightBraceCount)
+            return (contextStart);
+        contextStart++;
+    }
+    return (-1);
 }
 
 void WebParser::parseServer(void)
@@ -196,6 +214,9 @@ void WebParser::parseServer(void)
 
 void WebParser::extractServerInfo(size_t contextStart)
 {
-    size_t  contextEnd = locateContextEnd(contextStart);
+    ssize_t  contextEnd = locateContextEnd(contextStart);
+    if (contextEnd == -1)
+        throw WebErrors::ConfigFormatException("Error: context not closed properly");
+    std::cout << "Server context ends at line " << contextEnd << std::endl;
 
 }

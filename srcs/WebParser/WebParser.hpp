@@ -53,7 +53,7 @@ private:
     std::string removeInLineComment(std::string line);
     bool        checkBraces(std::string line);
     bool        locateContextStart(std::string line, std::string contextName);
-    size_t      locateContextEnd(size_t start);
+    ssize_t      locateContextEnd(size_t contextStart);
     void        parseServer(void);
     void        extractServerInfo(size_t contextStart);
     void        extractLocationInfo(size_t contextStart);
