@@ -7,6 +7,7 @@
 #include <stack>
 #include <vector>
 #include <sstream>
+#include <climits>
 
 enum LocationType { CGI, PROXY };
 
@@ -18,6 +19,7 @@ struct Location {
 
 struct Server {
     int                            port;
+    long                           client_max_body_size;
     std::vector<std::string>       server_name;
     std::vector<Location>          locations;
 };
@@ -62,4 +64,5 @@ private:
     void                        extractLocationInfo(size_t contextStart);
     int                         extractPort(size_t contextStart, size_t contextEnd);
     std::vector<std::string>    extractServerName(size_t contextStart, size_t contextEnd);
+    long                        extractClientMaxBodySize(size_t contextStart, size_t contextEnd);
 };
