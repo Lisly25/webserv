@@ -280,6 +280,7 @@ void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
 
     currentServer.port = extractPort(contextStart, contextEnd);
     currentServer.server_name = extractServerName(contextStart, contextEnd);
+    currentServer.client_max_body_size = extractClientMaxBodySize(contextStart, contextEnd);
 }
 
 int WebParser::extractPort(size_t contextStart, size_t contextEnd)
@@ -366,11 +367,52 @@ std::vector<std::string> WebParser::extractServerName(size_t contextStart, size_
             std::cerr << e.what() << std::endl;
             throw WebErrors::BaseException("Failed to read config file into vector");//Not sure if this is necessary
         }
-    }
-    for (size_t i = 0; i < serverNames.size(); i++)
-    {
-        std::cout << serverNames[i] << std::endl;
-    }
-    
+    }   
     return (serverNames);
+}
+
+//0 will be returned if no limit was set in the file
+//otherwise, will return the value in bytes
+long WebParser::extractClientMaxBodySize(size_t contextStart, size_t contextEnd)
+{
+    std::string key = "client_max_body_size";
+    ssize_t    directiveLocation = locateDirective(contextStart, contextEnd, key);
+
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: can only have one client_max_body_size directive");
+    if (directiveLocation == 0)
+        return (0);
+    
+    std::string line = _configFile[directiveLocation];
+    size_t bsizeIndex = line.find(key) + key.length();
+
+    while (isspace(line[bsizeIndex]))
+        bsizeIndex++;
+    line = line.substr(bsizeIndex, line.length() - bsizeIndex - 1);
+        
+    std::stringstream stream(line);
+    long numericComponent;
+    std::string alphabetComponent;
+
+    stream >> numericComponent;
+    if (stream.fail() || numericComponent < 0)
+        throw WebErrors::ConfigFormatException("Error: client_max_body_size does not have a non-negative numeric component smaller than LONG_MAX");
+    stream >> alphabetComponent;
+    if (stream.fail())
+        throw WebErrors::ConfigFormatException("Error: client_max_body_size must have unit specified 'K' for kilobytes, 'M' for megabytes");
+    if (alphabetComponent.compare("K") == 0)
+    {
+        if (numericComponent > (LONG_MAX / 1000))
+            throw WebErrors::ConfigFormatException("Error: client_max_body_size can't be larger than LONG_MAX");
+        numericComponent *= 1000;
+    }
+    else if (alphabetComponent.compare("M") == 0)
+    {
+        if (numericComponent > (LONG_MAX / 1000000))
+            throw WebErrors::ConfigFormatException("Error: client_max_body_size can't be larger than LONG_MAX");
+        numericComponent *= 1000000;
+    }
+    else
+        throw WebErrors::ConfigFormatException("Error: client_max_body_size must have unit specified 'K' for kilobytes, 'M' for megabytes");
+    return (numericComponent);
 }
