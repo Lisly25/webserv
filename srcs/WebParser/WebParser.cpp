@@ -73,11 +73,8 @@ bool WebParser::checkSemicolon(std::string line)
 {
     int i = line.length();
 
-    //while (isspace(line[i]) && i > 0)
-    //    i--;
     if (i == 0)
         return (true);
-    //i--;
     if (isalnum(line[i]) && (line[i] != ';' && line[i] != '{' && line[i] != '}'))
         return (false);
     return (true);
@@ -149,7 +146,7 @@ The context format we expect is:
 server {
     ...
 }
-whitespaces can be added anywhere, and at least one whitespace is expected between the context name and the opening brace
+whitespaces can be added anywhere (except at the ends of lines), and at least one whitespace is expected between the context name and the opening brace
 */
 
 bool    WebParser::locateContextStart(std::string line, std::string contextName)
@@ -307,6 +304,10 @@ int WebParser::extractPort(size_t contextStart, size_t contextEnd)
     stream >> portNumber;
     if (stream.fail())
         throw WebErrors::ConfigFormatException("Error: listening port specified is not a number");
+    std::string leftover;
+    stream >> leftover;
+    if (!leftover.empty())
+        throw WebErrors::ConfigFormatException("Error: listening port specified is not (just) a number");
     if (portNumber < 0 || portNumber > 65535)
         throw WebErrors::ConfigFormatException("Error: invalid number for port");
     if (portNumber <= 1023)
