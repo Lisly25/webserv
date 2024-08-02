@@ -32,6 +32,7 @@ bool WebParser::parse()
         catch(const std::exception& e)
         {
             std::cerr << e.what() << std::endl;
+            throw WebErrors::BaseException("Failed to read config file into vector");//Not sure if this is necessary
         }
         if (line.find("proxy_pass") != std::string::npos)
             parseProxyPass(line);
@@ -278,7 +279,7 @@ void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
     Server  currentServer;
 
     currentServer.port = extractPort(contextStart, contextEnd);
-    std::cout << "Port value is: " << currentServer.port << std::endl;
+    currentServer.server_name = extractServerName(contextStart, contextEnd);
 }
 
 int WebParser::extractPort(size_t contextStart, size_t contextEnd)
@@ -327,4 +328,49 @@ int WebParser::extractPort(size_t contextStart, size_t contextEnd)
         }
     }
     return (portNumber);
+}
+
+std::vector<std::string> WebParser::extractServerName(size_t contextStart, size_t contextEnd)
+{
+    std::string                 key = "server_name";
+    ssize_t                     directiveLocation = locateDirective(contextStart, contextEnd, key);
+    std::vector<std::string>    serverNames;
+
+    switch (directiveLocation)
+    {
+    case 0:
+        return (serverNames);
+    case -1:
+        throw WebErrors::ConfigFormatException("Error: multiple server_name fields within context. If you want to specify several server names, the valid format is: 'server_name <name1> <name2> ... <name_n>'");
+    default:
+        break;
+    }
+    std::string line = _configFile[directiveLocation];
+    size_t snameIndex = line.find(key) + key.length();
+
+    while (isspace(line[snameIndex]))
+        snameIndex++;
+    line = line.substr(snameIndex, line.length() - snameIndex - 1);
+
+    std::string subLine;
+    std::istringstream  stream(line);
+
+    while (getline(stream, subLine, ' '))
+    {
+        try
+        {
+            serverNames.push_back(subLine);
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << std::endl;
+            throw WebErrors::BaseException("Failed to read config file into vector");//Not sure if this is necessary
+        }
+    }
+    for (size_t i = 0; i < serverNames.size(); i++)
+    {
+        std::cout << serverNames[i] << std::endl;
+    }
+    
+    return (serverNames);
 }

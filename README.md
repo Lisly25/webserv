@@ -52,6 +52,10 @@ mydomain.com:4242
 
 + Comments can be created by typing '#' -> can also be used inline, in which case, everything after it is ignored (there is no option to close it off)
 
++ port's ("listen" directive) value must be a number 0-65535. Setting it to under 1024 will give a warning
+
++ server_name field is optional. Several strings can be specified, which have to be separated by spaces
+
 
 Proxy_pass passes the requests to other server off loads the work from our server and the server its passed to in this examples a docker containers have their own CGI to handle the code execution and generate the reponse for the user. 
 
