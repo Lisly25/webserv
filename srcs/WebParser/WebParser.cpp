@@ -73,11 +73,11 @@ bool WebParser::checkSemicolon(std::string line)
 {
     int i = line.length();
 
-    while (isspace(line[i]) && i > 0)
-        i--;
+    //while (isspace(line[i]) && i > 0)
+    //    i--;
     if (i == 0)
         return (true);
-    i--;
+    //i--;
     if (isalnum(line[i]) && (line[i] != ';' && line[i] != '{' && line[i] != '}'))
         return (false);
     return (true);
@@ -221,6 +221,41 @@ ssize_t  WebParser::locateContextEnd(size_t contextStart)
     return (contextEnd);
 }
 
+//should return -1 if there's several in the given range, otherwise the index within the vector
+//if it can't be found, return 0 (it would never be on line 0, since a valid file would at best have the server directive there)
+ssize_t WebParser::locateDirective(size_t contextStart, size_t contextEnd, std::string key)
+{
+    size_t  i;
+    size_t  key_start;
+    ssize_t directive_index;
+    int     matches;
+
+    i = 0;
+    matches = 0;
+    while (contextStart < contextEnd)
+    {
+        while (isspace(_configFile[contextStart][i]))
+            i++;
+        key_start = _configFile[contextStart].find(key, i);
+        if (key_start == i)
+        {
+            matches++;
+            directive_index = contextStart;
+        }
+        contextStart++;
+        i = 0;
+    }
+    switch (matches)
+    {
+    case 0:
+        return (0);
+    case 1:
+        return (directive_index);
+    default:
+        return (-1);
+    }
+}
+
 void WebParser::parseServer(void)
 {
     size_t i;
@@ -243,5 +278,52 @@ void WebParser::parseServer(void)
 
 void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
 {
-    std::cout << "Server context starts at " << contextStart << " and ends at line " << contextEnd << std::endl;
+    Server  currentServer;
+
+    currentServer.port = extractPort(contextStart, contextEnd);
+    std::cout << "Port value is: " << currentServer.port << std::endl;
+}
+
+int WebParser::extractPort(size_t contextStart, size_t contextEnd)
+{
+    std::string key = "listen";
+    ssize_t directiveLocation = locateDirective(contextStart, contextEnd, key);
+   
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: multiple listening ports per server");
+    if (directiveLocation == 0)
+        throw WebErrors::ConfigFormatException("Error: missing listening port");
+    
+    std::string line = _configFile[directiveLocation];
+    size_t portIndex = line.find(key) + key.length();
+    while (isspace(line[portIndex]))
+        portIndex++;
+    line = line.substr(portIndex, line.length() - portIndex - 1);
+
+    std::stringstream stream(line);
+    int               portNumber;
+    std::string       userInput;
+
+    stream >> portNumber;
+    if (stream.fail())
+        throw WebErrors::ConfigFormatException("Error: listening port specified is not a number");
+    if (portNumber < 0 || portNumber > 65535)
+        throw WebErrors::ConfigFormatException("Error: invalid number for port");
+    if (portNumber <= 1023)
+    {
+        std::cout << "Specified listening port is under 1023 (you need sudo permission to use these) are you sure you want to continue? (Y/N)" << std::endl;
+        while (1)
+        {
+            std::cin >> userInput;
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            if (userInput.empty() || !userInput.compare("N"))
+            {
+                std::cout << "Exiting..." << std::endl;
+                throw WebErrors::ConfigFormatException("Error: port number under 1024");//This might be weird, but just exiting caused a memory leak
+            }
+            if (!userInput.compare("Y"))
+                break ;
+        }
+    }
+    return (portNumber);
 }

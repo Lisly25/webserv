@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <stack>
 #include <vector>
+#include <sstream>
 
 enum LocationType { CGI, PROXY };
 
@@ -55,7 +56,9 @@ private:
     bool        checkBracesPerLine(std::string line);
     bool        locateContextStart(std::string line, std::string contextName);
     ssize_t     locateContextEnd(size_t contextStart);
+    ssize_t     locateDirective(size_t contextStart, size_t contextEnd, std::string key);
     void        parseServer(void);
     void        extractServerInfo(size_t contextStart, size_t contextEnd);
     void        extractLocationInfo(size_t contextStart);
+    int         extractPort(size_t contextStart, size_t contextEnd);
 };

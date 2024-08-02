@@ -38,7 +38,7 @@ mydomain.com:4242
 		...
 	}
 
-	as opposed to
+	as opposed to for example
 
 	server
 	{
@@ -46,7 +46,9 @@ mydomain.com:4242
 	}
 	```
 
-	This latter format will throw an error (but arguably shouldn't - will get back to this)
+	This latter format will throw an error.
+
++ trailing whitespaces (after semicolons, braces, or on empty lines) are not allowed
 
 + Comments can be created by typing '#' -> can also be used inline, in which case, everything after it is ignored (there is no option to close it off)
 
