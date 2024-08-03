@@ -3,6 +3,7 @@
 #include "ScopedSocket.hpp"
 #include "WebErrors.hpp"
 #include <csignal>
+#include <exception>
 #include <fcntl.h>
 #include <iostream>
 #include <cstring>
@@ -21,6 +22,7 @@ WebServer::WebServer(WebParser &parser, int port)
         throw WebErrors::ServerException("Error creating epoll instance");
 
     epoll_event event;
+    std::memset(&event, 0, sizeof(event));
     event.events = EPOLLIN | EPOLLET | EPOLLEXCLUSIVE;
     event.data.fd = _serverSocket.get();
     if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, _serverSocket.get(), &event) == -1)
@@ -86,7 +88,7 @@ void WebServer::handleIncomingData(int clientSocket)
         else
             _requestHandler.handleRequest(clientSocket);
     }
-    catch (const WebErrors::ClientException &e) {
+    catch (std::exception &e) {
         std::cerr << e.what() << std::endl;
     }
 }
@@ -96,7 +98,7 @@ void WebServer::handleOutgoingData(int socket)
     try {
         _requestHandler.handleProxyResponse(socket);
     }
-    catch (const WebErrors::ClientException &e) {
+    catch (std::exception &e) {
         std::cerr << e.what() << std::endl;
     }
 }
