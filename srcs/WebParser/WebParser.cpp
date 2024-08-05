@@ -46,6 +46,11 @@ bool WebParser::parse()
     return true;
 }
 
+std::vector<Server> WebParser::getServers(void) const
+{
+    return (_servers);
+}
+
 void WebParser::parseProxyPass(const std::string &line)
 {
     size_t pos = line.find("http://");
@@ -206,7 +211,10 @@ ssize_t  WebParser::locateContextEnd(size_t contextStart)
                 rightBraceCount++;
         }
         if (leftBraceCount == rightBraceCount)
+        {
             contextEnd = contextStart;
+            break ;
+        }
         contextStart++;
     }
     if (contextEnd == -1)
@@ -231,6 +239,7 @@ ssize_t WebParser::locateDirective(size_t contextStart, size_t contextEnd, std::
 
     i = 0;
     matches = 0;
+    std::cout << "Context start: " << contextStart << "Context end: " << contextEnd << std::endl;
     while (contextStart < contextEnd)
     {
         while (isspace(_configFile[contextStart][i]))
@@ -268,9 +277,10 @@ void WebParser::parseServer(void)
             if (contextEnd == -1)
                 throw WebErrors::ConfigFormatException("Error: context not closed properly");
             extractServerInfo(i, contextEnd);
-            i = 0;        
+            i = contextEnd + 1;        
         }
-        i++;
+        else
+            i++;
     }
     if (_servers.empty())
         throw WebErrors::ConfigFormatException("Error: configuration file must contain at least one server context");
@@ -285,6 +295,7 @@ void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
     _servers.back().server_name = extractServerName(contextStart, contextEnd);
     _servers.back().client_max_body_size = extractClientMaxBodySize(contextStart, contextEnd);
     extractErrorPageInfo(contextStart, contextEnd);
+    //host info still needs to be extracted
 }
 
 int WebParser::extractPort(size_t contextStart, size_t contextEnd)
@@ -486,4 +497,30 @@ void    WebParser::extractErrorPageInfo(size_t contextStart, size_t contextEnd)
         throw WebErrors::ConfigFormatException("Error: must specify error codes within error_page directive");
     stream >> errorAddress;
     _servers.back().error_codes = errorCodeVec;
+}
+
+void WebParser::printParsedInfo(void)
+{
+    size_t i = 0;
+    std::vector<Server> servers = this->_servers;
+
+    while (i < servers.size())
+    {
+        std::cout << "Server nro." << i << std::endl;
+        std::cout << "Listening on port: " << servers[i].port << std::endl;
+        std::cout << "Server names: " << std::endl;
+        for (size_t j = 0; j < servers[i].server_name.size(); j++)
+        {
+            std::cout << servers[i].server_name[j] << std::endl;
+        }
+        std::cout << "Default error page address: " << servers[i].error_page << std::endl;
+        std::cout << "And the error codes it is applied to: " << std::endl;
+        for (size_t k = 0; k < servers[i].error_codes.size(); k++)
+        {
+            std::cout << servers[i].error_codes[k] << std::endl;
+        }
+        std::cout << "Client body max size in bytes: " << servers[i].client_max_body_size << std::endl;
+        std::cout << std::endl;
+        i++;
+    }
 }

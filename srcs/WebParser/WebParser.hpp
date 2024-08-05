@@ -41,6 +41,9 @@ public:
     std::string         getCgiPass() const;
     std::vector<Server> getServers() const;
 
+    //for testing:
+    void                printParsedInfo(void);
+
 private:
 
     std::vector<std::string> _configFile;
