@@ -41,4 +41,9 @@ private:
     void    handleOutgoingData(int clientSocket); // send()
     void    handleIncomingData(int clientSocket); // recv()
 
+
+
+    int         getRequestTotalLength(const std::string &request);
+    std::string getBoundry(const std::string &request);
+
 };

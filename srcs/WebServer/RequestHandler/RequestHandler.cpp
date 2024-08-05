@@ -2,87 +2,84 @@
 #include "ScopedSocket.hpp"
 #include "WebErrors.hpp"
 #include <algorithm>
+#include <cstring>
 #include <unistd.h>
 #include <sys/epoll.h>
 
-RequestHandler::RequestHandler(int epollFd) : _proxyInfo(nullptr), _epollFd(epollFd)
+RequestHandler::RequestHandler(void) : _proxyInfo(nullptr)
 {
-    resolveProxyAddress();
+    resolveProxyAddresses();
+}
+
+void RequestHandler::storeRequest(int clientSocket, const std::string &request)
+{
+    _requestMap[clientSocket] = request;
 }
 
 RequestHandler::~RequestHandler()
 {
+    //if (_proxySocket != -1)
+     //   close(_proxySocket);
     freeaddrinfo(_proxyInfo);
     _proxyInfo = nullptr;
-    _clientProxyMap.clear();
+    
 }
 
-void RequestHandler::handleRequest(int clientSocket)
+void RequestHandler::handleProxyPass(const std::string &request, std::string &response)
 {
+    // Send the request to the proxy server
+    int proxySocket = socket(_proxyInfo->ai_family, _proxyInfo->ai_socktype, _proxyInfo->ai_protocol);
+    if (proxySocket < 0 || connect(proxySocket, _proxyInfo->ai_addr, _proxyInfo->ai_addrlen) < 0)
+        throw std::runtime_error("Error connecting to proxy server");
+
+    std::cout << "Forwarding request to proxy:\n" << request << std::endl;
+
+    if (send(proxySocket, request.c_str(), request.length(), 0) < 0)
+        throw std::runtime_error("Error sending to proxy server");
+
+    // Wait for the response from the proxy server
     char buffer[4096];
-    const ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
-
-    if (bytesRead <= 0)
-        throw WebErrors::ClientException("Error reading from client socket");
-
-    try {
-        // ParseRequest()     parses and checks where we need to pass the data cgi or proxy
-        handleProxyPass(clientSocket, buffer, bytesRead);
-    } catch (const WebErrors::ClientException &e) {
-        throw;
-    }
-}
-
-void RequestHandler::handleProxyPass(int clientSocket, const char* request, ssize_t length)
-{
-    ScopedSocket proxySocket(socket(_proxyInfo->ai_family, _proxyInfo->ai_socktype, _proxyInfo->ai_protocol));
-
-    if (proxySocket.get() < 0 || connect(proxySocket.get(), _proxyInfo->ai_addr, _proxyInfo->ai_addrlen) < 0)
-        throw WebErrors::ClientException("Error connecting to proxy server");
-
-    epoll_event event;
-    event.events = EPOLLIN | EPOLLET | EPOLLOUT;
-    event.data.fd = proxySocket.get();
-    if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, proxySocket.get(), &event) == -1)
-        throw WebErrors::ClientException("Error adding proxy socket to epoll");
-
-    _clientProxyMap[clientSocket] = proxySocket.get();
-
-    if (send(proxySocket.get(), request, length, 0) < 0)
-        throw WebErrors::ClientException("Error sending to proxy server");
-}
-
-void RequestHandler::handleProxyResponse(int proxySocket)
-{
-    char    buffer[4096];
     ssize_t bytesRead = 0;
-    int     clientSocket  = -1;
-
-    auto it = _clientProxyMap.begin();
-    for (; it != _clientProxyMap.end(); ++it)
-    {
-        if (it->second == proxySocket) break;
-    }
-    if (it == _clientProxyMap.end()) return;
-
-    clientSocket = it->first;
-
     while ((bytesRead = recv(proxySocket, buffer, sizeof(buffer), 0)) > 0)
     {
-        if (send(clientSocket, buffer, bytesRead, 0) < 0)
-            throw WebErrors::ClientException("Error sending to client socket");
+        response.append(buffer, bytesRead);
+        std::cout << "Received response chunk from proxy, size: " << bytesRead << std::endl;
     }
 
     if (bytesRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
-        throw WebErrors::ClientException("Error reading from proxy server");
+        throw std::runtime_error("Error reading from proxy server");
 
-    if (bytesRead == 0)
-    {
-        epoll_ctl(_epollFd, EPOLL_CTL_DEL, proxySocket, nullptr);
-        close(proxySocket);
-        _clientProxyMap.erase(it);
-    }
+    std::cout << "Full response from proxy:\n" << response << std::endl;
+
+    close(proxySocket);
 }
+
+
+std::string RequestHandler::generateResponse(int clientSocket)
+{
+    auto it = _requestMap.find(clientSocket);
+    if (it == _requestMap.end())
+    {
+        throw std::runtime_error("Request not found for client socket");
+    }
+
+    const std::string &request = it->second;
+    std::string response;
+
+    if (request.find("GET /proxy") != std::string::npos || request.find("GET / ") != std::string::npos)
+    {
+        handleProxyPass(request, response);
+    }
+    else
+    {
+        response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello, this is the response from the server.\r\n";
+    }
+
+    _requestMap.erase(it);
+
+    return response;
+}
+
 
 
 // Find the locations from the config file
@@ -109,14 +106,18 @@ void RequestHandler::handleCgiPass(const char* request, ssize_t length)
     (void )length;
 }
 
-void RequestHandler::resolveProxyAddress()
+void RequestHandler::resolveProxyAddresses()
 {
-    addrinfo hints{};
-    hints.ai_family = AF_UNSPEC;    // IPv4 or IPv6
-    hints.ai_socktype = SOCK_STREAM; // TCP or UDP
-    hints.ai_flags = AI_PASSIVE;    // Allows bind
+    const char* proxyHost = "localhost";
+    const char* proxyPort = "8080";
 
-    // Only one proxy running on 8080, (homer docker container)
-    if (getaddrinfo("localhost", "8080", &hints, &_proxyInfo) != 0)
-        throw WebErrors::ClientException("Error resolving proxy host");
+    addrinfo hints;
+    std::memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    
+    int status = getaddrinfo(proxyHost, proxyPort, &hints, &_proxyInfo);
+    if (status != 0)
+        throw WebErrors::ClientException("Error resolving proxy address: "\
+            + std::string(gai_strerror(status)));
 }

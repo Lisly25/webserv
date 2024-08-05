@@ -16,7 +16,7 @@
 bool WebServer::_running = true;
 
 WebServer::WebServer(WebParser &parser, int port)
-    : _serverSocket(createServerSocket(port)), _epollFd(epoll_create(1)), _parser(parser), _requestHandler(_epollFd)
+    : _serverSocket(createServerSocket(port)), _epollFd(epoll_create(1)), _parser(parser), _requestHandler()
 {
     if (_epollFd == -1)
         throw WebErrors::ServerException("Error creating epoll instance");
@@ -65,7 +65,7 @@ void WebServer::acceptAddClient()
     if (clientSocket.get() < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
         throw WebErrors::ServerException("Error accepting client connection");
 
-    event.events = EPOLLIN | EPOLLET | EPOLLEXCLUSIVE;
+    event.events = EPOLLIN;
     event.data.fd = clientSocket.get();
     if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, clientSocket.get(), &event) == -1)
         throw WebErrors::ServerException("Error adding client socket to epoll");
@@ -80,32 +80,120 @@ void WebServer::removeClientSocket(int clientSocket)
     clientSocket = -1;
 }
 
+std::string WebServer::getBoundry(const std::string &request)
+{
+    size_t start = request.find("boundary=");
+    if (start == std::string::npos)
+        return "";
+
+    start += 9; // Length of "boundary="
+    size_t end = request.find("\r", start);
+    if (end == std::string::npos)
+        return request.substr(start); // In case the boundary is at the end of the request
+    return request.substr(start, end - start);
+}
+
+
+int WebServer::getRequestTotalLength(const std::string &request)
+{
+    size_t contentLengthPos = request.find("Content-Length: ");
+    if (contentLengthPos == std::string::npos)
+        return request.length();
+
+    contentLengthPos += 16; // Length of "Content-Length: "
+    size_t end = request.find("\r", contentLengthPos);
+    if (end == std::string::npos)
+        return request.length();
+
+    const int contentLength = std::stoi(request.substr(contentLengthPos, end - contentLengthPos));
+
+    const std::string boundary = getBoundry(request);
+    if (!boundary.empty())
+    {
+        size_t boundaryPos = request.rfind("--" + boundary);
+        if (boundaryPos != std::string::npos)
+            return boundaryPos + boundary.length() + 4;
+    }
+    return contentLength;
+}
+
+
+
 void WebServer::handleIncomingData(int clientSocket)
 {
     try {
-        if (clientSocket == _serverSocket.get())
-            acceptAddClient();
-        else
-            _requestHandler.handleRequest(clientSocket);
+        char buffer[1024];
+        std::string totalRequest;
+        int totalBytes = -1;
+        int bytesRead = 0;
+        int currentBytesRead = 0;
+
+        std::memset(buffer, 0, sizeof(buffer));
+        while (currentBytesRead < totalBytes || totalBytes == -1)
+        {
+            bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
+            if (bytesRead <= 0)
+            {
+                if (bytesRead == 0) break; // Connection closed client side
+                if (errno == EAGAIN || errno == EWOULDBLOCK) break; // No more data to read
+                throw std::runtime_error("recv failed");
+            }
+
+            totalRequest.append(buffer, bytesRead);
+            currentBytesRead += bytesRead;
+
+            if (totalBytes == -1)
+                totalBytes = getRequestTotalLength(totalRequest);
+        }
+
+        if (totalRequest.length() > 0) {
+            _requestHandler.storeRequest(clientSocket, totalRequest);
+
+            struct epoll_event event;
+            event.data.fd = clientSocket;
+            event.events = EPOLLOUT;
+            if (epoll_ctl(_epollFd, EPOLL_CTL_MOD, clientSocket, &event) == -1)
+                throw std::runtime_error("epoll_ctl: mod failed");
+        }
     }
     catch (std::exception &e) {
         std::cerr << e.what() << std::endl;
+        close(clientSocket);
     }
 }
-
-void WebServer::handleOutgoingData(int socket)
+void WebServer::handleOutgoingData(int clientSocket)
 {
     try {
-        _requestHandler.handleProxyResponse(socket);
+        std::string response = _requestHandler.generateResponse(clientSocket);
+
+        int bytesSent = ::send(clientSocket, response.c_str(), response.length(), 0);
+        if (bytesSent == -1)
+            throw std::runtime_error("send failed");
+
+        struct epoll_event event;
+        event.data.fd = clientSocket;
+        if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, &event) == -1)
+            throw std::runtime_error("epoll_ctl: del failed");
+        close(clientSocket);
     }
-    catch (std::exception &e) {
+    catch (std::exception &e)
+    {
         std::cerr << e.what() << std::endl;
+        close(clientSocket);
     }
 }
 
-void WebServer::handleEvents(int eventCount) {
+
+void WebServer::handleEvents(int eventCount)
+{
     for (int i = 0; i < eventCount; ++i) {
-        if (_events[i].events & EPOLLIN)
+
+        if (_events[i].data.fd == _serverSocket.get())
+        {
+            fcntl(_events[i].data.fd, F_SETFL, O_NONBLOCK, FD_CLOEXEC);
+            acceptAddClient();
+        }
+        else if (_events[i].events & EPOLLIN)
             handleIncomingData(_events[i].data.fd);
         else if (_events[i].events & EPOLLOUT)
             handleOutgoingData(_events[i].data.fd);

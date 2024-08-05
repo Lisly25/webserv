@@ -1,31 +1,31 @@
 #pragma once
 
+#include "ScopedSocket.hpp"
 #include <cstdio>
 #include <netdb.h>
 #include <unordered_map>
-
+#include <string>
 
 class RequestHandler
 {
 public:
-    RequestHandler(int epollFd);
+    RequestHandler(void);
     ~RequestHandler();
 
+    void        handleRequest(int clientSocket);
+    void        handleProxyResponse(int proxySocket);
+    void        storeRequest(int clientSocket, const std::string &request);
+    std::string generateResponse(int clientSocket);
 
-    void handleRequest(int clientSocket);
-    void handleProxyResponse(int proxySocket);
-    
 private:
-    addrinfo*                       _proxyInfo;
-    int                             _proxySocket = -1;
-    int                             _epollFd = -1;
-    std::unordered_map<int, int>    _clientProxyMap; // clientSocket -> proxySocket
+    addrinfo* _proxyInfo = nullptr;
+    int proxySocket = -1;
+    std::unordered_map<int, std::string> _requestMap;
 
-    bool    parseRequest(const char* request, ssize_t length);
+    bool parseRequest(const char* request, ssize_t length);
+    void handleCgiPass(const char* request, ssize_t length);
+    void handleProxyPass(const std::string &request, std::string &response);
 
-    void    handleCgiPass(const char* request, ssize_t length);
-    void    handleProxyPass(int clientSocket, const char* request, ssize_t length);
-
-    void    resolveProxyAddress();
-    void    connectToProxy(void);
+    void resolveProxyAddresses();
+    void connectToProxy(void);
 };
