@@ -165,7 +165,6 @@ void WebServer::handleOutgoingData(int clientSocket)
 {
     try {
         std::string response = _requestHandler.generateResponse(clientSocket);
-
         int bytesSent = ::send(clientSocket, response.c_str(), response.length(), 0);
         if (bytesSent == -1)
             throw std::runtime_error("send failed");

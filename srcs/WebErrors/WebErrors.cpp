@@ -18,7 +18,7 @@ namespace WebErrors
         : BaseException(error_msg) {}
 
     /* Handles exceptions happening in the client handling in server */
-    ClientException::ClientException(const std::string &message)
+    ProxyException::ProxyException(const std::string &message)
         : BaseException(message) { }
 
     int printerror(const std::string &e)

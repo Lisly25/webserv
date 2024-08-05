@@ -16,7 +16,7 @@ int main(int ac, char **av)
             // Ports below 1024 require root access so use above 
             // The occupied ports can be checked from cat /etc/services
             // Modify the listen port from the conf and the server_name
-            WebServer server(parser, 4242);
+            WebServer server(parser, 7272);
             server.start();
         }
         catch (std::exception &e) {

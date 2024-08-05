@@ -36,10 +36,10 @@ namespace WebErrors
         explicit ConfigFormatException(std::string error_msg);
     };
 
-     class ClientException : public BaseException
+     class ProxyException : public BaseException
     {
     public:
-        explicit ClientException(const std::string &message);
+        explicit ProxyException(const std::string &message);
     };
 
     class ServerException : public BaseException

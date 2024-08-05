@@ -28,14 +28,14 @@ RequestHandler::~RequestHandler()
 void RequestHandler::handleProxyPass(const std::string &request, std::string &response)
 {
     // Send the request to the proxy server
-    int proxySocket = socket(_proxyInfo->ai_family, _proxyInfo->ai_socktype, _proxyInfo->ai_protocol);
+    const int proxySocket = socket(_proxyInfo->ai_family, _proxyInfo->ai_socktype, _proxyInfo->ai_protocol);
     if (proxySocket < 0 || connect(proxySocket, _proxyInfo->ai_addr, _proxyInfo->ai_addrlen) < 0)
-        throw std::runtime_error("Error connecting to proxy server");
+        throw WebErrors::ProxyException("Error connecting to proxy server");
 
     std::cout << "Forwarding request to proxy:\n" << request << std::endl;
 
     if (send(proxySocket, request.c_str(), request.length(), 0) < 0)
-        throw std::runtime_error("Error sending to proxy server");
+        throw WebErrors::ProxyException("Error sending to proxy server");
 
     // Wait for the response from the proxy server
     char buffer[4096];
@@ -44,10 +44,11 @@ void RequestHandler::handleProxyPass(const std::string &request, std::string &re
     {
         response.append(buffer, bytesRead);
         std::cout << "Received response chunk from proxy, size: " << bytesRead << std::endl;
+        std::cout << "READING RESPONSE FROM PROXY\n\n";
     }
 
     if (bytesRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
-        throw std::runtime_error("Error reading from proxy server");
+        throw WebErrors::ProxyException("Error reading from proxy server");
 
     std::cout << "Full response from proxy:\n" << response << std::endl;
 
@@ -76,6 +77,9 @@ std::string RequestHandler::generateResponse(int clientSocket)
     }
 
     _requestMap.erase(it);
+    
+
+    std::cout << "RESPONSE FOR" << clientSocket << response << "\n\n";
 
     return response;
 }
@@ -109,7 +113,7 @@ void RequestHandler::handleCgiPass(const char* request, ssize_t length)
 void RequestHandler::resolveProxyAddresses()
 {
     const char* proxyHost = "localhost";
-    const char* proxyPort = "8080";
+    const char* proxyPort = "4141";
 
     addrinfo hints;
     std::memset(&hints, 0, sizeof(hints));
@@ -118,6 +122,6 @@ void RequestHandler::resolveProxyAddresses()
     
     int status = getaddrinfo(proxyHost, proxyPort, &hints, &_proxyInfo);
     if (status != 0)
-        throw WebErrors::ClientException("Error resolving proxy address: "\
+        throw WebErrors::ProxyException("Error resolving proxy address: "\
             + std::string(gai_strerror(status)));
 }
