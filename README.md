@@ -67,6 +67,7 @@ mydomain.com:4242
 	(whitespaces between the elements are not counted)
 
 	The error page address can be a URI or a URL at the moment
+	(thus, if the error page address does not contain at least one '/', an error will be thrown during the parsing)
 
 
 

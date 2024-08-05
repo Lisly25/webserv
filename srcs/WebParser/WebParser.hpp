@@ -21,7 +21,7 @@ struct Server {
     int                            port;
     long                           client_max_body_size;
     std::vector<std::string>       server_name;
-    std::vector<std::string>       error_codes;
+    std::vector<int>               error_codes;
     std::string                    error_page;
     std::vector<Location>          locations;
 };

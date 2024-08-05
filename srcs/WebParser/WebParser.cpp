@@ -272,17 +272,19 @@ void WebParser::parseServer(void)
         }
         i++;
     }
-    //Here we need to check if the _servers vector is empty, throw an exception if it is
+    if (_servers.empty())
+        throw WebErrors::ConfigFormatException("Error: configuration file must contain at least one server context");
 }
 
 void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
 {
     Server  currentServer;
+    _servers.push_back(currentServer);
 
-    currentServer.port = extractPort(contextStart, contextEnd);
-    currentServer.server_name = extractServerName(contextStart, contextEnd);
-    currentServer.client_max_body_size = extractClientMaxBodySize(contextStart, contextEnd);
-    std::cout << "max body size is: " << currentServer.client_max_body_size << std::endl;
+    _servers.back().port = extractPort(contextStart, contextEnd);
+    _servers.back().server_name = extractServerName(contextStart, contextEnd);
+    _servers.back().client_max_body_size = extractClientMaxBodySize(contextStart, contextEnd);
+    extractErrorPageInfo(contextStart, contextEnd);
 }
 
 int WebParser::extractPort(size_t contextStart, size_t contextEnd)
@@ -367,7 +369,7 @@ std::vector<std::string> WebParser::extractServerName(size_t contextStart, size_
         catch(const std::exception& e)
         {
             std::cerr << e.what() << std::endl;
-            throw WebErrors::BaseException("Failed to read config file into vector");//Not sure if this is necessary
+            throw WebErrors::BaseException("Vector operaation failed");
         }
     }   
     return (serverNames);
@@ -422,7 +424,7 @@ long WebParser::extractClientMaxBodySize(size_t contextStart, size_t contextEnd)
 }
 
 //Extracts both the error codes, and the error page address. Does not process the error address yet
-//Will consider it optional for now
+//Will consider the field optional for now
 void    WebParser::extractErrorPageInfo(size_t contextStart, size_t contextEnd)
 {
     std::string key = "error_page";
@@ -432,4 +434,56 @@ void    WebParser::extractErrorPageInfo(size_t contextStart, size_t contextEnd)
         throw WebErrors::ConfigFormatException("Error: can only have one error_page directive");
     if (directiveLocation == 0)
         return ;
+
+    std::string line = _configFile[directiveLocation];
+    size_t errorPageIndex = line.find(key) + key.length();
+
+    while (isspace(line[errorPageIndex]))
+        errorPageIndex++;
+    line = line.substr(errorPageIndex, line.length() - errorPageIndex - 1);
+    
+    size_t  i;
+    i = line.length();
+    while (i > 0 && !isspace(line[i]))
+        i--;
+    if (i == line.length())
+        throw WebErrors::ConfigFormatException("Error: must specify page address for error_page directive");
+    std::string errorAddress = line.substr(i, line.length() - i);
+    if (errorAddress.find('/') == std::string::npos)
+        throw WebErrors::ConfigFormatException("Error: address of error page should be an URI/URL (but the given one did not even contain '/')");
+    _servers.back().error_page = errorAddress;
+    line = line.substr(0, i);
+    i = 0;
+    while (line[i])
+    {
+        if (!isspace(line[i]) && (line[i] > '9' || line[i] < '0'))
+            throw WebErrors::ConfigFormatException("Error: default error page must be expressed in one URI/URL");
+        i++;
+    }
+
+    std::stringstream stream(line);
+    int         errorCode;
+    std::vector<int>    errorCodeVec;
+
+    while (1)
+    {
+        stream >> errorCode;
+        if (stream.fail())
+            break ;
+        if (errorCode < 400 || errorCode > 599)
+            throw WebErrors::ConfigFormatException("Error: default error page was specified for invalid error code. Valid range is 400 - 599");
+        try
+        {
+            errorCodeVec.push_back(errorCode);
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << std::endl;
+            throw WebErrors::BaseException("Vector operation failed");
+        }
+    }
+    if (errorCodeVec.empty())
+        throw WebErrors::ConfigFormatException("Error: must specify error codes within error_page directive");
+    stream >> errorAddress;
+    _servers.back().error_codes = errorCodeVec;
 }
