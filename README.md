@@ -32,7 +32,7 @@ mydomain.com:4242
 + the file extension must be .conf
 + directives must be followed by ';'
 + unclosed braces '{}' are not allowed
-+ Currently, the only accepted format for contexts is
++ Currently, the only accepted format for server contexts is
   	```
 	server {
 		...
@@ -47,6 +47,14 @@ mydomain.com:4242
 	```
 
 	This latter format will throw an error.
+
++ location context must also be formatted in a similar way, the only difference being that the location keyword must be followed by a URI (this string must start with a '/' symbol since we don't handle regular expressions here). Example of correct format:
+
+	```
+	location /some/URI {
+		...
+	}
+	```
 
 + trailing whitespaces (after semicolons, braces, or on empty lines) are not allowed
 

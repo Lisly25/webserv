@@ -156,7 +156,7 @@ server {
 whitespaces can be added anywhere (except at the ends of lines), and at least one whitespace is expected between the context name and the opening brace
 */
 
-bool    WebParser::locateContextStart(std::string line, std::string contextName)
+bool    WebParser::locateServerContextStart(std::string line, std::string contextName)
 {
     size_t keywordStart = line.find(contextName);
 
@@ -184,6 +184,50 @@ bool    WebParser::locateContextStart(std::string line, std::string contextName)
     if (line[i] != '{')
         return (false);
     if (i < line.length())
+        i++;
+    while (line[i])
+    {
+        if (!isspace(line[i]))
+            return (false);
+        i++;
+    }
+    return (true);
+}
+
+bool    WebParser::locateLocationContextStart(std::string line, std::string contextName)
+{
+    size_t keywordStart = line.find(contextName);
+
+    if (keywordStart == std::string::npos)
+        return (false);
+
+    size_t i = 0;
+
+    while (i < keywordStart)
+    {
+        if (!isspace(line[i]))
+            return (false);
+        i++;
+    }
+    size_t j;
+    i += contextName.length();
+    j = i;
+
+    while (isspace(line[i]))
+        i++;
+    if (i == j)
+        return (false);
+    if (line[i] != '/')
+        return (false);
+    size_t uriStart = i;
+
+    while (i < line.length() && !(isspace(line[i])))
+        i++;
+    if (i == line.length() || i == uriStart)
+        return (false);
+    while (isspace(line[i]))
+        i++;
+    if (line[i] == '{')
         i++;
     while (line[i])
     {
@@ -239,7 +283,6 @@ ssize_t WebParser::locateDirective(size_t contextStart, size_t contextEnd, std::
 
     i = 0;
     matches = 0;
-    std::cout << "Context start: " << contextStart << "Context end: " << contextEnd << std::endl;
     while (contextStart < contextEnd)
     {
         while (isspace(_configFile[contextStart][i]))
@@ -271,7 +314,7 @@ void WebParser::parseServer(void)
     i = 0;
     while (i < _configFile.size())
     {
-        if (locateContextStart(_configFile[i], "server") == true)
+        if (locateServerContextStart(_configFile[i], "server") == true)
         {
             ssize_t  contextEnd = locateContextEnd(i);
             if (contextEnd == -1)
@@ -296,6 +339,22 @@ void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
     _servers.back().client_max_body_size = extractClientMaxBodySize(contextStart, contextEnd);
     extractErrorPageInfo(contextStart, contextEnd);
     //host info still needs to be extracted
+
+    size_t i;
+    i = contextStart + 1;
+    while (i < contextEnd)
+    {
+        if (locateLocationContextStart(_configFile[i], "location") == true)
+        {
+            ssize_t  contextEnd = locateContextEnd(i);
+            if (contextEnd == -1)
+                throw WebErrors::ConfigFormatException("Error: context not closed properly");
+            //extractLocationInfo(i, contextEnd);
+            i = contextEnd + 1;        
+        }
+        else
+            i++;
+    }
 }
 
 int WebParser::extractPort(size_t contextStart, size_t contextEnd)

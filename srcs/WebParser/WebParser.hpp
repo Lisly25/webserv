@@ -61,7 +61,8 @@ private:
     std::string                 removeInLineComment(std::string line);
     bool                        checkBracePairs(std::string line);
     bool                        checkBracesPerLine(std::string line);
-    bool                        locateContextStart(std::string line, std::string contextName);
+    bool                        locateServerContextStart(std::string line, std::string contextName);
+    bool                        locateLocationContextStart(std::string line, std::string contextName);
     ssize_t                     locateContextEnd(size_t contextStart);
     ssize_t                     locateDirective(size_t contextStart, size_t contextEnd, std::string key);
     void                        parseServer(void);
