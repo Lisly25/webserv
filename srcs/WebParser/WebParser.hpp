@@ -21,6 +21,8 @@ struct Server {
     int                            port;
     long                           client_max_body_size;
     std::vector<std::string>       server_name;
+    std::vector<std::string>       error_codes;
+    std::string                    error_page;
     std::vector<Location>          locations;
 };
 
@@ -65,4 +67,5 @@ private:
     int                         extractPort(size_t contextStart, size_t contextEnd);
     std::vector<std::string>    extractServerName(size_t contextStart, size_t contextEnd);
     long                        extractClientMaxBodySize(size_t contextStart, size_t contextEnd);
+    void                        extractErrorPageInfo(size_t contextStart, size_t contextEnd);
 };

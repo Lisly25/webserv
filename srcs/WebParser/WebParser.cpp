@@ -76,9 +76,10 @@ bool WebParser::checkSemicolon(std::string line)
 
     if (i == 0)
         return (true);
-    if (isalnum(line[i]) && (line[i] != ';' && line[i] != '{' && line[i] != '}'))
-        return (false);
-    return (true);
+    i--;
+    if (line[i] == ';' || line[i] == '}' || line[i] == '{')
+        return (true);
+    return (false);
 }
 
 bool WebParser::checkComment(std::string line)
@@ -281,6 +282,7 @@ void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
     currentServer.port = extractPort(contextStart, contextEnd);
     currentServer.server_name = extractServerName(contextStart, contextEnd);
     currentServer.client_max_body_size = extractClientMaxBodySize(contextStart, contextEnd);
+    std::cout << "max body size is: " << currentServer.client_max_body_size << std::endl;
 }
 
 int WebParser::extractPort(size_t contextStart, size_t contextEnd)
@@ -381,7 +383,7 @@ long WebParser::extractClientMaxBodySize(size_t contextStart, size_t contextEnd)
     if (directiveLocation == -1)
         throw WebErrors::ConfigFormatException("Error: can only have one client_max_body_size directive");
     if (directiveLocation == 0)
-        return (0);
+        return (1000000);//nginx's default is 1M
     
     std::string line = _configFile[directiveLocation];
     size_t bsizeIndex = line.find(key) + key.length();
@@ -398,6 +400,8 @@ long WebParser::extractClientMaxBodySize(size_t contextStart, size_t contextEnd)
     if (stream.fail() || numericComponent < 0)
         throw WebErrors::ConfigFormatException("Error: client_max_body_size does not have a non-negative numeric component smaller than LONG_MAX");
     stream >> alphabetComponent;
+    if (stream.fail() && numericComponent == 0)
+        return (0);
     if (stream.fail())
         throw WebErrors::ConfigFormatException("Error: client_max_body_size must have unit specified 'K' for kilobytes, 'M' for megabytes");
     if (alphabetComponent.compare("K") == 0)
@@ -415,4 +419,17 @@ long WebParser::extractClientMaxBodySize(size_t contextStart, size_t contextEnd)
     else
         throw WebErrors::ConfigFormatException("Error: client_max_body_size must have unit specified 'K' for kilobytes, 'M' for megabytes");
     return (numericComponent);
+}
+
+//Extracts both the error codes, and the error page address. Does not process the error address yet
+//Will consider it optional for now
+void    WebParser::extractErrorPageInfo(size_t contextStart, size_t contextEnd)
+{
+    std::string key = "error_page";
+    ssize_t     directiveLocation = locateDirective(contextStart, contextEnd, key);
+
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: can only have one error_page directive");
+    if (directiveLocation == 0)
+        return ;
 }

@@ -56,7 +56,18 @@ mydomain.com:4242
 
 + server_name field is optional. Several strings can be specified, which have to be separated by spaces
 
-+ client_max_body_size can be set in kilobytes or megabytes (for example 1K or 5M). The field can be omitted, and then the body size will be unlimited (though we might want to limit the max max_body_size...? For now, I'll just limit it at LONG_MAX :D)
++ client_max_body_size can be set in kilobytes or megabytes (for example 1K or 5M). The field can be omitted, and then the default will be in effect, which is 1m. If it is set to "0" (not 0K or 0M though), body size will be unlimited (though we might want to limit the max max_body_size...? For now, I'll just limit it at LONG_MAX :D)
+
++ setting up default error pages is optional, but if done, must be done in the server context in the following format:
+
+	```
+	error_page <error_code1> <error_code2> <error_code_n> <error_page_address>
+	```
+
+	(whitespaces between the elements are not counted)
+
+	The error page address can be a URI or a URL at the moment
+
 
 
 Proxy_pass passes the requests to other server off loads the work from our server and the server its passed to in this examples a docker containers have their own CGI to handle the code execution and generate the reponse for the user. 
