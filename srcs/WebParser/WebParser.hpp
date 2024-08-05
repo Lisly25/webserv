@@ -13,6 +13,7 @@ enum LocationType { CGI, PROXY };
 
 struct Location {
     LocationType    type;
+    std::string     uri;
     std::string     path;
     std::string     target;
 };
@@ -67,9 +68,10 @@ private:
     ssize_t                     locateDirective(size_t contextStart, size_t contextEnd, std::string key);
     void                        parseServer(void);
     void                        extractServerInfo(size_t contextStart, size_t contextEnd);
-    void                        extractLocationInfo(size_t contextStart);
+    void                        extractLocationInfo(size_t contextStart, size_t contextEnd);
     int                         extractPort(size_t contextStart, size_t contextEnd);
     std::vector<std::string>    extractServerName(size_t contextStart, size_t contextEnd);
     long                        extractClientMaxBodySize(size_t contextStart, size_t contextEnd);
     void                        extractErrorPageInfo(size_t contextStart, size_t contextEnd);
+    std::string                 extractLocationUri(size_t contextStart);
 };

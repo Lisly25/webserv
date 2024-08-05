@@ -185,12 +185,12 @@ bool    WebParser::locateServerContextStart(std::string line, std::string contex
         return (false);
     if (i < line.length())
         i++;
-    while (line[i])
+/*     while (line[i])
     {
         if (!isspace(line[i]))
             return (false);
         i++;
-    }
+    } */
     return (true);
 }
 
@@ -229,12 +229,8 @@ bool    WebParser::locateLocationContextStart(std::string line, std::string cont
         i++;
     if (line[i] == '{')
         i++;
-    while (line[i])
-    {
-        if (!isspace(line[i]))
-            return (false);
-        i++;
-    }
+    if (i != line.length())
+        return (false);
     return (true);
 }
 
@@ -349,12 +345,21 @@ void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
             ssize_t  contextEnd = locateContextEnd(i);
             if (contextEnd == -1)
                 throw WebErrors::ConfigFormatException("Error: context not closed properly");
-            //extractLocationInfo(i, contextEnd);
+            extractLocationInfo(i, contextEnd);
             i = contextEnd + 1;        
         }
         else
             i++;
     }
+}
+
+void    WebParser::extractLocationInfo(size_t contextStart, size_t contextEnd)
+{
+    Location    currentLocation;
+
+    currentLocation.uri = extractLocationUri(contextStart);
+    std::cout << contextStart << " " << contextEnd << std::endl;
+    _servers.back().locations.push_back(currentLocation);
 }
 
 int WebParser::extractPort(size_t contextStart, size_t contextEnd)
@@ -582,4 +587,16 @@ void WebParser::printParsedInfo(void)
         std::cout << std::endl;
         i++;
     }
+}
+
+std::string WebParser::extractLocationUri(size_t contextStart)
+{
+    std::string key = "location";
+
+    std::string line = _configFile[contextStart];
+    size_t startIndex = line.find(key) + key.length();
+    while (isspace(line[startIndex]))
+        startIndex++;
+    line = line.substr(startIndex, line.length() - startIndex - 2);
+    return (line);
 }
