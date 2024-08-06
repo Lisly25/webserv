@@ -91,6 +91,46 @@ bool    WebParser::locateServerContextStart(std::string line, std::string contex
     return (true);
 }
 
+bool    WebParser::locateLocationContextStart(std::string line, std::string contextName)
+{
+    size_t keywordStart = line.find(contextName);
+
+    if (keywordStart == std::string::npos)
+        return (false);
+
+    size_t i = 0;
+
+    while (i < keywordStart)
+    {
+        if (!isspace(line[i]))
+            return (false);
+        i++;
+    }
+    size_t j;
+    i += contextName.length();
+    j = i;
+
+    while (isspace(line[i]))
+        i++;
+    if (i == j)
+        return (false);
+    if (line[i] != '/')
+        return (false);
+    size_t uriStart = i;
+
+    while (i < line.length() && !(isspace(line[i])))
+        i++;
+    if (i == line.length() || i == uriStart)
+        return (false);
+    while (isspace(line[i]))
+        i++;
+    if (line[i] == '{')
+        i++;
+    if (i != line.length())
+        return (false);
+    return (true);
+}
+
 std::string WebParser::removeDirectiveKey(std::string line, std::string key)
 {
     size_t valueIndex = line.find(key) + key.length();

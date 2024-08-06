@@ -61,7 +61,6 @@ private:
     void                        parseProxyPass(const std::string &line);
     void                        parseCgiPass(const std::string &line);
     bool                        checkBracePairs(std::string line);
-    bool                        locateLocationContextStart(std::string line, std::string contextName);
     ssize_t                     locateContextEnd(size_t contextStart);
     ssize_t                     locateDirective(size_t contextStart, size_t contextEnd, std::string key);
     void                        parseServer(void);
@@ -81,5 +80,6 @@ private:
     static std::string          removeInLineComment(std::string line);
     static bool                 checkBracesPerLine(std::string line);
     static bool                 locateServerContextStart(std::string line, std::string contextName);
+    static bool                 locateLocationContextStart(std::string line, std::string contextName);
     static std::string          removeDirectiveKey(std::string line, std::string key);
 };
