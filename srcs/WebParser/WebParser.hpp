@@ -16,6 +16,9 @@ struct Location {
     std::string     uri;
     std::string     path;
     std::string     target;
+    bool            allowedGET;
+    bool            allowedPOST;
+    bool            allowedDELETE;
 };
 
 struct Server {
@@ -74,4 +77,5 @@ private:
     long                        extractClientMaxBodySize(size_t contextStart, size_t contextEnd);
     void                        extractErrorPageInfo(size_t contextStart, size_t contextEnd);
     std::string                 extractLocationUri(size_t contextStart);
+    void                        extractAllowedMethods(size_t contextStart, size_t contextEnd);
 };

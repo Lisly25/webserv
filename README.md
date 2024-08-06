@@ -77,7 +77,15 @@ mydomain.com:4242
 	The error page address can be a URI or a URL at the moment
 	(thus, if the error page address does not contain at least one '/', an error will be thrown during the parsing)
 
++ inside a location context, the allowed_methods directive can be used to list the allowed methods (only POST, GET, and DELETE are implemented). Example in which DELETE is not allowed:
 
+	```
+	location / {
+		allowed_methods GET POST
+	}
+	```
+
+	Trying to use a disallowed method will return code 405. Not listing any method as allowed will throw an exception, as well as specifying a method that is not supported
 
 Proxy_pass passes the requests to other server off loads the work from our server and the server its passed to in this examples a docker containers have their own CGI to handle the code execution and generate the reponse for the user. 
 

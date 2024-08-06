@@ -357,9 +357,12 @@ void    WebParser::extractLocationInfo(size_t contextStart, size_t contextEnd)
 {
     Location    currentLocation;
 
+    currentLocation.allowedDELETE = false;
+    currentLocation.allowedGET = false;
+    currentLocation.allowedPOST = false;
     currentLocation.uri = extractLocationUri(contextStart);
-    std::cout << contextStart << " " << contextEnd << std::endl;
     _servers.back().locations.push_back(currentLocation);
+    extractAllowedMethods(contextStart, contextEnd);
 }
 
 int WebParser::extractPort(size_t contextStart, size_t contextEnd)
@@ -584,6 +587,27 @@ void WebParser::printParsedInfo(void)
             std::cout << servers[i].error_codes[k] << std::endl;
         }
         std::cout << "Client body max size in bytes: " << servers[i].client_max_body_size << std::endl;
+        std::cout << "Location info for this server: " << std::endl;
+        for (size_t h = 0; h < servers[i].locations.size(); h++)
+        {
+            std::cout << ">>> Location nro." << h << std::endl;
+            std::cout << ">>> URI: " << servers[i].locations[h].uri << std::endl;
+            std::cout << ">>> Allowed HTTP methods: " << std::endl << "GET: ";
+            if (servers[i].locations[h].allowedGET == true)
+                std::cout << "yes" << std::endl;
+            else
+                std::cout << "no" << std::endl;
+            std::cout << "POST: ";
+            if (servers[i].locations[h].allowedPOST == true)
+                std::cout << "yes" << std::endl;
+            else
+                std::cout << "no" << std::endl;
+            std::cout << "DELETE: ";
+            if (servers[i].locations[h].allowedDELETE == true)
+                std::cout << "yes" << std::endl;
+            else
+                std::cout << "no" << std::endl;
+        }
         std::cout << std::endl;
         i++;
     }
@@ -599,4 +623,48 @@ std::string WebParser::extractLocationUri(size_t contextStart)
         startIndex++;
     line = line.substr(startIndex, line.length() - startIndex - 2);
     return (line);
+}
+
+void    WebParser::extractAllowedMethods(size_t contextStart, size_t contextEnd)
+{
+    std::string key = "allowed_methods";
+    ssize_t directiveLocation = locateDirective(contextStart, contextEnd, key);
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: only one allowed_methods per location context is allowed");
+    if (directiveLocation == 0)
+        throw WebErrors::ConfigFormatException("Error: please add the allowed_methods directive to all location contexts");
+
+    std::string line = _configFile[directiveLocation];
+    size_t methodsIndex = line.find(key) + key.length();
+
+    while (isspace(line[methodsIndex]))
+        methodsIndex++;
+    line = line.substr(methodsIndex, line.length() - methodsIndex - 1);
+
+    std::string subLine;
+    std::istringstream  stream(line);
+
+    while (getline(stream, subLine, ' '))
+    {
+        if (subLine.compare("GET") == 0)
+        {
+            if (_servers.back().locations.back().allowedGET == true)
+                throw WebErrors::ConfigFormatException("Error: GET is listed twice in the same allowed_methods directive");
+            _servers.back().locations.back().allowedGET = true;
+        }
+        else if (subLine.compare("POST") == 0)
+        {
+            if (_servers.back().locations.back().allowedPOST == true)
+                throw WebErrors::ConfigFormatException("Error: POST is listed twice in the same allowed_methods directive");
+            _servers.back().locations.back().allowedPOST = true;
+        }
+        else if (subLine.compare("DELETE") == 0)
+        {
+            if (_servers.back().locations.back().allowedDELETE == true)
+                throw WebErrors::ConfigFormatException("Error: DELETE is listed twice in the same allowed_methods directive");
+            _servers.back().locations.back().allowedDELETE = true;
+        }
+        else
+            throw WebErrors::ConfigFormatException("Error: allowed_methods directive accepts only 3 values: GET, POST, DELETE");
+    }   
 }
