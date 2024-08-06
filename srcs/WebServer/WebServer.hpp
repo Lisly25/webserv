@@ -1,6 +1,5 @@
 #pragma once
 
-#include "RequestHandler/RequestHandler.hpp"
 #include "ScopedSocket.hpp"
 #include "WebParser.hpp"
 #include <string>
@@ -8,7 +7,9 @@
 #include <sys/poll.h>
 #include <sys/epoll.h>
 #include <netinet/tcp.h>
+#include <unordered_map>
 #include <vector>
+#include "Request.hpp"
 
 class WebServer
 {
@@ -29,7 +30,8 @@ private:
     struct sockaddr_in      _serverAddr;
     static const int        MAX_EVENTS = 100;
     epoll_event             _events[MAX_EVENTS];
-    RequestHandler          _requestHandler;
+
+    std::unordered_map<int, Request> _requestMap;
 
     int     createServerSocket(int port);
     void    handleClient(int clientSocket);

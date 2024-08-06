@@ -1,5 +1,4 @@
 #include "WebServer.hpp"
-#include "RequestHandler/RequestHandler.hpp"
 #include "ScopedSocket.hpp"
 #include "WebErrors.hpp"
 #include <csignal>
@@ -12,16 +11,18 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
+#include "Response.hpp"
+#include "Request.hpp"
 
 bool WebServer::_running = true;
 
 WebServer::WebServer(WebParser &parser, int port)
-    : _serverSocket(createServerSocket(port)), _epollFd(epoll_create(1)), _parser(parser), _requestHandler()
+    : _serverSocket(createServerSocket(port)), _epollFd(epoll_create(1)), _parser(parser)
 {
     if (_epollFd == -1)
         throw WebErrors::ServerException("Error creating epoll instance");
     try{
-        epollController(_serverSocket.get(), EPOLL_CTL_ADD, EPOLLIN);
+        epollController(_serverSocket.get(), EPOLL_CTL_ADD, EPOLLIN | EPOLLOUT);
     }
     catch (const std::exception &e){
         throw ;
@@ -125,7 +126,7 @@ void WebServer::handleIncomingData(int clientSocket)
             {
                 if (bytesRead == 0 || (errno == EAGAIN || errno == EWOULDBLOCK)) break;
                 WebErrors::printerror("Error reading from client socket");
-                break ;
+                break;
             }
 
             totalRequest.append(buffer, bytesRead);
@@ -135,7 +136,7 @@ void WebServer::handleIncomingData(int clientSocket)
         }
         if (!totalRequest.empty())
         {
-            _requestHandler.storeRequest(clientSocket, totalRequest);
+            _requestMap[clientSocket] = Request(totalRequest);
             epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT);
         }
     }
@@ -149,11 +150,18 @@ void WebServer::handleIncomingData(int clientSocket)
 void WebServer::handleOutgoingData(int clientSocket)
 {
     try {
-        std::string response = _requestHandler.generateResponse(clientSocket);
-        int bytesSent = send(clientSocket, response.c_str(), response.length(), 0);
-        if (bytesSent == -1)
-            WebErrors::printerror("Error sending response to client");
-        epollController(clientSocket, EPOLL_CTL_MOD, EPOLLIN);
+        auto it = _requestMap.find(clientSocket);
+        if (it != _requestMap.end())
+        {
+            const Request &request = it->second;
+            Response response;
+            std::string responseContent = response.generate(request);
+            int bytesSent = send(clientSocket, responseContent.c_str(), responseContent.length(), 0);
+            if (bytesSent == -1)
+                WebErrors::printerror("Error sending response to client");
+            epollController(clientSocket, EPOLL_CTL_MOD, EPOLLIN);
+            _requestMap.erase(it);
+        }
     }
     catch (std::exception &e)
     {
