@@ -224,6 +224,7 @@ void    WebParser::extractLocationInfo(size_t contextStart, size_t contextEnd)
     currentLocation.allowedGET = false;
     currentLocation.allowedPOST = false;
     currentLocation.uri = extractLocationUri(contextStart);
+    currentLocation.root = extractRoot(contextStart, contextEnd);
     _servers.back().locations.push_back(currentLocation);
     extractAllowedMethods(contextStart, contextEnd);
 }
@@ -451,6 +452,7 @@ void WebParser::printParsedInfo(void)
                 std::cout << "yes" << std::endl;
             else
                 std::cout << "no" << std::endl;
+            std::cout << ">>> root directory: " << servers[i].locations[h].root << std::endl;
         }
         std::cout << std::endl;
         i++;
@@ -506,4 +508,29 @@ void    WebParser::extractAllowedMethods(size_t contextStart, size_t contextEnd)
         else
             throw WebErrors::ConfigFormatException("Error: allowed_methods directive accepts only 3 values: GET, POST, DELETE");
     }   
+}
+
+//location context should always contain this, whether cgi-type or not
+std::string WebParser::extractRoot(size_t contextStart, size_t contextEnd) const
+{
+    std::string key = "root";
+    ssize_t     directiveLocation = locateDirective(contextStart, contextEnd, key);
+
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: only one 'root' directive per location context is allowed");
+    if (directiveLocation == 0)
+        throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts");
+    
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+
+    //for now the only further error checking I'll do is regarding whitespaces
+    size_t i;
+    i = 0;
+    while (line[i])
+    {
+        if (isspace(line[i]))
+            throw WebErrors::ConfigFormatException("Error: root directive must only refer to one string value");
+        i++;
+    }
+    return (line);
 }

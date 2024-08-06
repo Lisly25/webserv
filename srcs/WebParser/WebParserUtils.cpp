@@ -131,6 +131,7 @@ bool    WebParser::locateLocationContextStart(std::string line, std::string cont
     return (true);
 }
 
+//also removes the semicolon from the end of the directive
 std::string WebParser::removeDirectiveKey(std::string line, std::string key)
 {
     size_t valueIndex = line.find(key) + key.length();

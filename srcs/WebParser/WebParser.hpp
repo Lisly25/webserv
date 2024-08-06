@@ -16,6 +16,7 @@ struct Location {
     std::string     uri;
     std::string     path;
     std::string     target;
+    std::string     root;
     bool            allowedGET;
     bool            allowedPOST;
     bool            allowedDELETE;
@@ -72,6 +73,7 @@ private:
     void                        extractErrorPageInfo(size_t contextStart, size_t contextEnd);
     std::string                 extractLocationUri(size_t contextStart) const;
     void                        extractAllowedMethods(size_t contextStart, size_t contextEnd);
+    std::string                 extractRoot(size_t contextStart, size_t contextEnd) const;
 
     //in WebParserUtils
 

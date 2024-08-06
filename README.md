@@ -87,5 +87,7 @@ mydomain.com:4242
 
 	Trying to use a disallowed method will return code 405. Not listing any method as allowed will throw an exception, as well as specifying a method that is not supported
 
++ all location contexts must also contain a root directive, no matter which type location it is. Its value must be a single string (it cannot contain whitespaces)
+
 Proxy_pass passes the requests to other server off loads the work from our server and the server its passed to in this examples a docker containers have their own CGI to handle the code execution and generate the reponse for the user. 
 
