@@ -19,7 +19,7 @@ public:
     WebServer &operator=(const WebServer &) = delete;
 
     void start();
-    void removeClientSocket(int clientSocket);
+    void epollController(int clientSocket, int operation, uint32_t events);
 
 private:
     static bool             _running;
@@ -44,6 +44,6 @@ private:
 
 
     int         getRequestTotalLength(const std::string &request);
-    std::string getBoundry(const std::string &request);
+    std::string getBoundary(const std::string &request);
 
 };
