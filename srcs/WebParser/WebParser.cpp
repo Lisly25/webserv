@@ -223,10 +223,12 @@ void    WebParser::extractLocationInfo(size_t contextStart, size_t contextEnd)
     currentLocation.allowedDELETE = false;
     currentLocation.allowedGET = false;
     currentLocation.allowedPOST = false;
+    currentLocation.autoIndexOn = false;
     currentLocation.uri = extractLocationUri(contextStart);
     currentLocation.root = extractRoot(contextStart, contextEnd);
     _servers.back().locations.push_back(currentLocation);
     extractAllowedMethods(contextStart, contextEnd);
+    extractAutoinex(contextStart, contextEnd);
 }
 
 int WebParser::extractPort(size_t contextStart, size_t contextEnd) const
@@ -453,6 +455,11 @@ void WebParser::printParsedInfo(void)
             else
                 std::cout << "no" << std::endl;
             std::cout << ">>> root directory: " << servers[i].locations[h].root << std::endl;
+            std::cout << ">>> autoindexing: ";
+            if (servers[i].locations[h].autoIndexOn == true)
+                std::cout << "on" << std::endl;
+            else
+                std::cout << "off" << std::endl;
         }
         std::cout << std::endl;
         i++;
@@ -533,4 +540,22 @@ std::string WebParser::extractRoot(size_t contextStart, size_t contextEnd) const
         i++;
     }
     return (line);
+}
+
+void    WebParser::extractAutoinex(size_t contextStart, size_t contextEnd)
+{
+    std::string key = "autoindex";
+    ssize_t     directiveLocation = locateDirective(contextStart, contextEnd, key);
+
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: only one 'autoindex' directive per location context is allowed");
+    if (directiveLocation == 0)
+        return ;
+    
+    //An error should be thrown if the location context is cgi-type, but I don't know yet how we'll verify the type
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+    if (line.compare("on") == 0)
+        _servers.back().locations.back().autoIndexOn = true;
+    else if (line.compare("off") != 0)
+        throw WebErrors::ConfigFormatException("Error: 'autoindex' may only have the value 'on' or 'off'");
 }

@@ -20,6 +20,7 @@ struct Location {
     bool            allowedGET;
     bool            allowedPOST;
     bool            allowedDELETE;
+    bool            autoIndexOn;
 };
 
 struct Server {
@@ -74,6 +75,7 @@ private:
     std::string                 extractLocationUri(size_t contextStart) const;
     void                        extractAllowedMethods(size_t contextStart, size_t contextEnd);
     std::string                 extractRoot(size_t contextStart, size_t contextEnd) const;
+    void                        extractAutoinex(size_t contextStart, size_t contextEnd);
 
     //in WebParserUtils
 
