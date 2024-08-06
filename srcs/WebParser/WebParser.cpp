@@ -97,7 +97,7 @@ bool WebParser::checkBracePairs(std::string line)
     return (true);
 }
 
-ssize_t  WebParser::locateContextEnd(size_t contextStart)
+ssize_t  WebParser::locateContextEnd(size_t contextStart) const
 {
     int leftBraceCount = 1;
     int rightBraceCount = 0;
@@ -133,7 +133,7 @@ ssize_t  WebParser::locateContextEnd(size_t contextStart)
 
 //should return -1 if there's several in the given range, otherwise the index within the vector
 //if it can't be found, return 0 (it would never be on line 0, since a valid file would at best have the server directive there)
-ssize_t WebParser::locateDirective(size_t contextStart, size_t contextEnd, std::string key)
+ssize_t WebParser::locateDirective(size_t contextStart, size_t contextEnd, std::string key) const
 {
     size_t  i;
     size_t  key_start;
@@ -228,7 +228,7 @@ void    WebParser::extractLocationInfo(size_t contextStart, size_t contextEnd)
     extractAllowedMethods(contextStart, contextEnd);
 }
 
-int WebParser::extractPort(size_t contextStart, size_t contextEnd)
+int WebParser::extractPort(size_t contextStart, size_t contextEnd) const
 {
     std::string key = "listen";
     ssize_t directiveLocation = locateDirective(contextStart, contextEnd, key);
@@ -309,7 +309,7 @@ std::vector<std::string> WebParser::extractServerName(size_t contextStart, size_
 
 //0 will be returned if no limit was set in the file
 //otherwise, will return the value in bytes
-long WebParser::extractClientMaxBodySize(size_t contextStart, size_t contextEnd)
+long WebParser::extractClientMaxBodySize(size_t contextStart, size_t contextEnd) const
 {
     std::string key = "client_max_body_size";
     ssize_t    directiveLocation = locateDirective(contextStart, contextEnd, key);
@@ -457,7 +457,7 @@ void WebParser::printParsedInfo(void)
     }
 }
 
-std::string WebParser::extractLocationUri(size_t contextStart)
+std::string WebParser::extractLocationUri(size_t contextStart) const
 {
     std::string key = "location";
 

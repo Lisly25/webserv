@@ -61,16 +61,16 @@ private:
     void                        parseProxyPass(const std::string &line);
     void                        parseCgiPass(const std::string &line);
     bool                        checkBracePairs(std::string line);
-    ssize_t                     locateContextEnd(size_t contextStart);
-    ssize_t                     locateDirective(size_t contextStart, size_t contextEnd, std::string key);
+    ssize_t                     locateContextEnd(size_t contextStart) const;
+    ssize_t                     locateDirective(size_t contextStart, size_t contextEnd, std::string key) const;
     void                        parseServer(void);
     void                        extractServerInfo(size_t contextStart, size_t contextEnd);
     void                        extractLocationInfo(size_t contextStart, size_t contextEnd);
-    int                         extractPort(size_t contextStart, size_t contextEnd);
+    int                         extractPort(size_t contextStart, size_t contextEnd) const;
     std::vector<std::string>    extractServerName(size_t contextStart, size_t contextEnd);
-    long                        extractClientMaxBodySize(size_t contextStart, size_t contextEnd);
+    long                        extractClientMaxBodySize(size_t contextStart, size_t contextEnd) const;
     void                        extractErrorPageInfo(size_t contextStart, size_t contextEnd);
-    std::string                 extractLocationUri(size_t contextStart);
+    std::string                 extractLocationUri(size_t contextStart) const;
     void                        extractAllowedMethods(size_t contextStart, size_t contextEnd);
 
     //in WebParserUtils
