@@ -375,11 +375,7 @@ int WebParser::extractPort(size_t contextStart, size_t contextEnd)
     if (directiveLocation == 0)
         throw WebErrors::ConfigFormatException("Error: missing listening port");
     
-    std::string line = _configFile[directiveLocation];
-    size_t portIndex = line.find(key) + key.length();
-    while (isspace(line[portIndex]))
-        portIndex++;
-    line = line.substr(portIndex, line.length() - portIndex - 1);
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
 
     std::stringstream stream(line);
     int               portNumber;
@@ -428,12 +424,7 @@ std::vector<std::string> WebParser::extractServerName(size_t contextStart, size_
     default:
         break;
     }
-    std::string line = _configFile[directiveLocation];
-    size_t snameIndex = line.find(key) + key.length();
-
-    while (isspace(line[snameIndex]))
-        snameIndex++;
-    line = line.substr(snameIndex, line.length() - snameIndex - 1);
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
 
     std::string subLine;
     std::istringstream  stream(line);
@@ -465,12 +456,7 @@ long WebParser::extractClientMaxBodySize(size_t contextStart, size_t contextEnd)
     if (directiveLocation == 0)
         return (1000000);//nginx's default is 1M
     
-    std::string line = _configFile[directiveLocation];
-    size_t bsizeIndex = line.find(key) + key.length();
-
-    while (isspace(line[bsizeIndex]))
-        bsizeIndex++;
-    line = line.substr(bsizeIndex, line.length() - bsizeIndex - 1);
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
         
     std::stringstream stream(line);
     long numericComponent;
@@ -513,12 +499,7 @@ void    WebParser::extractErrorPageInfo(size_t contextStart, size_t contextEnd)
     if (directiveLocation == 0)
         return ;
 
-    std::string line = _configFile[directiveLocation];
-    size_t errorPageIndex = line.find(key) + key.length();
-
-    while (isspace(line[errorPageIndex]))
-        errorPageIndex++;
-    line = line.substr(errorPageIndex, line.length() - errorPageIndex - 1);
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
     
     size_t  i;
     i = line.length();
@@ -634,12 +615,7 @@ void    WebParser::extractAllowedMethods(size_t contextStart, size_t contextEnd)
     if (directiveLocation == 0)
         throw WebErrors::ConfigFormatException("Error: please add the allowed_methods directive to all location contexts");
 
-    std::string line = _configFile[directiveLocation];
-    size_t methodsIndex = line.find(key) + key.length();
-
-    while (isspace(line[methodsIndex]))
-        methodsIndex++;
-    line = line.substr(methodsIndex, line.length() - methodsIndex - 1);
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
 
     std::string subLine;
     std::istringstream  stream(line);

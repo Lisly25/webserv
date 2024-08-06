@@ -78,4 +78,8 @@ private:
     void                        extractErrorPageInfo(size_t contextStart, size_t contextEnd);
     std::string                 extractLocationUri(size_t contextStart);
     void                        extractAllowedMethods(size_t contextStart, size_t contextEnd);
+
+    //in WebParserUtils
+
+    static std::string          removeDirectiveKey(std::string line, std::string key);
 };
