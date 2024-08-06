@@ -1,7 +1,8 @@
 SRC = $(shell find srcs -name *.cpp)
 OBJS = $(SRC:.cpp=.o)
+DEPS = $(OBJS:.o=.d)
 CXX = c++
-CPPFLAGS = -Wall -Wextra -Werror -std=c++17 -pedantic $(addprefix -I, $(shell find srcs -type d))
+CPPFLAGS = -Wall -Wextra -Werror -std=c++17 -pedantic $(addprefix -I, $(shell find srcs -type d)) -MMD -MP
 NAME = webserv
 
 DOCKER_COMPOSE_FILE := ./docker-services/docker-compose.yml
@@ -13,15 +14,16 @@ all: $(NAME)
 $(NAME): $(OBJS)
 	$(CXX) $(CPPFLAGS) $(OBJS) -o $(NAME)
 
+-include $(DEPS)
+
 clean: down
-	$(RM) $(OBJS)
+	$(RM) $(OBJS) $(DEPS)
 
 fclean: clean
 	$(RM) $(NAME)
 	$(RM) -r $(TESTS_DIR)/cgi_tester $(TESTS_DIR)/tester $(TESTS_DIR)/ubuntu_cgi_tester $(TESTS_DIR)/ubuntu_tester
 
 re: fclean $(NAME)
-
 
 # TESTS ----
 
