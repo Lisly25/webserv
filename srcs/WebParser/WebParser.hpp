@@ -9,14 +9,14 @@
 #include <sstream>
 #include <climits>
 
-enum LocationType { CGI, PROXY };
+enum LocationType { CGI, PROXY, ALIAS, STANDARD };
 
 struct Location {
     LocationType    type;
     std::string     uri;
-    std::string     path;
-    std::string     target;
+    //std::string     path;
     std::string     root;
+    std::string     target;
     bool            allowedGET;
     bool            allowedPOST;
     bool            allowedDELETE;
@@ -76,6 +76,7 @@ private:
     void                        extractAllowedMethods(size_t contextStart, size_t contextEnd);
     std::string                 extractRoot(size_t contextStart, size_t contextEnd) const;
     void                        extractAutoinex(size_t contextStart, size_t contextEnd);
+    LocationType                extractRedirectionType(size_t contextStart, size_t contextEnd);
 
     //in WebParserUtils
 

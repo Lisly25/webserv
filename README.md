@@ -89,7 +89,15 @@ mydomain.com:4242
 
 + all location contexts must also contain a root directive, no matter which type location it is. Its value must be a single string (it cannot contain whitespaces)
 
-+ 'autoindex' can be used inside non-cgi location context: is set to off by default, and as such, is not mandatory
++ `autoindex` can be used inside non-cgi location context: is set to off by default, and as such, is not mandatory. It is used to turn on or off directory listing
+
++ a location context may also contain redirections:
+	
+	* `alias` will replace `root` + `location` (results in redirection within the server)
+	* `proxy_pass` will define a different server to which we are redirecting
+	* `cgi_pass` is used to set the address of a cgi server
+	
+	A location context may contain only one of these (or none, in which case no redirection is performed)
 
 Proxy_pass passes the requests to other server off loads the work from our server and the server its passed to in this examples a docker containers have their own CGI to handle the code execution and generate the reponse for the user. 
 

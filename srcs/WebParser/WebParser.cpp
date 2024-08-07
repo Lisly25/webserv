@@ -226,6 +226,7 @@ void    WebParser::extractLocationInfo(size_t contextStart, size_t contextEnd)
     currentLocation.autoIndexOn = false;
     currentLocation.uri = extractLocationUri(contextStart);
     currentLocation.root = extractRoot(contextStart, contextEnd);
+    currentLocation.type = extractRedirectionType(contextStart, contextEnd);
     _servers.back().locations.push_back(currentLocation);
     extractAllowedMethods(contextStart, contextEnd);
     extractAutoinex(contextStart, contextEnd);
@@ -439,17 +440,17 @@ void WebParser::printParsedInfo(void)
         {
             std::cout << ">>> Location nro." << h << std::endl;
             std::cout << ">>> URI: " << servers[i].locations[h].uri << std::endl;
-            std::cout << ">>> Allowed HTTP methods: " << std::endl << "GET: ";
+            std::cout << ">>> Allowed HTTP methods: " << std::endl << ">>> GET: ";
             if (servers[i].locations[h].allowedGET == true)
                 std::cout << "yes" << std::endl;
             else
                 std::cout << "no" << std::endl;
-            std::cout << "POST: ";
+            std::cout << ">>> POST: ";
             if (servers[i].locations[h].allowedPOST == true)
                 std::cout << "yes" << std::endl;
             else
                 std::cout << "no" << std::endl;
-            std::cout << "DELETE: ";
+            std::cout << ">>> DELETE: ";
             if (servers[i].locations[h].allowedDELETE == true)
                 std::cout << "yes" << std::endl;
             else
@@ -460,6 +461,7 @@ void WebParser::printParsedInfo(void)
                 std::cout << "on" << std::endl;
             else
                 std::cout << "off" << std::endl;
+            std::cout << ">>> Redirection type {CGI, PROXY, ALIAS, STANDARD}: " << servers[i].locations[h].type << std::endl;
         }
         std::cout << std::endl;
         i++;
@@ -558,4 +560,38 @@ void    WebParser::extractAutoinex(size_t contextStart, size_t contextEnd)
         _servers.back().locations.back().autoIndexOn = true;
     else if (line.compare("off") != 0)
         throw WebErrors::ConfigFormatException("Error: 'autoindex' may only have the value 'on' or 'off'");
+}
+
+LocationType    WebParser::extractRedirectionType(size_t contextStart, size_t contextEnd)
+{
+    std::string key = "alias";
+    ssize_t     directiveLocation = locateDirective(contextStart, contextEnd, key);
+
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: only one 'alias' directive per location context is allowed");
+    else if (directiveLocation != 0)
+    {
+        //parse the alias, and store it in location.target
+        return (ALIAS);
+    }
+    key = "proxy_pass";
+    directiveLocation = locateDirective(contextStart, contextEnd, key);
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: only one 'proxy_pass' directive per location context is allowed");
+    else if (directiveLocation != 0)
+    {
+        //parse the proxy_pass, and store it in location.target
+        return (PROXY);
+    }
+    key = "cgi_pass";
+    directiveLocation = locateDirective(contextStart, contextEnd, key);
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: only one 'cgi_pass' directive per location context is allowed");
+    else if (directiveLocation != 0)
+    {
+        //parse the cgi_pass, and store it in location.target
+        return (CGI);
+    }
+    //since there is no redirection, create location.target from location.root + location.uri
+    return (STANDARD);
 }
