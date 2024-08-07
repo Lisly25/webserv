@@ -7,8 +7,11 @@ class Request
 {
 public:
     Request() = default;
-    explicit Request(const std::string &rawRequest) : rawRequest(rawRequest) {
-    }
+    Request(const std::string &rawRequest);
+    Request(const Request &other);
+    Request& operator=(const Request &other);
+    ~Request() = default;
+
     const std::string& getRawRequest() const { return rawRequest; }
 
 private:

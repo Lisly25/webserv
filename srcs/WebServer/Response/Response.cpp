@@ -24,16 +24,14 @@ Response::~Response()
 std::string Response::generate(const Request &request)
 {
     std::string response;
-    const std::string &rawRequest = request.getRawRequest();
 
-    if (rawRequest.find("GET /proxy") != std::string::npos || rawRequest.find("GET / ") != std::string::npos)
-        handleProxyPass(rawRequest, response);
+    if (request.getRawRequest().find("GET /") != std::string::npos || request.getRawRequest().find("GET /proxy") != std::string::npos)
+        handleProxyPass(request.getRawRequest(), response);
     else
         response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello, this is the response from the server.\r\n";
-    std::cout << "Generated response: " << response << std::endl;
-
     return response;
 }
+
 
 void Response::handleProxyPass(const std::string &request, std::string &response)
 {
@@ -43,7 +41,19 @@ void Response::handleProxyPass(const std::string &request, std::string &response
 
     std::cout << "Forwarding request to proxy:\n" << request << std::endl;
 
-    if (send(proxySocket, request.c_str(), request.length(), 0) < 0)
+    // Modify the Host header to match the proxy host
+    std::string modifiedRequest = request;
+    size_t hostPos = modifiedRequest.find("Host: ");
+    if (hostPos != std::string::npos) {
+        size_t hostEnd = modifiedRequest.find("\r\n", hostPos);
+        if (hostEnd != std::string::npos) {
+            modifiedRequest.replace(hostPos + 6, hostEnd - (hostPos + 6), "localhost:4141");
+        }
+    }
+
+    std::cout << "Modified request:\n" << modifiedRequest << std::endl;
+
+    if (send(proxySocket, modifiedRequest.c_str(), modifiedRequest.length(), 0) < 0)
         throw WebErrors::ProxyException("Error sending to proxy server");
 
     // Wait for the response from the proxy server
@@ -61,6 +71,7 @@ void Response::handleProxyPass(const std::string &request, std::string &response
 
     close(proxySocket);
 }
+
 
 void Response::resolveProxyAddresses()
 {

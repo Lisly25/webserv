@@ -11,6 +11,8 @@
 #include <vector>
 #include "Request.hpp"
 
+#define MAX_EVENTS 100
+
 class WebServer
 {
 public:
@@ -28,8 +30,8 @@ private:
     int                     _epollFd = -1;
     WebParser               &_parser;
     struct sockaddr_in      _serverAddr;
-    static const int        MAX_EVENTS = 100;
-    epoll_event             _events[MAX_EVENTS];
+
+    std::vector<struct epoll_event> _events;
 
     std::unordered_map<int, Request> _requestMap;
 
