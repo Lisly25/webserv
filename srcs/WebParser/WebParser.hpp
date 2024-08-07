@@ -12,15 +12,15 @@
 enum LocationType { CGI, PROXY, ALIAS, STANDARD };
 
 struct Location {
-    LocationType    type;
-    std::string     uri;
-    //std::string     path;
-    std::string     root;
-    std::string     target;
-    bool            allowedGET;
-    bool            allowedPOST;
-    bool            allowedDELETE;
-    bool            autoIndexOn;
+    LocationType                type;
+    std::string                 uri;
+    std::string                 root;
+    std::string                 target;
+    bool                        allowedGET;
+    bool                        allowedPOST;
+    bool                        allowedDELETE;
+    bool                        autoIndexOn;
+    std::vector<std::string>    index;
 };
 
 struct Server {
@@ -77,6 +77,7 @@ private:
     std::string                 extractRoot(size_t contextStart, size_t contextEnd) const;
     void                        extractAutoinex(size_t contextStart, size_t contextEnd);
     void                        extractRedirectionAndTarget(size_t contextStart, size_t contextEnd);
+    void                        extractIndex(size_t contextStart, size_t contextEnd);
 
     //in WebParserUtils
 
