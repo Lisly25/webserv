@@ -230,6 +230,7 @@ void    WebParser::extractLocationInfo(size_t contextStart, size_t contextEnd)
     extractAllowedMethods(contextStart, contextEnd);
     extractAutoinex(contextStart, contextEnd);
     extractRedirectionAndTarget(contextStart, contextEnd);
+    extractIndex(contextStart, contextEnd);
 }
 
 int WebParser::extractPort(size_t contextStart, size_t contextEnd) const
@@ -464,6 +465,11 @@ void WebParser::printParsedInfo(void)
                 std::cout << "off" << std::endl;
             std::cout << ">>> Redirection type {CGI, PROXY, ALIAS, STANDARD}: " << servers[i].locations[h].type << std::endl;
             std::cout << ">>> Target: " << servers[i].locations[h].target << std::endl;
+            std::cout << ">>> Index files:" << std::endl;
+            for (size_t s = 0; s < servers[i].locations[h].index.size(); s++)
+            {
+                std::cout << ">>>   " << servers[i].locations[h].index[s] << std::endl;
+            }
         }
         std::cout << std::endl;
         i++;
@@ -611,4 +617,35 @@ void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t conte
     //since there is no redirection, create location.target from location.root + location.uri
     _servers.back().locations.back().target = createStandardTarget(_servers.back().locations.back().uri, _servers.back().locations.back().root);
     _servers.back().locations.back().type = STANDARD;
+}
+
+void    WebParser::extractIndex(size_t contextStart, size_t contextEnd)
+{
+    std::string key = "index";
+    ssize_t directiveLocation = locateDirective(contextStart, contextEnd, key);
+
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: only one 'index' directive allowed per location context");
+    //if no index is specified what should it be set to? It's just left empty for now
+    if (directiveLocation == 0)
+        return ;
+
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+    if (line.length() == 0)
+        return ;
+    std::string subLine;
+    std::istringstream  stream(line);
+
+    while (getline(stream, subLine, ' '))
+    {
+        try
+        {
+            _servers.back().locations.back().index.push_back(subLine);
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << std::endl;
+            throw WebErrors::BaseException("Vector operation failed");
+        }
+    }
 }
