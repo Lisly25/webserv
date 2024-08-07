@@ -276,6 +276,7 @@ int WebParser::extractPort(size_t contextStart, size_t contextEnd) const
     return (portNumber);
 }
 
+//optional directive - allowed to be empty (`server_names;`)
 std::vector<std::string> WebParser::extractServerName(size_t contextStart, size_t contextEnd)
 {
     std::string                 key = "server_name";
@@ -490,6 +491,8 @@ void    WebParser::extractAllowedMethods(size_t contextStart, size_t contextEnd)
         throw WebErrors::ConfigFormatException("Error: please add the allowed_methods directive to all location contexts");
 
     std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+    if (line.length() == 0)
+        throw WebErrors::ConfigFormatException("Error: allowed_methods directive must have a value");
 
     std::string subLine;
     std::istringstream  stream(line);
@@ -531,6 +534,10 @@ std::string WebParser::extractRoot(size_t contextStart, size_t contextEnd) const
         throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts");
     
     std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+
+    //checking that the root starts with '/' (it should since we aren't using regular expressions?)
+    if (line.length() == 0)
+        throw WebErrors::ConfigFormatException("Error: root directive must have a value");
 
     //for now the only further error checking I'll do is regarding whitespaces
     size_t i;
