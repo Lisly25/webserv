@@ -1,8 +1,8 @@
 #include "WebServer.hpp"
-#include "RequestHandler/RequestHandler.hpp"
 #include "ScopedSocket.hpp"
 #include "WebErrors.hpp"
 #include <csignal>
+#include <exception>
 #include <fcntl.h>
 #include <iostream>
 #include <cstring>
@@ -11,22 +11,22 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
+#include "Response.hpp"
+#include "Request.hpp"
 
 bool WebServer::_running = true;
-RequestHandler WebServer::_requestHandler(-1);
 
 WebServer::WebServer(WebParser &parser, int port)
-    : _serverSocket(createServerSocket(port)), _parser(parser)
+    : _serverSocket(createServerSocket(port)), _epollFd(epoll_create(1)), _parser(parser), _events(MAX_EVENTS)
 {
-    _epollFd = epoll_create(1);
     if (_epollFd == -1)
         throw WebErrors::ServerException("Error creating epoll instance");
-
-    epoll_event event;
-    event.events = EPOLLIN | EPOLLET | EPOLLEXCLUSIVE;
-    event.data.fd = _serverSocket.get();
-    if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, _serverSocket.get(), &event) == -1)
-        throw WebErrors::ServerException("Error adding server socket to epoll");
+    try{
+        epollController(_serverSocket.get(), EPOLL_CTL_ADD, EPOLLIN | EPOLLOUT);
+    }
+    catch (const std::exception &e){
+        throw ;
+    }
 }
 
 WebServer::~WebServer() { close(_epollFd); }
@@ -47,66 +47,149 @@ int WebServer::createServerSocket(int port)
     if (bind(serverSocket.get(), (struct sockaddr *)&_serverAddr, sizeof(_serverAddr)) < 0)
         throw WebErrors::ServerException("Error binding server socket");
 
-    if (listen(serverSocket.get(), 1000) < 0)
+    if (listen(serverSocket.get(), SOMAXCONN) < 0)
         throw WebErrors::ServerException("Error listening on server socket");
 
     return serverSocket.release();
 }
 
-void WebServer::removeClientSocket(int clientSocket)
+void WebServer::epollController(int clientSocket, int operation, uint32_t events)
 {
-    epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
-    close(clientSocket);
+    struct epoll_event  event;
+
+    std::memset(&event, 0, sizeof(event));
+    event.data.fd = clientSocket;
+    event.events = events;
+    if (epoll_ctl(_epollFd, operation, clientSocket, &event) == -1)
+    {
+        close(clientSocket);
+        throw WebErrors::ServerException("Error changing epoll state" + std::string(strerror(errno)));
+    }
+    if (operation == EPOLL_CTL_DEL)
+    {
+        close(clientSocket);
+        clientSocket = -1;
+    }
 }
 
-// ACCEPT THE CLIENT CONNECTION AND ADD IT TO THE EPOLL POOL
 void WebServer::acceptAddClient()
 {
     struct sockaddr_in  clientAddr;
-    epoll_event         event;
     socklen_t           clientLen = sizeof(clientAddr);
     ScopedSocket        clientSocket(accept(_serverSocket.get(), (struct sockaddr *)&clientAddr, &clientLen));
 
     if (clientSocket.get() < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
         throw WebErrors::ServerException("Error accepting client connection");
 
-    event.events = EPOLLIN | EPOLLET | EPOLLEXCLUSIVE;
-    event.data.fd = clientSocket.get();
-    if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, clientSocket.get(), &event) == -1)
-        throw WebErrors::ServerException("Error adding client socket to epoll");
-
+    epollController(clientSocket.get(), EPOLL_CTL_ADD, EPOLLIN);
     clientSocket.release();
+}
+
+std::string WebServer::getBoundary(const std::string &request)
+{
+    size_t start = request.find("boundary=");
+    if (start == std::string::npos) return "";
+
+    start += 9; // Length of "boundary="
+    size_t end = request.find("\r\n", start);
+    return (end == std::string::npos) ? request.substr(start) : request.substr(start, end - start);
+}
+
+int WebServer::getRequestTotalLength(const std::string &request)
+{
+    size_t contentLengthPos = request.find("Content-Length: ");
+    if (contentLengthPos == std::string::npos) return request.length();
+
+    contentLengthPos += 16; // Length of "Content-Length: "
+    size_t end = request.find("\r\n", contentLengthPos);
+    const int contentLength = std::stoi(request.substr(contentLengthPos, end - contentLengthPos));
+
+    std::string boundary = getBoundary(request);
+    if (!boundary.empty())
+    {
+        size_t boundaryPos = request.rfind("--" + boundary);
+        if (boundaryPos != std::string::npos)
+            return boundaryPos + boundary.length() + 4; // +4 for "--\r\n"
+    }
+    return contentLength;
 }
 
 void WebServer::handleIncomingData(int clientSocket)
 {
-    try
-    {
-        if (clientSocket == _serverSocket.get()) // New clients fd matches the server socket fd in first event then added to the pool
-                acceptAddClient();
-        else
-            _requestHandler.handleRequest(clientSocket); // Handle existing user request
+    try {
+        char        buffer[1024];
+        std::string totalRequest;
+        int         totalBytes = -1;
+        int         bytesRead = 0;
+
+        while (totalBytes == -1 || totalRequest.length() < static_cast<size_t>(totalBytes))
+        {
+            bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
+            if (bytesRead <= 0)
+            {
+                if (bytesRead == 0 || (errno == EAGAIN || errno == EWOULDBLOCK)) break;
+                WebErrors::printerror("Error reading from client socket");
+                break;
+            }
+
+            totalRequest.append(buffer, bytesRead);
+
+            if (totalBytes == -1)
+                totalBytes = getRequestTotalLength(totalRequest);
+        }
+        if (!totalRequest.empty())
+        {
+            _requestMap[clientSocket] = Request(totalRequest);
+            epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT);
+        }
     }
-    catch (const WebErrors::ClientException &e)
+    catch (const std::exception &e)
     {
-        std::cerr << e.what() << std::endl;
+        WebErrors::printerror(e.what());
+        epollController(clientSocket, EPOLL_CTL_DEL, 0);
     }
 }
 
-//void WebServer::handleOutgoingData(int clientSocket) { TO DO }
+void WebServer::handleOutgoingData(int clientSocket) {
+    try {
+        auto it = _requestMap.find(clientSocket);
+        if (it != _requestMap.end())
+        {
+            const Request &request = it->second;
+            Response response;
+            std::string responseContent = response.generate(request);
+            std::cout << "Sending response to client:\n" << responseContent << std::endl;
+            int bytesSent = send(clientSocket, responseContent.c_str(), responseContent.length(), 0);
+            if (bytesSent == -1)
+            {
+                WebErrors::printerror("Error sending response to client");
+                epollController(clientSocket, EPOLL_CTL_DEL, 0);
+            }
+            else
+                epollController(clientSocket, EPOLL_CTL_DEL, 0);
+        }
+        _requestMap.erase(it);
+    }
+    catch (std::exception &e) {
+        std::cerr << e.what() << std::endl;
+        epollController(clientSocket, EPOLL_CTL_DEL, 0);
+    }
+}
+
 
 void WebServer::handleEvents(int eventCount)
 {
-    for (int i = 0; i < eventCount; ++i)
-    {
-        if (_events[i].events & EPOLLIN) // EPOLLIN is set when there is data to read from client socket (recv())
+    for (int i = 0; i < eventCount; ++i) {
+
+        if (_events[i].data.fd == _serverSocket.get())
         {
-            handleIncomingData(_events[i].data.fd);
+            fcntl(_events[i].data.fd, F_SETFL, O_NONBLOCK, FD_CLOEXEC);
+            acceptAddClient();
         }
-        /*else if (_events[i].events & EPOLLOUT) // EPOLLOUT is set when the socket is ready to send data to the client (send())
-        {
+        else if (_events[i].events & EPOLLIN)
+            handleIncomingData(_events[i].data.fd);
+        else if (_events[i].events & EPOLLOUT)
             handleOutgoingData(_events[i].data.fd);
-        }*/
     }
 }
 
@@ -117,7 +200,7 @@ void WebServer::start()
 
     while (_running)
     {
-        int eventCount = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
+        int eventCount = epoll_wait(_epollFd, _events.data(), _events.size(), -1);
         if (eventCount == -1)
         {
             if (errno == EINTR) continue;

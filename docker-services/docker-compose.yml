@@ -3,7 +3,7 @@ services:
     container_name: homer
     image: b4bz/homer:latest
     ports:
-      - "8080:8080"
+      - "4141:8080"
     volumes:
       - ./homer:/www/assets
     environment:

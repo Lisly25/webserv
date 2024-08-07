@@ -2,7 +2,11 @@
 #include "ScopedSocket.hpp"
 #include "WebErrors.hpp"
 
-ScopedSocket::ScopedSocket(int fd) : _fd(fd) { setSocketFlags(O_NONBLOCK | O_CLOEXEC); }
+ScopedSocket::ScopedSocket(int fd ,bool set_default_flags) : _fd(fd)
+{
+    if (set_default_flags)
+        setSocketFlags(O_NONBLOCK | O_CLOEXEC);
+}
 
 ScopedSocket::~ScopedSocket() { if (_fd != -1) close(_fd);  }
 

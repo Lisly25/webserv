@@ -36,17 +36,10 @@ namespace WebErrors
         explicit ConfigFormatException(std::string error_msg);
     };
 
-     class ClientException : public BaseException
+     class ProxyException : public BaseException
     {
     public:
-        ClientException(const std::string &message, addrinfo* res = nullptr,\
-            WebServer* server = nullptr, int clientSocket = -1);
-        ~ClientException();
-
-    private:
-        addrinfo*   _res;
-        WebServer*  _server;
-        int         _clientSocket;
+        explicit ProxyException(const std::string &message);
     };
 
     class ServerException : public BaseException

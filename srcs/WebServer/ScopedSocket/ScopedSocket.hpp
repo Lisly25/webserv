@@ -4,7 +4,7 @@
 
 class ScopedSocket {
 public:
-    ScopedSocket(int fd = -1);
+    ScopedSocket(int fd = -1, bool set_default_flags = true);
     ~ScopedSocket();
     ScopedSocket(const ScopedSocket&) = delete;
     ScopedSocket& operator=(const ScopedSocket&) = delete;

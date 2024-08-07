@@ -18,15 +18,9 @@ namespace WebErrors
         : BaseException(error_msg) {}
 
     /* Handles exceptions happening in the client handling in server */
-    ClientException::ClientException(const std::string &message, addrinfo* res, WebServer* server, int clientSocket)
-        : BaseException(message), _res(res), _server(server), _clientSocket(clientSocket) { }
+    ProxyException::ProxyException(const std::string &message)
+        : BaseException(message) { }
 
-    ClientException::~ClientException()
-    {
-        if (_res) freeaddrinfo(_res);
-        if (_server && _clientSocket != -1) _server->removeClientSocket(_clientSocket);
-    }
-    
     int printerror(const std::string &e)
     {
         if (errno != 0)
