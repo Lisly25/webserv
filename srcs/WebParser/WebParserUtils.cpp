@@ -141,3 +141,15 @@ std::string WebParser::removeDirectiveKey(std::string line, std::string key)
     line = line.substr(valueIndex, line.length() - valueIndex - 1);
 	return (line);
 }
+
+std::string WebParser::createStandardTarget(std::string uri, std::string root)
+{
+    //could check here if the uri part ends with a '/' -> in nginx, it is important that it does, but
+    //I'm not sure it should be for us?
+    //Also should the root end with '/', too?
+
+    //we already checked that the root starts with '/', and if a location URI does not start with '/', it is not even considered a location
+    if (*(root.end()) == '/')
+        root = root.substr(0, (root.length() - 1));
+    return (root + uri);
+}

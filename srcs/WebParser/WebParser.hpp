@@ -76,7 +76,7 @@ private:
     void                        extractAllowedMethods(size_t contextStart, size_t contextEnd);
     std::string                 extractRoot(size_t contextStart, size_t contextEnd) const;
     void                        extractAutoinex(size_t contextStart, size_t contextEnd);
-    LocationType                extractRedirectionType(size_t contextStart, size_t contextEnd);
+    void                        extractRedirectionAndTarget(size_t contextStart, size_t contextEnd);
 
     //in WebParserUtils
 
@@ -87,4 +87,5 @@ private:
     static bool                 locateServerContextStart(std::string line, std::string contextName);
     static bool                 locateLocationContextStart(std::string line, std::string contextName);
     static std::string          removeDirectiveKey(std::string line, std::string key);
+    static std::string          createStandardTarget(std::string uri, std::string root);
 };

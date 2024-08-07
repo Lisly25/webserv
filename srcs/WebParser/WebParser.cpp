@@ -226,10 +226,10 @@ void    WebParser::extractLocationInfo(size_t contextStart, size_t contextEnd)
     currentLocation.autoIndexOn = false;
     currentLocation.uri = extractLocationUri(contextStart);
     currentLocation.root = extractRoot(contextStart, contextEnd);
-    currentLocation.type = extractRedirectionType(contextStart, contextEnd);
     _servers.back().locations.push_back(currentLocation);
     extractAllowedMethods(contextStart, contextEnd);
     extractAutoinex(contextStart, contextEnd);
+    extractRedirectionAndTarget(contextStart, contextEnd);
 }
 
 int WebParser::extractPort(size_t contextStart, size_t contextEnd) const
@@ -463,6 +463,7 @@ void WebParser::printParsedInfo(void)
             else
                 std::cout << "off" << std::endl;
             std::cout << ">>> Redirection type {CGI, PROXY, ALIAS, STANDARD}: " << servers[i].locations[h].type << std::endl;
+            std::cout << ">>> Target: " << servers[i].locations[h].target << std::endl;
         }
         std::cout << std::endl;
         i++;
@@ -538,6 +539,8 @@ std::string WebParser::extractRoot(size_t contextStart, size_t contextEnd) const
     //checking that the root starts with '/' (it should since we aren't using regular expressions?)
     if (line.length() == 0)
         throw WebErrors::ConfigFormatException("Error: root directive must have a value");
+    if (line[0] != '/')
+        throw WebErrors::ConfigFormatException("Error: root directive's value must begin with '/'");
 
     //for now the only further error checking I'll do is regarding whitespaces
     size_t i;
@@ -569,7 +572,7 @@ void    WebParser::extractAutoinex(size_t contextStart, size_t contextEnd)
         throw WebErrors::ConfigFormatException("Error: 'autoindex' may only have the value 'on' or 'off'");
 }
 
-LocationType    WebParser::extractRedirectionType(size_t contextStart, size_t contextEnd)
+void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t contextEnd)
 {
     std::string key = "alias";
     ssize_t     directiveLocation = locateDirective(contextStart, contextEnd, key);
@@ -579,7 +582,10 @@ LocationType    WebParser::extractRedirectionType(size_t contextStart, size_t co
     else if (directiveLocation != 0)
     {
         //parse the alias, and store it in location.target
-        return (ALIAS);
+        //no error checking is done yet
+        _servers.back().locations.back().target = removeDirectiveKey(_configFile[directiveLocation], key);
+        _servers.back().locations.back().type = ALIAS;
+        return ;
     }
     key = "proxy_pass";
     directiveLocation = locateDirective(contextStart, contextEnd, key);
@@ -588,7 +594,10 @@ LocationType    WebParser::extractRedirectionType(size_t contextStart, size_t co
     else if (directiveLocation != 0)
     {
         //parse the proxy_pass, and store it in location.target
-        return (PROXY);
+        //no error checking is done yet
+        _servers.back().locations.back().target = removeDirectiveKey(_configFile[directiveLocation], key);
+        _servers.back().locations.back().type = PROXY;
+        return ;
     }
     key = "cgi_pass";
     directiveLocation = locateDirective(contextStart, contextEnd, key);
@@ -597,8 +606,12 @@ LocationType    WebParser::extractRedirectionType(size_t contextStart, size_t co
     else if (directiveLocation != 0)
     {
         //parse the cgi_pass, and store it in location.target
-        return (CGI);
+        //no error checking is done yet
+        _servers.back().locations.back().target = removeDirectiveKey(_configFile[directiveLocation], key);
+        _servers.back().locations.back().type = CGI;
+        return ;
     }
     //since there is no redirection, create location.target from location.root + location.uri
-    return (STANDARD);
+    _servers.back().locations.back().target = createStandardTarget(_servers.back().locations.back().uri, _servers.back().locations.back().root);
+    _servers.back().locations.back().type = STANDARD;
 }
