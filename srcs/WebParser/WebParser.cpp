@@ -574,40 +574,37 @@ void    WebParser::extractAutoinex(size_t contextStart, size_t contextEnd)
 
 void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t contextEnd)
 {
-    std::string key = "alias";
-    ssize_t     directiveLocation = locateDirective(contextStart, contextEnd, key);
+    ssize_t     aliasLocation = locateDirective(contextStart, contextEnd, "alias");
+    ssize_t     proxyLocation = locateDirective(contextStart, contextEnd, "proxy_pass");
+    ssize_t     cgiLocation = locateDirective(contextStart, contextEnd, "cgi_pass");
 
-    if (directiveLocation == -1)
-        throw WebErrors::ConfigFormatException("Error: only one 'alias' directive per location context is allowed");
-    else if (directiveLocation != 0)
+    if (aliasLocation == -1 || proxyLocation == -1 || cgiLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: only one redirection type directive per location context is allowed");
+    else if (aliasLocation != 0)
     {
+        if (proxyLocation > 0 || cgiLocation  > 0)
+            throw WebErrors::ConfigFormatException("Error: only one type of redirection allowed per location context");
         //parse the alias, and store it in location.target
         //no error checking is done yet
-        _servers.back().locations.back().target = removeDirectiveKey(_configFile[directiveLocation], key);
+        _servers.back().locations.back().target = removeDirectiveKey(_configFile[aliasLocation], "alias");
         _servers.back().locations.back().type = ALIAS;
         return ;
     }
-    key = "proxy_pass";
-    directiveLocation = locateDirective(contextStart, contextEnd, key);
-    if (directiveLocation == -1)
-        throw WebErrors::ConfigFormatException("Error: only one 'proxy_pass' directive per location context is allowed");
-    else if (directiveLocation != 0)
+    else if (proxyLocation != 0)
     {
+        if (cgiLocation  > 0)
+            throw WebErrors::ConfigFormatException("Error: only one type of redirection allowed per location context");
         //parse the proxy_pass, and store it in location.target
         //no error checking is done yet
-        _servers.back().locations.back().target = removeDirectiveKey(_configFile[directiveLocation], key);
+        _servers.back().locations.back().target = removeDirectiveKey(_configFile[proxyLocation], "proxy_pass");
         _servers.back().locations.back().type = PROXY;
         return ;
     }
-    key = "cgi_pass";
-    directiveLocation = locateDirective(contextStart, contextEnd, key);
-    if (directiveLocation == -1)
-        throw WebErrors::ConfigFormatException("Error: only one 'cgi_pass' directive per location context is allowed");
-    else if (directiveLocation != 0)
+    else if (cgiLocation != 0)
     {
         //parse the cgi_pass, and store it in location.target
         //no error checking is done yet
-        _servers.back().locations.back().target = removeDirectiveKey(_configFile[directiveLocation], key);
+        _servers.back().locations.back().target = removeDirectiveKey(_configFile[cgiLocation], "cgi_pass");
         _servers.back().locations.back().type = CGI;
         return ;
     }
