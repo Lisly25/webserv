@@ -66,6 +66,8 @@ mydomain.com:4242
 
 + client_max_body_size can be set in kilobytes or megabytes (for example 1K or 5M). The field can be omitted, and then the default will be in effect, which is 1m. If it is set to "0" (not 0K or 0M though), body size will be unlimited (though we might want to limit the max max_body_size...? For now, I'll just limit it at LONG_MAX :D)
 
++ `host` is supposed to be the IP-address of the server. The field is not mandatory, if not specified, will be set to 127.0.0.1
+
 + setting up default error pages is optional, but if done, must be done in the server context in the following format:
 
 	```
@@ -87,7 +89,7 @@ mydomain.com:4242
 
 	Trying to use a disallowed method will return code 405. Not listing any method as allowed will throw an exception, as well as specifying a method that is not supported
 
-+ all location contexts must also contain a root directive, no matter which type location it is. Its value must be a single string (it cannot contain whitespaces)
++ all location contexts must also contain a `root` directive, no matter which type location it is. Its value must be a single string (it cannot contain whitespaces)
 
 + `index`can be used inside a location module to set up how a request ending with '/' (a directory) is handled: files can be defined that will be used as an index. The last file can be a file with an absolute path. The files will be checked in the order they are given
 
@@ -100,6 +102,9 @@ mydomain.com:4242
 	* `cgi_pass` is used to set the address of a cgi server
 	
 	A location context may contain only one of these (or none, in which case no redirection is performed)
+
+	An exception will be thrown if the alias is not actually pointing to an existing directory in the filesystem
+	(Or, if there is no redirection the `root` + `location` does not point to a real directory)
 
 Proxy_pass passes the requests to other server off loads the work from our server and the server its passed to in this examples a docker containers have their own CGI to handle the code execution and generate the reponse for the user. 
 

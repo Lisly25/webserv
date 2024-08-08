@@ -153,3 +153,12 @@ std::string WebParser::createStandardTarget(std::string uri, std::string root)
         root = root.substr(0, (root.length() - 1));
     return (root + uri);
 }
+
+bool WebParser::verifyTarget(std::string path)
+{
+    const char *ptr = path.c_str();
+
+    if (access(ptr, F_OK) == -1)
+        return (false);
+    return (true);
+}
