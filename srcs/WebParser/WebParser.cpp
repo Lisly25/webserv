@@ -612,8 +612,9 @@ void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t conte
         if (proxyLocation > 0 || cgiLocation  > 0)
             throw WebErrors::ConfigFormatException("Error: only one type of redirection allowed per location context");
         //parse the alias, and store it in location.target
-        //no error checking is done yet
         _servers.back().locations.back().target = removeDirectiveKey(_configFile[aliasLocation], "alias");
+        if (!verifyTarget(_servers.back().locations.back().target))
+            throw WebErrors::ConfigFormatException("Error: no executable at " + _servers.back().locations.back().target);
         _servers.back().locations.back().type = ALIAS;
         return ;
     }
@@ -637,6 +638,8 @@ void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t conte
     }
     //since there is no redirection, create location.target from location.root + location.uri
     _servers.back().locations.back().target = createStandardTarget(_servers.back().locations.back().uri, _servers.back().locations.back().root);
+    if (!verifyTarget(_servers.back().locations.back().target))
+        throw WebErrors::ConfigFormatException("Error: no executable at " + _servers.back().locations.back().target);
     _servers.back().locations.back().type = STANDARD;
 }
 

@@ -8,6 +8,8 @@
 #include <vector>
 #include <sstream>
 #include <climits>
+#include <unistd.h>
+#include <cstring>
 
 enum LocationType { CGI, PROXY, ALIAS, STANDARD };
 
@@ -91,4 +93,5 @@ private:
     static bool                 locateLocationContextStart(std::string line, std::string contextName);
     static std::string          removeDirectiveKey(std::string line, std::string key);
     static std::string          createStandardTarget(std::string uri, std::string root);
+    static bool                 verifyTarget(std::string path);
 };
