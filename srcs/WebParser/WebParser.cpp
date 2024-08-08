@@ -196,6 +196,7 @@ void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
     _servers.back().port = extractPort(contextStart, contextEnd);
     _servers.back().server_name = extractServerName(contextStart, contextEnd);
     _servers.back().client_max_body_size = extractClientMaxBodySize(contextStart, contextEnd);
+    _servers.back().host = extractHost(contextStart, contextEnd);
     extractErrorPageInfo(contextStart, contextEnd);
     //host info still needs to be extracted
 
@@ -356,6 +357,25 @@ long WebParser::extractClientMaxBodySize(size_t contextStart, size_t contextEnd)
     return (numericComponent);
 }
 
+//optional field, if not set, will set it to 127.0.0.1
+//should we also test this by pinging the address if it's not 127.0.0.1? (And throw an error if we didn't successfully ping ourselves)
+//if we don't do that, I'll implement further error checks to see if the input corresponds to IP-address format
+std::string     WebParser::extractHost(size_t contextStart, size_t contextEnd) const
+{
+    std::string key = "host";
+    ssize_t     directiveLocation = locateDirective(contextStart, contextEnd, key);
+
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: can only have one 'host' directive per server context");
+    if (directiveLocation == 0)
+        return ("127.0.0.1");
+
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+    if (line.size() == 0)
+        return ("127.0.0.1");
+    return (line);
+}
+
 //Extracts both the error codes, and the error page address. Does not process the error address yet
 //Will consider the field optional for now
 void    WebParser::extractErrorPageInfo(size_t contextStart, size_t contextEnd)
@@ -424,6 +444,7 @@ void WebParser::printParsedInfo(void)
     while (i < servers.size())
     {
         std::cout << "Server nro." << i << std::endl;
+        std::cout << "Host: " << servers[i].host << std::endl;
         std::cout << "Listening on port: " << servers[i].port << std::endl;
         std::cout << "Server names: " << std::endl;
         for (size_t j = 0; j < servers[i].server_name.size(); j++)

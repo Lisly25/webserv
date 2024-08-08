@@ -66,6 +66,8 @@ mydomain.com:4242
 
 + client_max_body_size can be set in kilobytes or megabytes (for example 1K or 5M). The field can be omitted, and then the default will be in effect, which is 1m. If it is set to "0" (not 0K or 0M though), body size will be unlimited (though we might want to limit the max max_body_size...? For now, I'll just limit it at LONG_MAX :D)
 
++ `host` is supposed to be the IP-address of the server. The field is not mandatory, if not specified, will be set to 127.0.0.1
+
 + setting up default error pages is optional, but if done, must be done in the server context in the following format:
 
 	```
