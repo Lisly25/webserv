@@ -16,7 +16,7 @@
 class WebServer
 {
 public:
-    WebServer(WebParser &parser, int port);
+    WebServer(WebParser &parser);
     ~WebServer();
     WebServer(const WebServer &) = delete;
     WebServer &operator=(const WebServer &) = delete;
@@ -25,25 +25,24 @@ public:
     void epollController(int clientSocket, int operation, uint32_t events);
 
 private:
-    static bool             _running;
-    ScopedSocket            _serverSocket;
-    int                     _epollFd = -1;
-    WebParser               &_parser;
-    struct sockaddr_in      _serverAddr;
-
+    std::vector<ScopedSocket>       _serverSockets;
+    static bool                     _running;
+    int                             _epollFd = -1;
+    WebParser                       &_parser;
+    struct sockaddr_in              _serverAddr;
     std::vector<struct epoll_event> _events;
 
     std::unordered_map<int, Request> _requestMap;
 
-    int     createServerSocket(int port);
-    void    handleClient(int clientSocket);
-    void    setSocketFlags(int socket);
-    void    addClientSocket(int clientSocket);
-    void    handleEvents(int eventCount);
-    void    acceptAddClient(void);
+    std::vector<ScopedSocket>   createServerSockets(const std::vector<Server> &server_confs);
+    void                        handleClient(int clientSocket);
+    void                        setSocketFlags(int socket);
+    void                        addClientSocket(int clientSocket);
+    void                        handleEvents(int eventCount);
+    void                        acceptAddClient(int serverSocketFd);
 
-    void    handleOutgoingData(int clientSocket); // send()
-    void    handleIncomingData(int clientSocket); // recv()
+    void                        handleOutgoingData(int clientSocket); // send()
+    void                        handleIncomingData(int clientSocket); // recv()
 
 
 

@@ -1,6 +1,7 @@
 #include "WebServer.hpp"
 #include "ScopedSocket.hpp"
 #include "WebErrors.hpp"
+#include <algorithm>
 #include <csignal>
 #include <exception>
 #include <fcntl.h>
@@ -16,42 +17,62 @@
 
 bool WebServer::_running = true;
 
-WebServer::WebServer(WebParser &parser, int port)
-    : _serverSocket(createServerSocket(port)), _epollFd(epoll_create(1)), _parser(parser), _events(MAX_EVENTS)
+WebServer::WebServer(WebParser &parser)
+    : _epollFd(-1), _parser(parser), _events(MAX_EVENTS)
 {
-    if (_epollFd == -1)
-        throw WebErrors::ServerException("Error creating epoll instance");
-    try{
-        epollController(_serverSocket.get(), EPOLL_CTL_ADD, EPOLLIN | EPOLLOUT);
+    try
+    {
+        _serverSockets = createServerSockets(parser.getServers());
+        _epollFd = epoll_create(1);
+        if (_epollFd == -1)
+            throw WebErrors::ServerException("Error creating epoll instance");
+        for (const auto& serverSocket : _serverSockets)
+            epollController(serverSocket.get(), EPOLL_CTL_ADD, EPOLLIN | EPOLLOUT);
     }
-    catch (const std::exception &e){
-        throw ;
+    catch (const std::exception& e)
+    {
+        if (_epollFd != -1) close(_epollFd);
+        throw;
     }
 }
 
-WebServer::~WebServer() { close(_epollFd); }
-
-int WebServer::createServerSocket(int port)
+WebServer::~WebServer()
 {
-    int             opt = 1;
-    ScopedSocket    serverSocket(socket(AF_INET, SOCK_STREAM, 0));
-
-    if (serverSocket.get() < 0 || 
-        setsockopt(serverSocket.get(), SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
-        throw WebErrors::ServerException("Error opening or configuring server socket");
-
-    std::memset(&_serverAddr, 0, sizeof(_serverAddr));
-    _serverAddr.sin_family = AF_INET;
-    _serverAddr.sin_addr.s_addr = INADDR_ANY;
-    _serverAddr.sin_port = htons(port);
-    if (bind(serverSocket.get(), (struct sockaddr *)&_serverAddr, sizeof(_serverAddr)) < 0)
-        throw WebErrors::ServerException("Error binding server socket");
-
-    if (listen(serverSocket.get(), SOMAXCONN) < 0)
-        throw WebErrors::ServerException("Error listening on server socket");
-
-    return serverSocket.release();
+    if (_epollFd != -1) close(_epollFd);
 }
+
+std::vector<ScopedSocket> WebServer::createServerSockets(const std::vector<Server> &server_confs)
+{
+    int                         opt = 1;
+    std::vector<ScopedSocket>   serverSockets;
+
+    for (size_t i = 0; i < server_confs.size(); ++i)
+    {
+        ScopedSocket serverSocket(socket(AF_INET, SOCK_STREAM, 0));
+
+        if (serverSocket.get() < 0 ||
+            setsockopt(serverSocket.get(), SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+            throw WebErrors::ServerException("Error opening or configuring server socket for server on port " + std::to_string(server_confs[i].port));
+
+        std::memset(&_serverAddr, 0, sizeof(_serverAddr));
+        _serverAddr.sin_family = AF_INET;
+        _serverAddr.sin_addr.s_addr = INADDR_ANY;
+        _serverAddr.sin_port = htons(server_confs[i].port);
+
+        if (bind(serverSocket.get(), (struct sockaddr *)&_serverAddr, sizeof(_serverAddr)) < 0)
+            throw WebErrors::ServerException("Error binding server socket on port " + std::to_string(server_confs[i].port));
+
+        if (listen(serverSocket.get(), SOMAXCONN) < 0)
+            throw WebErrors::ServerException("Error listening on server socket on port " + std::to_string(server_confs[i].port));
+        std::cout << "Server names: ";
+        for (const auto& name : server_confs[i].server_name)
+            std::cout << name << " ";
+        std::cout << "successfully bound to port " << server_confs[i].port << std::endl;
+        serverSockets.push_back(serverSocket.release());
+    }
+    return serverSockets;
+}
+
 
 void WebServer::epollController(int clientSocket, int operation, uint32_t events)
 {
@@ -72,11 +93,11 @@ void WebServer::epollController(int clientSocket, int operation, uint32_t events
     }
 }
 
-void WebServer::acceptAddClient()
+void WebServer::acceptAddClient(int serverSocketFd)
 {
     struct sockaddr_in  clientAddr;
     socklen_t           clientLen = sizeof(clientAddr);
-    ScopedSocket        clientSocket(accept(_serverSocket.get(), (struct sockaddr *)&clientAddr, &clientLen));
+    ScopedSocket        clientSocket(accept(serverSocketFd, (struct sockaddr *)&clientAddr, &clientLen));
 
     if (clientSocket.get() < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
         throw WebErrors::ServerException("Error accepting client connection");
@@ -84,6 +105,7 @@ void WebServer::acceptAddClient()
     epollController(clientSocket.get(), EPOLL_CTL_ADD, EPOLLIN);
     clientSocket.release();
 }
+
 
 std::string WebServer::getBoundary(const std::string &request)
 {
@@ -179,19 +201,32 @@ void WebServer::handleOutgoingData(int clientSocket) {
 
 void WebServer::handleEvents(int eventCount)
 {
-    for (int i = 0; i < eventCount; ++i) {
+    auto getCorrectServerSocket = [this](int fd) -> bool {
+        return std::any_of(_serverSockets.begin(), _serverSockets.end(),
+                           [fd](const ScopedSocket& socket) { return socket.get() == fd; });
+    };
 
-        if (_events[i].data.fd == _serverSocket.get())
+    for (int i = 0; i < eventCount; ++i)
+    {
+        const int fd = _events[i].data.fd;
+
+        if (getCorrectServerSocket(fd))
         {
-            fcntl(_events[i].data.fd, F_SETFL, O_NONBLOCK, FD_CLOEXEC);
-            acceptAddClient();
+            fcntl(fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
+            acceptAddClient(fd);
         }
-        else if (_events[i].events & EPOLLIN)
-            handleIncomingData(_events[i].data.fd);
-        else if (_events[i].events & EPOLLOUT)
-            handleOutgoingData(_events[i].data.fd);
+        else
+        {
+            if (_events[i].events & EPOLLIN)
+                handleIncomingData(fd);
+            else if (_events[i].events & EPOLLOUT)
+                handleOutgoingData(fd);
+        }
     }
 }
+
+
+
 
 void WebServer::start()
 {
