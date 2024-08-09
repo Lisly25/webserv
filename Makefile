@@ -18,6 +18,7 @@ $(NAME): $(OBJS)
 
 clean: down
 	$(RM) $(OBJS) $(DEPS)
+	find srcs -type f \( -name "*.o" -o -name "*.d" \) -delete
 
 fclean: clean
 	$(RM) $(NAME)
