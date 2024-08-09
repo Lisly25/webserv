@@ -46,7 +46,7 @@ bool WebParser::parse()
     return true;
 }
 
-std::vector<Server> WebParser::getServers(void) const
+const std::vector<Server> &WebParser::getServers(void) const
 {
     return (_servers);
 }
@@ -71,9 +71,9 @@ void WebParser::parseCgiPass(const std::string &line)
     }
 }
 
-std::string WebParser::getProxyPass() const { return _proxyPass; }
+const std::string &WebParser::getProxyPass() const { return _proxyPass; }
 
-std::string WebParser::getCgiPass() const { return _cgiPass; }
+const std::string &WebParser::getCgiPass() const { return _cgiPass; }
 
 bool WebParser::checkBracePairs(std::string line)
 {
