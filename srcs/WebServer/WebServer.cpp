@@ -22,12 +22,17 @@ WebServer::WebServer(WebParser &parser)
 {
     try
     {
-        _serverSockets = createServerSockets(parser.getServers());
+        _serverSockets = createServerSockets(parser.getServers());  // Now using ServerSocket
+
         _epollFd = epoll_create(1);
         if (_epollFd == -1)
             throw WebErrors::ServerException("Error creating epoll instance");
+
         for (const auto& serverSocket : _serverSockets)
-            epollController(serverSocket.get(), EPOLL_CTL_ADD, EPOLLIN | EPOLLOUT);
+        {
+            int fd = serverSocket.get();
+            epollController(fd, EPOLL_CTL_ADD, EPOLLIN);
+        }
     }
     catch (const std::exception& e)
     {
@@ -41,36 +46,38 @@ WebServer::~WebServer()
     if (_epollFd != -1) close(_epollFd);
 }
 
-std::vector<ScopedSocket> WebServer::createServerSockets(const std::vector<Server> &server_confs)
+std::vector<ServerSocket> WebServer::createServerSockets(const std::vector<Server> &server_confs)
 {
-    int                         opt = 1;
-    std::vector<ScopedSocket>   serverSockets;
+    int opt = 1;
+    try {
+        std::vector<ServerSocket> serverSockets;
 
-    for (size_t i = 0; i < server_confs.size(); ++i)
+        for (const auto& server_conf : server_confs)
+        {
+            ServerSocket serverSocket(socket(AF_INET, SOCK_STREAM, 0), server_conf);
+
+            if (serverSocket.get() < 0 ||
+                setsockopt(serverSocket.get(), SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+                throw WebErrors::ServerException("Error opening or configuring server socket for server on port " + std::to_string(server_conf.port));
+
+            std::memset(&_serverAddr, 0, sizeof(_serverAddr));
+            _serverAddr.sin_family = AF_INET;
+            _serverAddr.sin_addr.s_addr = INADDR_ANY;
+            _serverAddr.sin_port = htons(server_conf.port);
+
+            if (bind(serverSocket.get(), (struct sockaddr *)&_serverAddr, sizeof(_serverAddr)) < 0)
+                throw WebErrors::ServerException("Error binding server socket on port " + std::to_string(server_conf.port));
+
+            if (listen(serverSocket.get(), SOMAXCONN) < 0)
+                throw WebErrors::ServerException("Error listening on server socket on port " + std::to_string(server_conf.port));
+
+            serverSockets.push_back(std::move(serverSocket));
+        }
+        return serverSockets;
+    }catch (const std::exception& e)
     {
-        ScopedSocket serverSocket(socket(AF_INET, SOCK_STREAM, 0));
-
-        if (serverSocket.get() < 0 ||
-            setsockopt(serverSocket.get(), SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
-            throw WebErrors::ServerException("Error opening or configuring server socket for server on port " + std::to_string(server_confs[i].port));
-
-        std::memset(&_serverAddr, 0, sizeof(_serverAddr));
-        _serverAddr.sin_family = AF_INET;
-        _serverAddr.sin_addr.s_addr = INADDR_ANY;
-        _serverAddr.sin_port = htons(server_confs[i].port);
-
-        if (bind(serverSocket.get(), (struct sockaddr *)&_serverAddr, sizeof(_serverAddr)) < 0)
-            throw WebErrors::ServerException("Error binding server socket on port " + std::to_string(server_confs[i].port));
-
-        if (listen(serverSocket.get(), SOMAXCONN) < 0)
-            throw WebErrors::ServerException("Error listening on server socket on port " + std::to_string(server_confs[i].port));
-        std::cout << "Server names: ";
-        for (const auto& name : server_confs[i].server_name)
-            std::cout << name << " ";
-        std::cout << "successfully bound to port " << server_confs[i].port << std::endl;
-        serverSockets.push_back(serverSocket.release());
+        throw;
     }
-    return serverSockets;
 }
 
 

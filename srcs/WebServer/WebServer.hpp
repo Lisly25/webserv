@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ScopedSocket.hpp"
+#include "ServerSocket.hpp"
 #include "WebParser.hpp"
 #include <string>
 #include <netinet/in.h>
@@ -25,7 +26,7 @@ public:
     void epollController(int clientSocket, int operation, uint32_t events);
 
 private:
-    std::vector<ScopedSocket>       _serverSockets;
+    std::vector<ServerSocket>       _serverSockets;
     static bool                     _running;
     int                             _epollFd = -1;
     WebParser                       &_parser;
@@ -34,7 +35,7 @@ private:
 
     std::unordered_map<int, Request> _requestMap;
 
-    std::vector<ScopedSocket>   createServerSockets(const std::vector<Server> &server_confs);
+    std::vector<ServerSocket>   createServerSockets(const std::vector<Server> &server_confs);
     void                        handleClient(int clientSocket);
     void                        setSocketFlags(int socket);
     void                        addClientSocket(int clientSocket);
@@ -44,9 +45,6 @@ private:
     void                        handleOutgoingData(int clientSocket); // send()
     void                        handleIncomingData(int clientSocket); // recv()
 
-
-
-    int         getRequestTotalLength(const std::string &request);
-    std::string getBoundary(const std::string &request);
-
+    int                         getRequestTotalLength(const std::string &request);
+    std::string                 getBoundary(const std::string &request);
 };

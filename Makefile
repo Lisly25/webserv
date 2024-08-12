@@ -38,7 +38,7 @@ up:
 	docker compose -f $(DOCKER_COMPOSE_FILE) logs || @docker-compose -f $(DOCKER_COMPOSE_FILE) logs
 
 down:
-	@docker compose -f $(DOCKER_COMPOSE_FILE) down || @docker-compose -f $(DOCKER_COMPOSE_FILE) down
+	@docker compose -f $(DOCKER_COMPOSE_FILE) down
 
 unpack-test: $(TARBALL)
 	tar -xvzf $(TARBALL) -C $(TESTS_DIR)
