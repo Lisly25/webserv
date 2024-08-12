@@ -34,9 +34,11 @@ bool ProxyHandler::isDataAvailable(int fd, int timeout_usec)
     FD_ZERO(&readfds);
     FD_SET(fd, &readfds);
 
-    if (select(fd + 1, &readfds, NULL, NULL, &timeout) < 0)
+    int ret = select(fd + 1, &readfds, NULL, NULL, &timeout);
+
+    if (ret < 0)
         throw WebErrors::ProxyException("Error with select on proxy server socket");
-    return FD_ISSET(fd, &readfds);
+   return ret > 0 && FD_ISSET(fd, &readfds);
 }
 
 std::string ProxyHandler::modifyRequestForProxy()
