@@ -22,7 +22,7 @@ void Request::initialize(const std::vector<Server>& servers, const std::unordere
     {
         if (isServerMatch(server))
         {
-            if (matchLocationAndSetProxy(server, uri, proxyInfoMap))
+            if (matchLocationSetData(server, uri, proxyInfoMap))
                 return;
         }
     }
@@ -59,45 +59,49 @@ bool Request::isServerMatch(const Server& server) const
 
 
 
-bool Request::matchLocationAndSetProxy(const Server& server, const std::string& uri, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap)
+bool Request::matchLocationSetData(const Server& server, const std::string& uri, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap)
 {
-    const Location* rootLocation = nullptr;
-
-    //std::cout << "server location uri: " << server.locations[0].uri << std::endl;
-    //std::cout << "locatio ntype: " << server.locations[0].type << std::endl;
-
+    const Location* bestMatchLocation = nullptr;
 
     for (const auto& location : server.locations)
     {
         std::cout << "Checking Location: " << location.uri << " against URI: " << uri << std::endl;
-        if (location.uri == "/")
+
+        if (uri.find(location.uri) == 0)  // Matches the beginning of the URI
         {
-            rootLocation = &location;
-        }
-        if (uri.find(location.uri) == 0 && location.uri != "/")
-        {
-            std::cout << "Match found for Location: " << location.uri << std::endl;
-            _server = &server;
-            _location = &location;
-            _locationType = _location->type;
-            if (_locationType == PROXY)
-                setProxyInfo(proxyInfoMap);
-            return true;
+            if (!bestMatchLocation || location.uri.length() > bestMatchLocation->uri.length())
+            {
+                bestMatchLocation = &location;  // Prefer longer matches
+            }
         }
     }
 
-    // Fallback to root location if no other location matches
-    if (rootLocation)
+    // If no specific location matched, fall back to root location "/"
+    if (!bestMatchLocation)
     {
-        std::cout << "Fallback to root Location: " << rootLocation->uri << std::endl;
-        _server = &server;
-        _location = rootLocation;
+        for (const auto& location : server.locations)
+        {
+            if (location.uri == "/")
+            {
+                bestMatchLocation = &location;
+                break;
+            }
+        }
+    }
+
+    if (bestMatchLocation)
+    {
+        std::cout << "Setting Location: " << bestMatchLocation->uri << std::endl;
+        _location = bestMatchLocation;
         _locationType = _location->type;
+
         if (_locationType == PROXY)
+        {
             setProxyInfo(proxyInfoMap);
+        }
+
         return true;
     }
-
     return false;
 }
 
@@ -116,6 +120,6 @@ const std::string& Request::getRawRequest() const { return _rawRequest; }
 
 const Server* Request::getServer() const { return _server; }
 
-const LocationType &Request::getLocationType() const { return _locationType; }
+const Location* Request::getLocation() const { return _location; }
 
 addrinfo* Request::getProxyInfo() const { return _proxyInfo; }

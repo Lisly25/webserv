@@ -1,5 +1,6 @@
 #include "Response.hpp"
 #include "Request.hpp"
+#include "ScopedSocket.hpp"
 #include "WebErrors.hpp"
 #include <cstring>
 #include <unistd.h>
@@ -11,15 +12,15 @@ std::string Response::generate(const Request &request)
     std::string response;
 
     // Check if the request is proxied
-    if (request.getLocationType() == LocationType::PROXY)
+    if (request.getLocation()->type == LocationType::PROXY)
     {
         handleProxyPass(request, response);
     }
-    else if (request.getLocationType() == LocationType::CGI)
+    else if (request.getLocation()->type == LocationType::CGI)
     {
         // handleCGI(request, response);
     }
-    else if (request.getLocationType() == LocationType::ALIAS)
+    else if (request.getLocation()->type == LocationType::ALIAS)
     {
         // handleAlias(request, response);
     }
@@ -37,37 +38,33 @@ void Response::handleProxyPass(const Request& request, std::string &response)
     if (!proxyInfo)
         throw WebErrors::ProxyException("No proxy information available");
 
-    const int proxySocket = socket(proxyInfo->ai_family, proxyInfo->ai_socktype, proxyInfo->ai_protocol);
-    if (proxySocket < 0 || connect(proxySocket, proxyInfo->ai_addr, proxyInfo->ai_addrlen) < 0)
+    // Use ScopedSocket to manage the proxy socket
+    ScopedSocket proxySocket(socket(proxyInfo->ai_family, proxyInfo->ai_socktype, proxyInfo->ai_protocol), false);
+
+    if (proxySocket.get() < 0 || connect(proxySocket.get(), proxyInfo->ai_addr, proxyInfo->ai_addrlen) < 0)
         throw WebErrors::ProxyException("Error connecting to proxy server");
 
-    std::cout << "Forwarding request to proxy:\n" << request.getRawRequest() << std::endl;
-
     std::string modifiedRequest = request.getRawRequest();
+
+    // Use the target from the location directly
+    const std::string& proxyHost = request.getLocation()->target;
     size_t hostPos = modifiedRequest.find("Host: ");
     if (hostPos != std::string::npos) {
         size_t hostEnd = modifiedRequest.find("\r\n", hostPos);
         if (hostEnd != std::string::npos)
-            modifiedRequest.replace(hostPos + 6, hostEnd - (hostPos + 6), "localhost:4141");
+            modifiedRequest.replace(hostPos + 6, hostEnd - (hostPos + 6), proxyHost);
     }
 
-    std::cout << "Modified request:\n" << modifiedRequest << std::endl;
-
-    if (send(proxySocket, modifiedRequest.c_str(), modifiedRequest.length(), 0) < 0)
+    if (send(proxySocket.get(), modifiedRequest.c_str(), modifiedRequest.length(), 0) < 0)
         throw WebErrors::ProxyException("Error sending to proxy server");
 
     // Wait for the response from the proxy server
     char buffer[4096];
     ssize_t bytesRead = 0;
-    while ((bytesRead = recv(proxySocket, buffer, sizeof(buffer), 0)) > 0) {
+    while ((bytesRead = recv(proxySocket.get(), buffer, sizeof(buffer), 0)) > 0) {
         response.append(buffer, bytesRead);
-        std::cout << "Received response chunk from proxy, size: " << bytesRead << std::endl;
     }
 
     if (bytesRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
         throw WebErrors::ProxyException("Error reading from proxy server");
-
-    std::cout << "Full response from proxy:\n" << response << std::endl;
-
-    close(proxySocket);
 }
