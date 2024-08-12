@@ -6,39 +6,44 @@
 #include <iostream>
 #include <string>
 
-Response::Response(addrinfo* proxyInfo) : _proxyInfo(proxyInfo)
-{
-}
-
-Response::~Response()
-{
-    // The Response class should not free _proxyInfo since it is managed by WebServer
-}
-
 std::string Response::generate(const Request &request)
 {
     std::string response;
 
-    if (request.getRawRequest().find("GET /") != std::string::npos || request.getRawRequest().find("GET /proxy") != std::string::npos)
-        handleProxyPass(request.getRawRequest(), response);
+    // Check if the request is proxied
+    if (request.getLocationType() == LocationType::PROXY)
+    {
+        handleProxyPass(request, response);
+    }
+    else if (request.getLocationType() == LocationType::CGI)
+    {
+        // handleCGI(request, response);
+    }
+    else if (request.getLocationType() == LocationType::ALIAS)
+    {
+        // handleAlias(request, response);
+    }
     else
-        response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello, this is the response from the server.\r\n";
+    {
+        // handleStandard(request, response);
+    }
     return response;
 }
 
 
-void Response::handleProxyPass(const std::string &request, std::string &response)
+void Response::handleProxyPass(const Request& request, std::string &response)
 {
-    if (!_proxyInfo)
+    addrinfo* proxyInfo = request.getProxyInfo();
+    if (!proxyInfo)
         throw WebErrors::ProxyException("No proxy information available");
 
-    const int proxySocket = socket(_proxyInfo->ai_family, _proxyInfo->ai_socktype, _proxyInfo->ai_protocol);
-    if (proxySocket < 0 || connect(proxySocket, _proxyInfo->ai_addr, _proxyInfo->ai_addrlen) < 0)
+    const int proxySocket = socket(proxyInfo->ai_family, proxyInfo->ai_socktype, proxyInfo->ai_protocol);
+    if (proxySocket < 0 || connect(proxySocket, proxyInfo->ai_addr, proxyInfo->ai_addrlen) < 0)
         throw WebErrors::ProxyException("Error connecting to proxy server");
 
-    std::cout << "Forwarding request to proxy:\n" << request << std::endl;
+    std::cout << "Forwarding request to proxy:\n" << request.getRawRequest() << std::endl;
 
-    std::string modifiedRequest = request;
+    std::string modifiedRequest = request.getRawRequest();
     size_t hostPos = modifiedRequest.find("Host: ");
     if (hostPos != std::string::npos) {
         size_t hostEnd = modifiedRequest.find("\r\n", hostPos);

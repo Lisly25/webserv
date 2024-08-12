@@ -3,12 +3,12 @@
 #include <algorithm>
 
 Request::Request()
-    : _rawRequest(""), _server(nullptr), _location(nullptr), _isProxied(false), _proxyInfo(nullptr)
+    : _rawRequest(""), _server(nullptr), _location(nullptr), _locationType(UNDEFINED), _proxyInfo(nullptr)
 {
 }
 
 Request::Request(const std::string& rawRequest, const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap)
-    : _rawRequest(rawRequest), _server(nullptr), _location(nullptr), _isProxied(false), _proxyInfo(nullptr)
+    : _rawRequest(rawRequest), _server(nullptr), _location(nullptr), _locationType(UNDEFINED), _proxyInfo(nullptr)
 {
     initialize(servers, proxyInfoMap);
 }
@@ -38,7 +38,6 @@ std::string Request::extractUri(const std::string& requestLine) const
 
 bool Request::isServerMatch(const Server& server) const
 {
-    // Extract Host header from the raw request
     size_t hostPos = _rawRequest.find("Host: ");
     if (hostPos == std::string::npos)
         return false;
@@ -52,8 +51,8 @@ bool Request::isServerMatch(const Server& server) const
     std::cout << "Host: " << server.host << std::endl;
     std::cout << "Server match for host " << server.host << ": " << match << std::endl;
 
-      std::cout << "HERE server location uri: " << server.locations[0].uri << std::endl;
-    std::cout << "HERE locatio ntype: " << server.locations[0].type << std::endl;
+    //  std::cout << "HERE server location uri: " << server.locations[0].uri << std::endl;
+    //  std::cout << "HERE locatio ntype: " << server.locations[0].type << std::endl;
 
     return true;
 }
@@ -64,8 +63,8 @@ bool Request::matchLocationAndSetProxy(const Server& server, const std::string& 
 {
     const Location* rootLocation = nullptr;
 
-      std::cout << "server location uri: " << server.locations[0].uri << std::endl;
-    std::cout << "locatio ntype: " << server.locations[0].type << std::endl;
+    //std::cout << "server location uri: " << server.locations[0].uri << std::endl;
+    //std::cout << "locatio ntype: " << server.locations[0].type << std::endl;
 
 
     for (const auto& location : server.locations)
@@ -80,8 +79,8 @@ bool Request::matchLocationAndSetProxy(const Server& server, const std::string& 
             std::cout << "Match found for Location: " << location.uri << std::endl;
             _server = &server;
             _location = &location;
-            _isProxied = (_location->type == PROXY);
-            if (_isProxied)
+            _locationType = _location->type;
+            if (_locationType == PROXY)
                 setProxyInfo(proxyInfoMap);
             return true;
         }
@@ -93,8 +92,8 @@ bool Request::matchLocationAndSetProxy(const Server& server, const std::string& 
         std::cout << "Fallback to root Location: " << rootLocation->uri << std::endl;
         _server = &server;
         _location = rootLocation;
-        _isProxied = (_location->type == PROXY);
-        if (_isProxied)
+        _locationType = _location->type;
+        if (_locationType == PROXY)
             setProxyInfo(proxyInfoMap);
         return true;
     }
@@ -107,7 +106,7 @@ bool Request::matchLocationAndSetProxy(const Server& server, const std::string& 
 void Request::setProxyInfo(const std::unordered_map<std::string, addrinfo*>& proxyInfoMap)
 {
     std::cout << "Target: " << _location->target << std::endl;
-    std::string key = _location->target;//+ ":" + std::to_string(_server->port);
+    std::string key = _location->target;
     auto proxyInfoIt = proxyInfoMap.find(key);
     if (proxyInfoIt != proxyInfoMap.end())
         _proxyInfo = proxyInfoIt->second;
@@ -117,6 +116,6 @@ const std::string& Request::getRawRequest() const { return _rawRequest; }
 
 const Server* Request::getServer() const { return _server; }
 
-bool Request::isProxied() const { return _isProxied; }
+const LocationType &Request::getLocationType() const { return _locationType; }
 
 addrinfo* Request::getProxyInfo() const { return _proxyInfo; }

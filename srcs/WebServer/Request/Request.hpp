@@ -14,14 +14,14 @@ public:
 
     const std::string&  getRawRequest() const;
     const Server*       getServer() const;
-    bool                isProxied() const;
+    const LocationType &getLocationType() const;
     addrinfo*           getProxyInfo() const;
 
 private:
     std::string     _rawRequest;
     const Server*   _server;
     const Location* _location;
-    bool            _isProxied;
+    LocationType    _locationType;
     addrinfo*       _proxyInfo;
 
     void        initialize(const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);

@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <cstring>
 
-enum LocationType { CGI, PROXY, ALIAS, STANDARD };
+enum LocationType { UNDEFINED, CGI, PROXY, ALIAS, STANDARD };
 
 struct Location {
     LocationType                type;

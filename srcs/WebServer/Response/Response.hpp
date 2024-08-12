@@ -8,13 +8,12 @@ class Request;
 class Response
 {
 public:
-    Response(addrinfo* proxyInfo = nullptr);
-    ~Response();
+    Response() = default;
+    ~Response() = default;
 
     std::string generate(const Request &request);
 
 private:
-    addrinfo* _proxyInfo;
 
-    void handleProxyPass(const std::string &request, std::string &response);
+    void handleProxyPass(const Request& request, std::string &response);
 };

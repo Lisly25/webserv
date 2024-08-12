@@ -90,8 +90,6 @@ void WebServer::resolveProxyAddresses(const std::vector<Server>& server_confs)
     }
 }
 
-
-
 WebServer::~WebServer()
 {
     for (auto& entry : _proxyInfoMap)
@@ -108,7 +106,6 @@ WebServer::~WebServer()
         _epollFd = -1;
     }
 }
-
 
 std::vector<ServerSocket> WebServer::createServerSockets(const std::vector<Server> &server_confs)
 {
@@ -143,7 +140,6 @@ std::vector<ServerSocket> WebServer::createServerSockets(const std::vector<Serve
         throw;
     }
 }
-
 
 void WebServer::epollController(int clientSocket, int operation, uint32_t events)
 {
@@ -243,15 +239,15 @@ void WebServer::handleIncomingData(int clientSocket)
     }
 }
 
-void WebServer::handleOutgoingData(int clientSocket) {
+void WebServer::handleOutgoingData(int clientSocket)
+{
     try {
         auto it = _requestMap.find(clientSocket);
         if (it != _requestMap.end())
         {
             const Request &request = it->second;
-            addrinfo*     proxyInfo = request.getProxyInfo();
 
-            Response    response(proxyInfo);
+            Response    response;
             std::string responseContent = response.generate(request);
 
             std::cout << "Sending response to client:\n" << responseContent << std::endl;
@@ -271,7 +267,6 @@ void WebServer::handleOutgoingData(int clientSocket) {
         epollController(clientSocket, EPOLL_CTL_DEL, 0);
     }
 }
-
 
 void WebServer::handleEvents(int eventCount)
 {
@@ -298,9 +293,6 @@ void WebServer::handleEvents(int eventCount)
         }
     }
 }
-
-
-
 
 void WebServer::start()
 {
