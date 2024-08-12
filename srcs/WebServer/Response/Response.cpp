@@ -1,4 +1,3 @@
-// Response.cpp
 #include "Response.hpp"
 #include "Request.hpp"
 #include "WebErrors.hpp"
@@ -7,18 +6,13 @@
 #include <iostream>
 #include <string>
 
-Response::Response() : _proxyInfo(nullptr)
+Response::Response(addrinfo* proxyInfo) : _proxyInfo(proxyInfo)
 {
-    resolveProxyAddresses();
 }
 
 Response::~Response()
 {
-    if (_proxyInfo)
-    {
-        freeaddrinfo(_proxyInfo);
-        _proxyInfo = nullptr;
-    }
+    // The Response class should not free _proxyInfo since it is managed by WebServer
 }
 
 std::string Response::generate(const Request &request)
@@ -35,20 +29,21 @@ std::string Response::generate(const Request &request)
 
 void Response::handleProxyPass(const std::string &request, std::string &response)
 {
+    if (!_proxyInfo)
+        throw WebErrors::ProxyException("No proxy information available");
+
     const int proxySocket = socket(_proxyInfo->ai_family, _proxyInfo->ai_socktype, _proxyInfo->ai_protocol);
     if (proxySocket < 0 || connect(proxySocket, _proxyInfo->ai_addr, _proxyInfo->ai_addrlen) < 0)
         throw WebErrors::ProxyException("Error connecting to proxy server");
 
     std::cout << "Forwarding request to proxy:\n" << request << std::endl;
 
-    // Modify the Host header to match the proxy host
     std::string modifiedRequest = request;
     size_t hostPos = modifiedRequest.find("Host: ");
     if (hostPos != std::string::npos) {
         size_t hostEnd = modifiedRequest.find("\r\n", hostPos);
-        if (hostEnd != std::string::npos) {
+        if (hostEnd != std::string::npos)
             modifiedRequest.replace(hostPos + 6, hostEnd - (hostPos + 6), "localhost:4141");
-        }
     }
 
     std::cout << "Modified request:\n" << modifiedRequest << std::endl;
@@ -70,20 +65,4 @@ void Response::handleProxyPass(const std::string &request, std::string &response
     std::cout << "Full response from proxy:\n" << response << std::endl;
 
     close(proxySocket);
-}
-
-
-void Response::resolveProxyAddresses()
-{
-    const char* proxyHost = "localhost";
-    const char* proxyPort = "4141";
-
-    addrinfo hints;
-    std::memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-
-    int status = getaddrinfo(proxyHost, proxyPort, &hints, &_proxyInfo);
-    if (status != 0)
-        throw WebErrors::ProxyException("Error resolving proxy address: " + std::string(gai_strerror(status)));
 }

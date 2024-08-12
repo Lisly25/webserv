@@ -1,19 +1,33 @@
-#pragma once 
-
+#pragma once
 
 #include <string>
+#include <vector>
+#include <unordered_map>
+#include <netdb.h> 
+#include "WebParser.hpp"
 
 class Request
 {
 public:
-    Request() = default;
-    Request(const std::string &rawRequest);
-    Request(const Request &other);
-    Request& operator=(const Request &other);
-    ~Request() = default;
+    Request();
+    Request(const std::string& rawRequest, const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
 
-    const std::string& getRawRequest() const { return rawRequest; }
+    const std::string&  getRawRequest() const;
+    const Server*       getServer() const;
+    bool                isProxied() const;
+    addrinfo*           getProxyInfo() const;
 
 private:
-    std::string rawRequest;
+    std::string     _rawRequest;
+    const Server*   _server;
+    const Location* _location;
+    bool            _isProxied;
+    addrinfo*       _proxyInfo;
+
+    void        initialize(const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
+    std::string extractUri(const std::string& requestLine) const;
+    bool        isServerMatch(const Server& server) const;
+    bool        matchLocationAndSetProxy(const Server& server, const std::string& uri, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
+    void        setProxyInfo(const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
 };
+

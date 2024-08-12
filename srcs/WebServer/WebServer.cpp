@@ -17,34 +17,98 @@
 
 bool WebServer::_running = true;
 
+// CONNECT SOCKETS ALSO TO PROXY SERVERS BEFORE STARTING THE SERVER
+
 WebServer::WebServer(WebParser &parser)
     : _epollFd(-1), _parser(parser), _events(MAX_EVENTS)
 {
     try
     {
-        _serverSockets = createServerSockets(parser.getServers());  // Now using ServerSocket
-
+        _serverSockets = createServerSockets(parser.getServers());
+        resolveProxyAddresses(parser.getServers());
         _epollFd = epoll_create(1);
         if (_epollFd == -1)
             throw WebErrors::ServerException("Error creating epoll instance");
-
         for (const auto& serverSocket : _serverSockets)
-        {
-            int fd = serverSocket.get();
-            epollController(fd, EPOLL_CTL_ADD, EPOLLIN);
-        }
+            epollController(serverSocket.get(), EPOLL_CTL_ADD, EPOLLIN);
     }
     catch (const std::exception& e)
     {
+        for (auto& entry : _proxyInfoMap)
+        {
+            if (entry.second)
+            {
+                freeaddrinfo(entry.second);
+            }
+        }
         if (_epollFd != -1) close(_epollFd);
         throw;
     }
 }
 
+void WebServer::resolveProxyAddresses(const std::vector<Server>& server_confs)
+{
+    for (const auto& server : server_confs)
+    {
+        for (const auto& location : server.locations)
+        {
+            if (location.type == PROXY)
+            {
+                std::string proxyHost;
+                std::string proxyPort;
+
+                size_t colonPos = location.target.rfind(':');
+                if (colonPos != std::string::npos)
+                {
+                    proxyHost = location.target.substr(0, colonPos);
+                    proxyPort = location.target.substr(colonPos + 1);
+                }
+                else
+                {
+                    proxyHost = location.target;
+                    proxyPort = std::to_string(server.port);
+                }
+
+                std::string key = proxyHost + ":" + proxyPort;
+                if (_proxyInfoMap.find(key) == _proxyInfoMap.end())
+                {
+                    addrinfo hints{};
+                    hints.ai_family = AF_UNSPEC;
+                    hints.ai_socktype = SOCK_STREAM;
+
+                    addrinfo* proxyInfo = nullptr;
+                    int status = getaddrinfo(proxyHost.c_str(), proxyPort.c_str(), &hints, &proxyInfo);
+                    if (status != 0)
+                    {
+                        throw WebErrors::ProxyException("Error resolving proxy address: " 
+                            + std::string(gai_strerror(status)));
+                    }
+                    _proxyInfoMap[key] = proxyInfo;
+                }
+            }
+        }
+    }
+}
+
+
+
 WebServer::~WebServer()
 {
-    if (_epollFd != -1) close(_epollFd);
+    for (auto& entry : _proxyInfoMap)
+    {
+        if (entry.second)
+        {
+            freeaddrinfo(entry.second);
+            entry.second = nullptr;
+        }
+    }
+    if (_epollFd != -1)
+    {
+        close(_epollFd);
+        _epollFd = -1;
+    }
 }
+
 
 std::vector<ServerSocket> WebServer::createServerSockets(const std::vector<Server> &server_confs)
 {
@@ -70,11 +134,11 @@ std::vector<ServerSocket> WebServer::createServerSockets(const std::vector<Serve
 
             if (listen(serverSocket.get(), SOMAXCONN) < 0)
                 throw WebErrors::ServerException("Error listening on server socket on port " + std::to_string(server_conf.port));
-
+   
             serverSockets.push_back(std::move(serverSocket));
         }
         return serverSockets;
-    }catch (const std::exception& e)
+    } catch (const std::exception& e)
     {
         throw;
     }
@@ -168,7 +232,7 @@ void WebServer::handleIncomingData(int clientSocket)
         }
         if (!totalRequest.empty())
         {
-            _requestMap[clientSocket] = Request(totalRequest);
+            _requestMap[clientSocket] = Request(totalRequest, _parser.getServers(), _proxyInfoMap);
             epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT);
         }
     }
@@ -185,8 +249,11 @@ void WebServer::handleOutgoingData(int clientSocket) {
         if (it != _requestMap.end())
         {
             const Request &request = it->second;
-            Response response;
+            addrinfo*     proxyInfo = request.getProxyInfo();
+
+            Response    response(proxyInfo);
             std::string responseContent = response.generate(request);
+
             std::cout << "Sending response to client:\n" << responseContent << std::endl;
             int bytesSent = send(clientSocket, responseContent.c_str(), responseContent.length(), 0);
             if (bytesSent == -1)
@@ -199,8 +266,8 @@ void WebServer::handleOutgoingData(int clientSocket) {
         }
         _requestMap.erase(it);
     }
-    catch (std::exception &e) {
-        std::cerr << e.what() << std::endl;
+    catch (const std::exception &e) {
+        WebErrors::printerror(e.what());
         epollController(clientSocket, EPOLL_CTL_DEL, 0);
     }
 }

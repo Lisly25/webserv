@@ -3,6 +3,7 @@
 #include "ScopedSocket.hpp"
 #include "ServerSocket.hpp"
 #include "WebParser.hpp"
+#include <netdb.h>
 #include <string>
 #include <netinet/in.h>
 #include <sys/poll.h>
@@ -33,6 +34,8 @@ private:
     struct sockaddr_in              _serverAddr;
     std::vector<struct epoll_event> _events;
 
+    std::unordered_map<std::string, addrinfo*> _proxyInfoMap;
+
     std::unordered_map<int, Request> _requestMap;
 
     std::vector<ServerSocket>   createServerSockets(const std::vector<Server> &server_confs);
@@ -44,6 +47,8 @@ private:
 
     void                        handleOutgoingData(int clientSocket); // send()
     void                        handleIncomingData(int clientSocket); // recv()
+
+    void                        resolveProxyAddresses(const std::vector<Server>& server_confs);
 
     int                         getRequestTotalLength(const std::string &request);
     std::string                 getBoundary(const std::string &request);
