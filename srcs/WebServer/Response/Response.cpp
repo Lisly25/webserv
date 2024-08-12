@@ -11,24 +11,30 @@
 
 std::string Response::generate(const Request &request)
 {
-    std::string response;
+    try {
+        std::string response;
 
-    if (request.getLocation()->type == LocationType::PROXY)
-    {
-        ProxyHandler    proxyHandler(request);
-        proxyHandler.passRequest(response);
+        if (request.getLocation()->type == LocationType::PROXY)
+        {
+            ProxyHandler    proxyHandler(request);
+            proxyHandler.passRequest(response);
+        }
+        else if (request.getLocation()->type == LocationType::CGI)
+        {
+            // handleCGI(request, response);
+        }
+        else if (request.getLocation()->type == LocationType::ALIAS)
+        {
+            // handleAlias(request, response);
+        }
+        else
+        {
+            // handleStandard(request, response);
+        }
+        return response;
     }
-    else if (request.getLocation()->type == LocationType::CGI)
+    catch (const std::exception &e)
     {
-        // handleCGI(request, response);
+        throw ;
     }
-    else if (request.getLocation()->type == LocationType::ALIAS)
-    {
-        // handleAlias(request, response);
-    }
-    else
-    {
-        // handleStandard(request, response);
-    }
-    return response;
 }

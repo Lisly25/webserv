@@ -34,14 +34,6 @@ WebServer::WebServer(WebParser &parser)
     }
     catch (const std::exception& e)
     {
-        for (auto& entry : _proxyInfoMap)
-        {
-            if (entry.second)
-            {
-                freeaddrinfo(entry.second);
-            }
-        }
-        if (_epollFd != -1) close(_epollFd);
         throw;
     }
 }
@@ -115,7 +107,7 @@ std::vector<ServerSocket> WebServer::createServerSockets(const std::vector<Serve
 
         for (const auto& server_conf : server_confs)
         {
-            ServerSocket serverSocket(socket(AF_INET, SOCK_STREAM, 0), server_conf);
+            ServerSocket serverSocket(socket(AF_INET, SOCK_STREAM, 0), server_conf, O_NONBLOCK | FD_CLOEXEC);
 
             if (serverSocket.get() < 0 ||
                 setsockopt(serverSocket.get(), SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
@@ -164,7 +156,7 @@ void WebServer::acceptAddClient(int serverSocketFd)
 {
     struct sockaddr_in  clientAddr;
     socklen_t           clientLen = sizeof(clientAddr);
-    ScopedSocket        clientSocket(accept(serverSocketFd, (struct sockaddr *)&clientAddr, &clientLen));
+    ScopedSocket        clientSocket(accept(serverSocketFd, (struct sockaddr *)&clientAddr, &clientLen), O_NONBLOCK | FD_CLOEXEC);
 
     if (clientSocket.get() < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
         throw WebErrors::ServerException("Error accepting client connection");

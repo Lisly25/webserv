@@ -2,9 +2,11 @@
 
 #include <unistd.h>
 
+
+// DONT ADD THE NONBLOCK FLAG TO THE PROXY SOCKETS so false it
 class ScopedSocket {
 public:
-    ScopedSocket(int fd = -1, bool set_default_flags = true);
+    ScopedSocket(int fd = -1, int socket_flags = 0);
     ~ScopedSocket();
 
     ScopedSocket(const ScopedSocket&) = delete;           

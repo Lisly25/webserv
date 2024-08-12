@@ -3,11 +3,10 @@
 #include "WebErrors.hpp"
 #include <utility>
 
-ScopedSocket::ScopedSocket(int fd, bool set_default_flags)
+ScopedSocket::ScopedSocket(int fd, int socket_flags)
     : _fd(fd)
 {
-    if (set_default_flags && _fd != -1)
-        setSocketFlags(FD_CLOEXEC | O_NONBLOCK);
+   setSocketFlags(socket_flags);
 }
 
 ScopedSocket::~ScopedSocket()

@@ -6,7 +6,7 @@
 class ServerSocket : public ScopedSocket
 {
 public:
-    ServerSocket(int fd, const Server& server, bool set_default_flags = true);
+    ServerSocket(int fd, const Server& server, int socket_flags = 0);
 
     ServerSocket(ServerSocket&& other) noexcept;
 
