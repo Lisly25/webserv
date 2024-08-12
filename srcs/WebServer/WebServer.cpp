@@ -257,7 +257,8 @@ void WebServer::handleOutgoingData(int clientSocket)
                 WebErrors::printerror("Error sending response to client");
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
             }
-            epollController(clientSocket, EPOLL_CTL_DEL, 0);
+            else
+                epollController(clientSocket, EPOLL_CTL_DEL, 0);
         }
         _requestMap.erase(it);
     }

@@ -19,14 +19,13 @@ public:
 
 private:
     std::string     _rawRequest;
-    const Server*   _server;
-    const Location* _location;
-    LocationType    _locationType;
+    const Server*   _server = nullptr;
+    const Location* _location = nullptr;
     addrinfo*       _proxyInfo;
 
     void        initialize(const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
     std::string extractUri(const std::string& requestLine) const;
-    bool        isServerMatch(const Server& server) const;
+    bool        isServerMatch(const Server& server);
     bool        matchLocationSetData(const Server& server, const std::string& uri, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
     void        setProxyInfo(const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
 };
