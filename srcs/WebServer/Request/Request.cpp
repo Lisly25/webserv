@@ -32,12 +32,13 @@ std::string Request::extractUri(const std::string& requestLine) const
 {
     std::string uri = requestLine.substr(requestLine.find(" ") + 1);
     uri = uri.substr(0, uri.find(" "));  // Extract URI from "GET /uri HTTP/1.1"
-    std::cout << "Extracted URI: " << uri << std::endl;
+    //std::cout << "Extracted URI: " << uri << std::endl;
     return uri;
 }
 
 bool Request::isServerMatch(const Server& server) const
 {
+    // Extract the Host header from the raw request
     size_t hostPos = _rawRequest.find("Host: ");
     if (hostPos == std::string::npos)
         return false;
@@ -45,16 +46,24 @@ bool Request::isServerMatch(const Server& server) const
     size_t hostEnd = _rawRequest.find("\r\n", hostPos);
     std::string hostHeader = _rawRequest.substr(hostPos + 6, hostEnd - (hostPos + 6));
 
-    bool match = hostHeader == server.host;
+    // Iterate through the server names to see if any match the Host header
+    for (const auto& serverName : server.server_name)
+    {
+        std::string fullServerName = serverName + ":" + std::to_string(server.port);
+        
+        if (hostHeader == fullServerName)
+        {
+            std::cout << "Extracted Host Header: " << hostHeader << std::endl;
+            std::cout << "Checking Server:" << std::endl;
+            std::cout << "Host: " << server.host << std::endl;
+            std::cout << "Server match for host " << server.host << ": true" << std::endl;
+            return true;
+        }
+    }
+
     std::cout << "Extracted Host Header: " << hostHeader << std::endl;
-    std::cout << "Checking Server:" << std::endl;
-    std::cout << "Host: " << server.host << std::endl;
-    std::cout << "Server match for host " << server.host << ": " << match << std::endl;
-
-    //  std::cout << "HERE server location uri: " << server.locations[0].uri << std::endl;
-    //  std::cout << "HERE locatio ntype: " << server.locations[0].type << std::endl;
-
-    return true;
+    std::cout << "No matching server name found for host: " << hostHeader << std::endl;
+    return false;
 }
 
 
@@ -65,7 +74,7 @@ bool Request::matchLocationSetData(const Server& server, const std::string& uri,
 
     for (const auto& location : server.locations)
     {
-        std::cout << "Checking Location: " << location.uri << " against URI: " << uri << std::endl;
+        //std::cout << "Checking Location: " << location.uri << " against URI: " << uri << std::endl;
 
         if (uri.find(location.uri) == 0)  // Matches the beginning of the URI
         {

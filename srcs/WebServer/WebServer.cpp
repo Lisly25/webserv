@@ -250,15 +250,14 @@ void WebServer::handleOutgoingData(int clientSocket)
             Response    response;
             std::string responseContent = response.generate(request);
 
-            std::cout << "Sending response to client:\n" << responseContent << std::endl;
+            //std::cout << "Sending response to client:\n" << responseContent << std::endl;
             int bytesSent = send(clientSocket, responseContent.c_str(), responseContent.length(), 0);
             if (bytesSent == -1)
             {
                 WebErrors::printerror("Error sending response to client");
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
             }
-            else
-                epollController(clientSocket, EPOLL_CTL_DEL, 0);
+            epollController(clientSocket, EPOLL_CTL_DEL, 0);
         }
         _requestMap.erase(it);
     }
