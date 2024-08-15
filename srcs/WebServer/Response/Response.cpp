@@ -9,6 +9,17 @@
 #include <iostream>
 #include <string>
 
+Response::Response(const Request &request)
+{
+    try {
+        _response = generate(request);
+    }
+    catch (const std::exception &e)
+    {
+        throw ;
+    }
+}
+
 std::string Response::generate(const Request &request)
 {
     try {
@@ -37,4 +48,9 @@ std::string Response::generate(const Request &request)
     {
         throw ;
     }
+}
+
+const std::string &Response::getResponse() const
+{
+    return _response;
 }

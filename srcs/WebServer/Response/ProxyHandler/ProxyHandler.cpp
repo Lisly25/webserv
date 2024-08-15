@@ -45,12 +45,14 @@ std::string ProxyHandler::modifyRequestForProxy()
 {
     std::string modifiedRequest = request.getRawRequest();
     size_t      hostPos = modifiedRequest.find("Host: ");
+    
     if (hostPos != std::string::npos)
     {
         size_t hostEnd = modifiedRequest.find("\r\n", hostPos);
         if (hostEnd != std::string::npos)
             modifiedRequest.replace(hostPos + 6, hostEnd - (hostPos + 6), proxyHost);
     }
+    std::cout << "Modified request for proxy: " << modifiedRequest << std::endl;
     return modifiedRequest;
 }
 
@@ -66,7 +68,7 @@ void ProxyHandler::passRequest(std::string &response)
         if (send(proxySocket.get(), modifiedRequest.c_str(), modifiedRequest.length(), 0) < 0)
             throw WebErrors::ProxyException("Error sending to proxy server");
 
-        while (isDataAvailable(proxySocket.get(), 50000)) // 50ms timeout
+        while (isDataAvailable(proxySocket.get(), 500000)) // 50ms timeout
         {
             bytesRead = recv(proxySocket.get(), buffer, sizeof(buffer), 0);
             if (bytesRead > 0)
