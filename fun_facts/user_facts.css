@@ -19,3 +19,8 @@ body {
 form {
     text-align: center;
 }
+
+#submitButton {
+    text-align: center;
+    margin: 2cm;
+}
