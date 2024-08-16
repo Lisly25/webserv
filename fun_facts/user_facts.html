@@ -7,19 +7,19 @@
     <body>
         <div>
             <h1>Fun facts submitted by our users:</h1>
-            <p><iframe src="user_facts.json" width=800 height=300 frameborder=1></iframe></p>
-            <script>
-                file = fetch("user_facts.json")
-                console.log(JSON.parse(file))
-            </script>
+            <p><iframe src="/docs/sample_fact.txt" width=800 height=300 frameborder=1></iframe></p>
         </div>
         <div>
-            <h1>Have a fact you'd like to share? Go ahead and enter it here:</h1>
-            <script src="handle_facts.js"></script>
-            <form method="post" action="user_facts.json" target="_blank">
-                <input type="text" id="fact" name="fact"><br><br>
-                <input class="sub-button" type="submit" value="Submit">
+            <h1>Have a fact you'd like to share? Go ahead and upload it here if you feel like it:</h1>
+            <form name="uploadForm" action="/docs/" method="post">
+                <div>
+                    <input id="uploadInput" type="file" multiple />
+                    <label for="fileNum">Selected files</label>
+                </div>
             </form>
+            <div>
+                <input type="submit" value="Upload fun fact"/>
+            </div>
         </div>
     </body>
 </html>
