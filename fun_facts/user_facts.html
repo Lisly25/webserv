@@ -17,5 +17,23 @@
               <input id="submitButton" type="submit" value="Upload fun fact"/>
             </form>
         </div>
+        <div id="link">
+            <h1>For a full list of our users' facts, click </h1>
+            <a id="link" href="/docs/">here</a>
+            <p>Link doesn't work? Make sure autoindex is set to "on" in the configuration file</p>
+        </div>
+        <div>
+            <h1>Saw a false fact? Enter the file's name here, and we'll remove it</h1>
+            <form onsubmit="javascript: deleteFile(filename.value)">
+                <input type="text" id="filename"/>
+                <input id="submitButton" type="submit" value="Delete false fact"/>
+                <p>Doesn't work? Please check the script within user_facts.html<br>and whether the correct port is used for the fetch call</p>
+            </form>
+        </div>
+        <script>
+            function deleteFile(filename) {
+              fetch('http://localhost:5173/docs/'+file, { method: 'DELETE' });
+            }
+        </script>
     </body>
 </html>
