@@ -27,7 +27,7 @@ namespace WebErrors
             std::cerr << e << ": " << strerror(errno) << std::endl;
         else
             std::cerr << e << std::endl;
-        return -1;
+        return (EXIT_FAILURE);
     }
 
     /* Server Exceptions in the server */
