@@ -7,19 +7,15 @@
     <body>
         <div>
             <h1>Fun facts submitted by our users:</h1>
-            <p><iframe src="plants.html" width=800 height=300 frameborder=1></iframe></p>
+            <p><iframe src="/docs/sample_fact.txt" width=800 height=300 frameborder=1></iframe></p>
         </div>
         <div>
             <h1>Have a fact you'd like to share? Go ahead and upload it here:</h1>
-            <form name="uploadForm" method="post" enctype="multipart/form-data">
-                <div>
-                    <input id="uploadInput" type="file" multiple />
-                    <label for="fileNum">Selected files</label>
-                </div>
+            <form name="uploadForm" action="./docs/" method="post" enctype="multipart/form-data">
+              <input id="user_fact" type="file" name="user_fact"/>
+              <label for="fileNum">Selected files</label><br>
+              <input id="submitButton" type="submit" value="Upload fun fact"/>
             </form>
-            <div id="submitButton">
-                <input type="submit" value="Upload fun fact"/>
-            </div>
         </div>
     </body>
 </html>
