@@ -27,14 +27,14 @@ public:
     void epollController(int clientSocket, int operation, uint32_t events);
 
 private:
-    std::vector<ServerSocket>                   _serverSockets;
+    std::vector<ServerSocket>                   _serverSockets = {};
     static bool                                 _running;
     int                                         _epollFd = -1;
     WebParser                                   &_parser;
-    struct sockaddr_in                          _serverAddr;
-    std::vector<struct epoll_event>             _events;
+    struct sockaddr_in                          _serverAddr = {};
+    std::vector<struct epoll_event>             _events = {};
 
-    std::unordered_map<std::string, addrinfo*>  _proxyInfoMap;
+    std::unordered_map<std::string, addrinfo*>  _proxyInfoMap = {};
 
     std::unordered_map<int, Request> _requestMap;
 

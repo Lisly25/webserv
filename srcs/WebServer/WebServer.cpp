@@ -17,8 +17,6 @@
 
 bool WebServer::_running = true;
 
-// CONNECT SOCKETS ALSO TO PROXY SERVERS BEFORE STARTING THE SERVER
-
 WebServer::WebServer(WebParser &parser)
     : _epollFd(-1), _parser(parser), _events(MAX_EVENTS)
 {
@@ -38,50 +36,6 @@ WebServer::WebServer(WebParser &parser)
     }
 }
 
-void WebServer::resolveProxyAddresses(const std::vector<Server>& server_confs)
-{
-    for (const auto& server : server_confs)
-    {
-        for (const auto& location : server.locations)
-        {
-            if (location.type == PROXY)
-            {
-                std::string proxyHost;
-                std::string proxyPort;
-
-                size_t colonPos = location.target.rfind(':');
-                if (colonPos != std::string::npos)
-                {
-                    proxyHost = location.target.substr(0, colonPos);
-                    proxyPort = location.target.substr(colonPos + 1);
-                }
-                else
-                {
-                    proxyHost = location.target;
-                    proxyPort = std::to_string(server.port);
-                }
-
-                std::string key = proxyHost + ":" + proxyPort;
-                if (_proxyInfoMap.find(key) == _proxyInfoMap.end())
-                {
-                    addrinfo hints{};
-                    hints.ai_family = AF_UNSPEC;
-                    hints.ai_socktype = SOCK_STREAM;
-
-                    addrinfo* proxyInfo = nullptr;
-                    int status = getaddrinfo(proxyHost.c_str(), proxyPort.c_str(), &hints, &proxyInfo);
-                    if (status != 0)
-                    {
-                        throw WebErrors::ProxyException("Error resolving proxy address: " 
-                            + std::string(gai_strerror(status)));
-                    }
-                    _proxyInfoMap[key] = proxyInfo;
-                }
-            }
-        }
-    }
-}
-
 WebServer::~WebServer()
 {
     for (auto& entry : _proxyInfoMap)
@@ -96,6 +50,56 @@ WebServer::~WebServer()
     {
         close(_epollFd);
         _epollFd = -1;
+    }
+}
+
+void WebServer::resolveProxyAddresses(const std::vector<Server>& server_confs)
+{
+    try {
+        for (const auto& server : server_confs)
+        {
+            for (const auto& location : server.locations)
+            {
+                if (location.type == PROXY)
+                {
+                    std::string proxyHost;
+                    std::string proxyPort;
+
+                    size_t colonPos = location.target.rfind(':');
+                    if (colonPos != std::string::npos)
+                    {
+                        proxyHost = location.target.substr(0, colonPos);
+                        proxyPort = location.target.substr(colonPos + 1);
+                    }
+                    else
+                    {
+                        proxyHost = location.target;
+                        proxyPort = std::to_string(server.port);
+                    }
+
+                    std::string key = proxyHost + ":" + proxyPort;
+                    if (_proxyInfoMap.find(key) == _proxyInfoMap.end())
+                    {
+                        addrinfo hints{};
+                        hints.ai_family = AF_UNSPEC;
+                        hints.ai_socktype = SOCK_STREAM;
+
+                        addrinfo* proxyInfo = nullptr;
+                        int status = getaddrinfo(proxyHost.c_str(), proxyPort.c_str(), &hints, &proxyInfo);
+                        if (status != 0)
+                        {
+                            throw WebErrors::ProxyException("Error resolving proxy address: " 
+                                + std::string(gai_strerror(status)));
+                        }
+                        _proxyInfoMap[key] = proxyInfo;
+                    }
+                }
+            }
+        }
+    }
+    catch (const std::exception& e)
+    {
+        throw;
     }
 }
 
@@ -135,64 +139,88 @@ std::vector<ServerSocket> WebServer::createServerSockets(const std::vector<Serve
 
 void WebServer::epollController(int clientSocket, int operation, uint32_t events)
 {
-    struct epoll_event  event;
+    try {
+        struct epoll_event  event;
 
-    std::memset(&event, 0, sizeof(event));
-    event.data.fd = clientSocket;
-    event.events = events;
-    if (epoll_ctl(_epollFd, operation, clientSocket, &event) == -1)
-    {
-        close(clientSocket);
-        throw WebErrors::ServerException("Error changing epoll state" + std::string(strerror(errno)));
+        std::memset(&event, 0, sizeof(event));
+        event.data.fd = clientSocket;
+        event.events = events;
+        if (epoll_ctl(_epollFd, operation, clientSocket, &event) == -1)
+        {
+            close(clientSocket);
+            throw WebErrors::ServerException("Error changing epoll state" + std::string(strerror(errno)));
+        }
+        if (operation == EPOLL_CTL_DEL)
+        {
+            close(clientSocket);
+            clientSocket = -1;
+        }
     }
-    if (operation == EPOLL_CTL_DEL)
+    catch (const std::exception &e)
     {
-        close(clientSocket);
-        clientSocket = -1;
+        throw;
     }
 }
 
 void WebServer::acceptAddClient(int serverSocketFd)
 {
-    struct sockaddr_in  clientAddr;
-    socklen_t           clientLen = sizeof(clientAddr);
-    ScopedSocket        clientSocket(accept(serverSocketFd, (struct sockaddr *)&clientAddr, &clientLen), O_NONBLOCK | FD_CLOEXEC);
+    try {
+        struct sockaddr_in  clientAddr;
+        socklen_t           clientLen = sizeof(clientAddr);
+        ScopedSocket        clientSocket(accept(serverSocketFd, (struct sockaddr *)&clientAddr, &clientLen), O_NONBLOCK | FD_CLOEXEC);
 
-    if (clientSocket.get() < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
-        throw WebErrors::ServerException("Error accepting client connection");
+        if (clientSocket.get() < 0)
+            throw WebErrors::ServerException("Error accepting client connection");
 
-    epollController(clientSocket.get(), EPOLL_CTL_ADD, EPOLLIN);
-    clientSocket.release();
+        epollController(clientSocket.get(), EPOLL_CTL_ADD, EPOLLIN);
+        clientSocket.release();
+    }
+    catch (const std::exception &e)
+    {
+        throw;
+    }
 }
 
 
 std::string WebServer::getBoundary(const std::string &request)
 {
-    size_t start = request.find("boundary=");
-    if (start == std::string::npos) return "";
+    try {
+        size_t start = request.find("boundary=");
+        if (start == std::string::npos) return "";
 
-    start += 9; // Length of "boundary="
-    size_t end = request.find("\r\n", start);
-    return (end == std::string::npos) ? request.substr(start) : request.substr(start, end - start);
+        start += 9; // Length of "boundary="
+        size_t end = request.find("\r\n", start);
+        return (end == std::string::npos) ? request.substr(start) : request.substr(start, end - start);
+    }
+    catch (const std::exception &e)
+    {
+        throw WebErrors::ServerException("Error parsing request boundary");
+    }
 }
 
 int WebServer::getRequestTotalLength(const std::string &request)
 {
-    size_t contentLengthPos = request.find("Content-Length: ");
-    if (contentLengthPos == std::string::npos) return request.length();
+    try {
+        size_t contentLengthPos = request.find("Content-Length: ");
+        if (contentLengthPos == std::string::npos) return request.length();
 
-    contentLengthPos += 16; // Length of "Content-Length: "
-    size_t end = request.find("\r\n", contentLengthPos);
-    const int contentLength = std::stoi(request.substr(contentLengthPos, end - contentLengthPos));
+        contentLengthPos += 16; // Length of "Content-Length: "
+        size_t end = request.find("\r\n", contentLengthPos);
+        const int contentLength = std::stoi(request.substr(contentLengthPos, end - contentLengthPos));
 
-    std::string boundary = getBoundary(request);
-    if (!boundary.empty())
-    {
-        size_t boundaryPos = request.rfind("--" + boundary);
-        if (boundaryPos != std::string::npos)
-            return boundaryPos + boundary.length() + 4; // +4 for "--\r\n"
+        std::string boundary = getBoundary(request);
+        if (!boundary.empty())
+        {
+            size_t boundaryPos = request.rfind("--" + boundary);
+            if (boundaryPos != std::string::npos)
+                return boundaryPos + boundary.length() + 4; // +4 for "--\r\n"
+        }
+        return contentLength;
     }
-    return contentLength;
+    catch (const std::exception &e)
+    {
+        throw WebErrors::ServerException("Error parsing request content length");
+    }
 }
 
 void WebServer::handleIncomingData(int clientSocket)
@@ -208,9 +236,9 @@ void WebServer::handleIncomingData(int clientSocket)
             bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
             if (bytesRead <= 0)
             {
-                if (bytesRead == 0 || (errno == EAGAIN || errno == EWOULDBLOCK)) break;
-                WebErrors::printerror("Error reading from client socket");
-                break;
+                if (bytesRead == 0)
+                    throw WebErrors::ServerException("Client closed connection");
+                throw WebErrors::ServerException("Error reading request from client");
             }
 
             totalRequest.append(buffer, bytesRead);
@@ -226,10 +254,11 @@ void WebServer::handleIncomingData(int clientSocket)
     }
     catch (const std::exception &e)
     {
-        WebErrors::printerror(e.what());
         epollController(clientSocket, EPOLL_CTL_DEL, 0);
+        throw;  
     }
 }
+
 
 void WebServer::handleOutgoingData(int clientSocket)
 {
@@ -238,15 +267,13 @@ void WebServer::handleOutgoingData(int clientSocket)
         if (it != _requestMap.end())
         {
             const Request &request = it->second;
+            Response res(request);
 
-            Response    res(request);
-
-            //std::cout << "Sending response to client:\n" << responseContent << std::endl;
             int bytesSent = send(clientSocket, res.getResponse().c_str(), res.getResponse().length(), 0);
             if (bytesSent == -1)
             {
-                WebErrors::printerror("Error sending response to client");
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
+                throw WebErrors::ServerException("Error sending response to client");
             }
             else
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
@@ -254,34 +281,40 @@ void WebServer::handleOutgoingData(int clientSocket)
         _requestMap.erase(it);
     }
     catch (const std::exception &e) {
-        WebErrors::printerror(e.what());
         epollController(clientSocket, EPOLL_CTL_DEL, 0);
+        throw;  
     }
 }
 
+
 void WebServer::handleEvents(int eventCount)
 {
-    auto getCorrectServerSocket = [this](int fd) -> bool {
-        return std::any_of(_serverSockets.begin(), _serverSockets.end(),
-                           [fd](const ScopedSocket& socket) { return socket.get() == fd; });
-    };
+    try {
+        auto getCorrectServerSocket = [this](int fd) -> bool {
+            return std::any_of(_serverSockets.begin(), _serverSockets.end(),
+                               [fd](const ScopedSocket& socket) { return socket.get() == fd; });
+        };
 
-    for (int i = 0; i < eventCount; ++i)
-    {
-        const int fd = _events[i].data.fd;
+        for (int i = 0; i < eventCount; ++i)
+        {
+            const int fd = _events[i].data.fd;
 
-        if (getCorrectServerSocket(fd))
-        {
-            fcntl(fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
-            acceptAddClient(fd);
+            if (getCorrectServerSocket(fd))
+            {
+                fcntl(fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
+                acceptAddClient(fd);
+            }
+            else
+            {
+                if (_events[i].events & EPOLLIN)
+                    handleIncomingData(fd);
+                else if (_events[i].events & EPOLLOUT)
+                    handleOutgoingData(fd);
+            }
         }
-        else
-        {
-            if (_events[i].events & EPOLLIN)
-                handleIncomingData(fd);
-            else if (_events[i].events & EPOLLOUT)
-                handleOutgoingData(fd);
-        }
+    }
+    catch (const std::exception &e) {
+        throw;  
     }
 }
 
@@ -292,14 +325,19 @@ void WebServer::start()
 
     while (_running)
     {
-        int eventCount = epoll_wait(_epollFd, _events.data(), _events.size(), -1);
-        if (eventCount == -1)
-        {
-            if (errno == EINTR) continue;
-            WebErrors::printerror("Epoll wait error");
-            continue;
+        try {
+            int eventCount = epoll_wait(_epollFd, _events.data(), MAX_EVENTS, -1);
+            if (eventCount == -1)
+            {
+                if (errno == EINTR) continue;
+                throw WebErrors::ServerException("Epoll wait error");
+            }
+            handleEvents(eventCount);
         }
-        handleEvents(eventCount);
+        catch (const std::exception &e)
+        {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
     }
     std::cout << "Server stopped.\n";
 }
