@@ -1,65 +1,65 @@
 #include "ProxyHandler.hpp"
+#include "ProxySocket/ProxySocket.hpp"
 #include "WebErrors.hpp"
 #include <cstring>
 #include <netinet/tcp.h>
 #include <unistd.h>
 #include <iostream>
 
-ProxyHandler::ProxyHandler(const Request& req) : request(req), proxyInfo(req.getProxyInfo()), proxyHost(req.getLocation()->target)
+ProxyHandler::ProxyHandler(const Request& req) : _request(req), proxyInfo(req.getProxyInfo()), proxyHost(req.getLocation()->target)
 {
     if (!proxyInfo) throw WebErrors::ProxyException("No proxy information available");
 }
 
-ScopedSocket ProxyHandler::createProxySocket(addrinfo* proxyInfo)
-{
-    ScopedSocket proxySocket(socket(proxyInfo->ai_family, proxyInfo->ai_socktype, proxyInfo->ai_protocol));
-    
-    int flag = 1;
-    if (setsockopt(proxySocket.get(), IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0)
-        throw WebErrors::ProxyException("Error setting TCP_NODELAY");
-
-    if (proxySocket.get() < 0 || connect(proxySocket.get(), proxyInfo->ai_addr, proxyInfo->ai_addrlen) < 0)
-        throw WebErrors::ProxyException("Error connecting to proxy server");
-
-    return proxySocket;
-}
-
 bool ProxyHandler::isDataAvailable(int fd, int timeout_usec)
 {
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = timeout_usec;
+    try
+    {
+        struct timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = timeout_usec;
 
-    fd_set readfds;
-    FD_ZERO(&readfds);
-    FD_SET(fd, &readfds);
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(fd, &readfds);
 
-    int ret = select(fd + 1, &readfds, NULL, NULL, &timeout);
+        int ret = select(fd + 1, &readfds, NULL, NULL, &timeout);
 
-    if (ret < 0)
-        throw WebErrors::ProxyException("Error with select on proxy server socket");
-   return ret > 0 && FD_ISSET(fd, &readfds);
+        if (ret < 0)
+            throw WebErrors::ProxyException("Error with select on proxy server socket");
+        return ret > 0 && FD_ISSET(fd, &readfds);
+    }
+    catch (const std::exception &e)
+    {
+        throw ;
+    }
 }
 
 std::string ProxyHandler::modifyRequestForProxy()
 {
-    std::string modifiedRequest = request.getRawRequest();
-    size_t      hostPos = modifiedRequest.find("Host: ");
-    
-    if (hostPos != std::string::npos)
+    try
     {
-        size_t hostEnd = modifiedRequest.find("\r\n", hostPos);
-        if (hostEnd != std::string::npos)
-            modifiedRequest.replace(hostPos + 6, hostEnd - (hostPos + 6), proxyHost);
+        std::string modifiedRequest = _request.getRawRequest();
+        size_t      hostPos = modifiedRequest.find("Host: ");
+        
+        if (hostPos != std::string::npos)
+        {
+            size_t hostEnd = modifiedRequest.find("\r\n", hostPos);
+            if (hostEnd != std::string::npos)
+                modifiedRequest.replace(hostPos + 6, hostEnd - (hostPos + 6), proxyHost);
+        }
+        return modifiedRequest;
     }
-    std::cout << "Modified request for proxy: " << modifiedRequest << std::endl;
-    return modifiedRequest;
+    catch (const std::exception &e)
+    {
+        throw ;
+    }
 }
 
 void ProxyHandler::passRequest(std::string &response)
 {
     try {
-        ScopedSocket proxySocket = createProxySocket(proxyInfo);
+        ProxySocket proxySocket(proxyInfo, proxyHost);
         std::string modifiedRequest = modifyRequestForProxy();
         char        buffer[8192];
         ssize_t     bytesRead = 0;
@@ -88,6 +88,6 @@ void ProxyHandler::passRequest(std::string &response)
     }
     catch (const std::exception &e)
     {
-        throw WebErrors::ProxyException(e.what());
+        throw ;
     }
 }
