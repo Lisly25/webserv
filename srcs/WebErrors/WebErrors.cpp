@@ -30,6 +30,13 @@ namespace WebErrors
         return (EXIT_FAILURE);
     }
 
+    void combineExceptions(const std::exception &original, const std::exception &inner)
+    {
+        std::string combined_error = "Recovery error: " + std::string(inner.what()) + 
+                                    "; Initial error: " + std::string(original.what());
+        throw ServerException(combined_error);
+    }
+
     /* Server Exceptions in the server */
     ServerException::ServerException(const std::string &message)
         : BaseException(message) { }

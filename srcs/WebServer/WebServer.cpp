@@ -55,7 +55,8 @@ WebServer::~WebServer()
 
 void WebServer::resolveProxyAddresses(const std::vector<Server>& server_confs)
 {
-    try {
+    try
+    {
         for (const auto& server : server_confs)
         {
             for (const auto& location : server.locations)
@@ -106,7 +107,8 @@ void WebServer::resolveProxyAddresses(const std::vector<Server>& server_confs)
 std::vector<ServerSocket> WebServer::createServerSockets(const std::vector<Server> &server_confs)
 {
     int opt = 1;
-    try {
+    try
+    {
         std::vector<ServerSocket> serverSockets;
 
         for (const auto& server_conf : server_confs)
@@ -131,7 +133,8 @@ std::vector<ServerSocket> WebServer::createServerSockets(const std::vector<Serve
             serverSockets.push_back(std::move(serverSocket));
         }
         return serverSockets;
-    } catch (const std::exception& e)
+    }
+    catch (const std::exception& e)
     {
         throw;
     }
@@ -139,7 +142,8 @@ std::vector<ServerSocket> WebServer::createServerSockets(const std::vector<Serve
 
 void WebServer::epollController(int clientSocket, int operation, uint32_t events)
 {
-    try {
+    try
+    {
         struct epoll_event  event;
 
         std::memset(&event, 0, sizeof(event));
@@ -164,7 +168,8 @@ void WebServer::epollController(int clientSocket, int operation, uint32_t events
 
 void WebServer::acceptAddClient(int serverSocketFd)
 {
-    try {
+    try
+    {
         struct sockaddr_in  clientAddr;
         socklen_t           clientLen = sizeof(clientAddr);
         ScopedSocket        clientSocket(accept(serverSocketFd, (struct sockaddr *)&clientAddr, &clientLen), O_NONBLOCK | FD_CLOEXEC);
@@ -184,7 +189,8 @@ void WebServer::acceptAddClient(int serverSocketFd)
 
 std::string WebServer::getBoundary(const std::string &request)
 {
-    try {
+    try
+    {
         size_t start = request.find("boundary=");
         if (start == std::string::npos) return "";
 
@@ -200,7 +206,8 @@ std::string WebServer::getBoundary(const std::string &request)
 
 int WebServer::getRequestTotalLength(const std::string &request)
 {
-    try {
+    try
+    {
         size_t contentLengthPos = request.find("Content-Length: ");
         if (contentLengthPos == std::string::npos) return request.length();
 
@@ -225,7 +232,8 @@ int WebServer::getRequestTotalLength(const std::string &request)
 
 void WebServer::handleIncomingData(int clientSocket)
 {
-    try {
+    try
+    {
         char        buffer[1024];
         std::string totalRequest;
         int         totalBytes = -1;
@@ -254,15 +262,20 @@ void WebServer::handleIncomingData(int clientSocket)
     }
     catch (const std::exception &e)
     {
-        epollController(clientSocket, EPOLL_CTL_DEL, 0);
-        throw;  
+        try {
+            epollController(clientSocket, EPOLL_CTL_DEL, 0);
+        } catch (const std::exception &inner_e) {
+            WebErrors::combineExceptions(e, inner_e);
+        }
+        throw;
     }
 }
 
 
 void WebServer::handleOutgoingData(int clientSocket)
 {
-    try {
+    try
+    {
         auto it = _requestMap.find(clientSocket);
         if (it != _requestMap.end())
         {
@@ -280,16 +293,22 @@ void WebServer::handleOutgoingData(int clientSocket)
         }
         _requestMap.erase(it);
     }
-    catch (const std::exception &e) {
-        epollController(clientSocket, EPOLL_CTL_DEL, 0);
-        throw;  
+    catch (const std::exception &e)
+    {
+        try {
+            epollController(clientSocket, EPOLL_CTL_DEL, 0);
+        } catch (const std::exception &inner_e) {
+            WebErrors::combineExceptions(e, inner_e);
+        }
+        throw;
     }
 }
 
 
 void WebServer::handleEvents(int eventCount)
 {
-    try {
+    try
+    {
         auto getCorrectServerSocket = [this](int fd) -> bool {
             return std::any_of(_serverSockets.begin(), _serverSockets.end(),
                                [fd](const ScopedSocket& socket) { return socket.get() == fd; });
@@ -313,7 +332,8 @@ void WebServer::handleEvents(int eventCount)
             }
         }
     }
-    catch (const std::exception &e) {
+    catch (const std::exception &e)
+    {
         throw;  
     }
 }
@@ -325,7 +345,8 @@ void WebServer::start()
 
     while (_running)
     {
-        try {
+        try
+        {
             int eventCount = epoll_wait(_epollFd, _events.data(), MAX_EVENTS, -1);
             if (eventCount == -1)
             {
@@ -336,7 +357,7 @@ void WebServer::start()
         }
         catch (const std::exception &e)
         {
-            std::cerr << "Error: " << e.what() << std::endl;
+            WebErrors::printerror(e.what());
         }
     }
     std::cout << "Server stopped.\n";
