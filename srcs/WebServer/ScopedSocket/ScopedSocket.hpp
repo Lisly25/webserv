@@ -4,7 +4,8 @@
 
 
 // DONT ADD THE NONBLOCK FLAG TO THE PROXY SOCKETS so false it
-class ScopedSocket {
+class ScopedSocket
+{
 public:
     ScopedSocket(int fd = -1, int socket_flags = 0);
     ~ScopedSocket();
@@ -15,7 +16,7 @@ public:
     ScopedSocket(ScopedSocket&& other) noexcept;   
     ScopedSocket& operator=(ScopedSocket&& other) noexcept;
 
-    int     get(void) const;
+    int     getFd(void) const;
     void    reset(int fd = -1);
     int     release(void);
 

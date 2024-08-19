@@ -40,7 +40,7 @@ ScopedSocket& ScopedSocket::operator=(ScopedSocket&& other) noexcept
     return *this;
 }
 
-int ScopedSocket::get(void) const { return _fd; }
+int ScopedSocket::getFd(void) const { return _fd; }
 
 void ScopedSocket::reset(int fd)
 {

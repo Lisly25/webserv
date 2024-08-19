@@ -2,12 +2,12 @@
 
 #include "ScopedSocket.hpp"
 #include "WebParser.hpp"
+#include <netinet/in.h>
 
 class ServerSocket : public ScopedSocket
 {
 public:
-    ServerSocket(int fd, const Server& server, int socket_flags = 0);
-
+    ServerSocket(const Server& server, int socket_flags = 0);
     ServerSocket(ServerSocket&& other) noexcept;
 
     ServerSocket& operator=(ServerSocket&& other) noexcept = delete;
@@ -15,5 +15,9 @@ public:
     const Server& getServer() const;
 
 private:
-    const Server& _server;
+    void setupSocketOptions(int opt);
+    void bindAndListen();
+
+    const Server&       _server;
+    struct sockaddr_in  _serverAddr = {};
 };

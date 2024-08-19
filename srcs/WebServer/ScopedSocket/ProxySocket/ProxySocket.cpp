@@ -9,7 +9,7 @@ ProxySocket::ProxySocket(addrinfo* proxyInfo, const std::string& proxyHost)
         if (proxyInfo == nullptr)
             throw WebErrors::ProxyException("Invalid proxy info provided");
         setupSocketOptions();
-        if (get() < 0 || connect(get(), proxyInfo->ai_addr, proxyInfo->ai_addrlen) < 0)
+        if (this->getFd() < 0 || connect(this->getFd() , proxyInfo->ai_addr, proxyInfo->ai_addrlen) < 0)
             throw WebErrors::ProxyException("Error connecting to proxy server");
     }
     catch (const WebErrors::ProxyException& e)
@@ -27,7 +27,7 @@ ProxySocket::ProxySocket(ProxySocket&& other) noexcept
 void ProxySocket::setupSocketOptions()
 {
     int flag = 1;
-    if (setsockopt(get(), IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0)
+    if (setsockopt(this->getFd(), IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0)
         throw WebErrors::ProxyException("Error setting TCP_NODELAY");
 }
 

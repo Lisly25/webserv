@@ -65,12 +65,12 @@ void ProxyHandler::passRequest(std::string &response)
         ssize_t     bytesRead = 0;
 
         std::cout << "Sending request to proxy: " << proxyHost << std::endl;
-        if (send(proxySocket.get(), modifiedRequest.c_str(), modifiedRequest.length(), 0) < 0)
+        if (send(proxySocket.getFd(), modifiedRequest.c_str(), modifiedRequest.length(), 0) < 0)
             throw WebErrors::ProxyException("Error sending to proxy server");
 
-        while (isDataAvailable(proxySocket.get(), 500000)) // 50ms timeout
+        while (isDataAvailable(proxySocket.getFd(), 500000)) // 50ms timeout
         {
-            bytesRead = recv(proxySocket.get(), buffer, sizeof(buffer), 0);
+            bytesRead = recv(proxySocket.getFd(), buffer, sizeof(buffer), 0);
             if (bytesRead > 0)
             {
                 response.append(buffer, bytesRead);

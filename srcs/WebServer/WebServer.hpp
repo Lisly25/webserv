@@ -31,7 +31,6 @@ private:
     static bool                                 _running;
     int                                         _epollFd = -1;
     WebParser                                   &_parser;
-    struct sockaddr_in                          _serverAddr = {};
     std::vector<struct epoll_event>             _events = {};
 
     std::unordered_map<std::string, addrinfo*>  _proxyInfoMap = {};
