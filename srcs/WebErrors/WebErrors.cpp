@@ -33,5 +33,7 @@ namespace WebErrors
     /* Server Exceptions in the server */
     ServerException::ServerException(const std::string &message)
         : BaseException(message) { }
-    ServerException::~ServerException() {}
+
+    SocketException::SocketException(const std::string &message)
+        : BaseException(message) { }
 }

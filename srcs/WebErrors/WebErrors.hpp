@@ -46,9 +46,12 @@ namespace WebErrors
     {
     public:
         explicit ServerException(const std::string &message);
-        ~ServerException();
 
     };
-
+    class SocketException : public BaseException
+    {
+    public:
+        explicit SocketException(const std::string &message);
+    };
     int printerror(const std::string &e);
 }
