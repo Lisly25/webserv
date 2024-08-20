@@ -1,17 +1,26 @@
 #pragma once
 
-#include "Request.hpp"
+#include "ScopedSocket.hpp"
 #include <string>
 #include <netdb.h>
 
-class Response {
+class Request;
+
+class Response
+{
 public:
-    Response();
-    ~Response();
-    std::string generate(const Request &request);
-    void handleProxyPass(const std::string &request, std::string &response);
+    Response(const Request &request);
+    ~Response() = default;
+
+    const std::string   &getResponse() const;
 
 private:
-    void resolveProxyAddresses();
-    addrinfo *_proxyInfo;
+    std::string    _response;
+
+    ScopedSocket    createProxySocket(addrinfo* proxyInfo);
+    void            sendRequestToProxy(ScopedSocket& proxySocket, const std::string& modifiedRequest);
+    void            receiveResponseFromProxy(ScopedSocket& proxySocket, std::string &response, const std::string& proxyHost);
+    void            handleProxyPass(const Request& request, std::string &response);
+    bool            isDataAvailable(int fd, int timeout_usec);
+    std::string     generate(const Request &request);
 };

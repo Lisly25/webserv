@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <cstring>
 
-enum LocationType { CGI, PROXY, ALIAS, STANDARD };
+enum LocationType { UNDEFINED, CGI, PROXY, ALIAS, STANDARD };
 
 struct Location {
     LocationType                type;
@@ -45,10 +45,10 @@ public:
     WebParser(const WebParser &) = delete;
     WebParser &operator=(const WebParser &) = delete;
     
-    bool                parse();
-    std::string         getProxyPass() const;
-    std::string         getCgiPass() const;
-    std::vector<Server> getServers() const;
+    bool                      parse();
+    const std::string         &getProxyPass() const;
+    const std::string         &getCgiPass() const;
+    const std::vector<Server> &getServers() const;
 
     //for testing:
     void                printParsedInfo(void);
