@@ -169,9 +169,11 @@ ssize_t WebParser::locateDirective(size_t contextStart, size_t contextEnd, std::
 void WebParser::parseServer(void)
 {
     size_t i;
+    size_t configSize;
 
     i = 0;
-    while (i < _configFile.size())
+    configSize = _configFile.size();
+    while (i < configSize)
     {
         if (locateServerContextStart(_configFile[i], "server") == true)
         {
@@ -179,7 +181,7 @@ void WebParser::parseServer(void)
             if (contextEnd == -1)
                 throw WebErrors::ConfigFormatException("Error: context not closed properly");
             extractServerInfo(i, contextEnd);
-            i = contextEnd + 1;        
+            i = contextEnd + 1;
         }
         else
             i++;
