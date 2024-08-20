@@ -264,7 +264,6 @@ void WebServer::handleOutgoingData(int clientSocket)
         {
             const Request &request = it->second;
             Response res(request);
-
             int bytesSent = send(clientSocket, res.getResponse().c_str(), res.getResponse().length(), 0);
             if (bytesSent == -1)
             {
@@ -273,6 +272,7 @@ void WebServer::handleOutgoingData(int clientSocket)
             }
             else
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
+            std::cout << "Response sent to client " << res.getResponse() << std::endl;
         }
         _requestMap.erase(it);
     }

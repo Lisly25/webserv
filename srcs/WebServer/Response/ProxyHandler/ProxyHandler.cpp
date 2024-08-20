@@ -65,6 +65,7 @@ void ProxyHandler::passRequest(std::string &response)
         ssize_t     bytesRead = 0;
 
         std::cout << "Sending request to proxy: " << proxyHost << std::endl;
+        std::cout << "Request: " << modifiedRequest << std::endl;
         if (send(proxySocket.getFd(), modifiedRequest.c_str(), modifiedRequest.length(), 0) < 0)
             throw WebErrors::ProxyException("Error sending to proxy server");
 

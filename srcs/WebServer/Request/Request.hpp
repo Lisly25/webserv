@@ -6,15 +6,16 @@
 #include <netdb.h> 
 #include "WebParser.hpp"
 
-struct RequestData {
-    std::string method;              // HTTP method (e.g., GET, POST)
-    std::string uri;                 // Request URI
-    std::string query_string;        // Query string from the URI
-    std::unordered_map<std::string, std::string> headers; // HTTP headers
-    std::string body;                // Request body content
-    std::string script_filename;     // Path to the script (for CGI)
-    std::string content_type;        // Content type of the request
-    std::string content_length;      // Content length of the request
+struct RequestData
+{
+    std::string method;
+    std::string uri;
+    std::string query_string;
+    std::unordered_map<std::string, std::string> headers;
+    std::string body;  
+    std::string script_filename;
+    std::string content_type; 
+    std::string content_length; 
 };
 
 inline std::ostream& operator<<(std::ostream& os, const RequestData& requestData)
@@ -44,6 +45,7 @@ public:
     const Location*     getLocation() const;
     addrinfo*           getProxyInfo() const;
     const RequestData&  getRequestData() const;
+
 private:
     RequestData     _requestData = {};
     std::string     _rawRequest;
@@ -56,10 +58,26 @@ private:
     void        extractHeaders();
     void        extractBody();
 
-    void        initialize(const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
+    void        checkValidity(const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
     std::string extractUri(const std::string& requestLine) const;
     bool        isServerMatch(const Server& server);
     bool        matchLocationSetData(const Server& server, const std::string& uri, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
     void        setProxyInfo(const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
+
+public:
+    class RequestValidator
+    {
+    public:
+        RequestValidator(Request& request, const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
+        bool validate() const;
+
+    private:
+        Request&                                            _request;
+        const std::vector<Server>&                          _servers;
+        const std::unordered_map<std::string, addrinfo*>&   _proxyInfoMap;
+
+        bool isServerMatch(const Server& server) const;
+        bool matchLocationSetData(const Server& server) const;
+    };
 };
 
