@@ -1,0 +1,36 @@
+p {
+    color: rgb(20, 105, 9);
+    text-align: center;
+    font-size: xx-large;
+    font-family: 'Cambria', sans-serif;
+  }
+
+h1 {
+    color:rgb(9, 51, 105);
+    text-align: center;
+    font: italic bold xxx-large italic small-caps bold cursive;
+    font-family: 'Lucida Handwriting', cursive;
+}
+
+img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#links {
+    text-align: center;
+    border: 4mm ridge rgba(115, 50, 220, 0.6);
+    margin-top: 2cm;
+    margin-bottom: 2cm;
+    margin-left: 7cm;
+    margin-right: 7cm;
+    padding: 1cm;
+    list-style-type: none;
+}
+
+a {
+    color:rgb(148, 205, 231);
+    text-align: center;
+    font-size: xx-large;
+}

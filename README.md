@@ -29,17 +29,54 @@ mydomain.com:4242
 
 ### Configuration file setup
 
+The configuration file is made up of 'contexts' and 'directives'. Contexts are configurable units, and directives the configurable attributes. The main contexts are servers, which can contain within themselves a number of 'location' contexts.
+
+In other words, a configuration file can contain the configurations of multiple servers. In addition, each additional server can have a number of settings per 'location'. In a standard case, a 'location' will be a directory on the server, which can contain for example .html pages that a client can visit.
+
+When defining a location context, the hostname of the website is omitted (since it will already have been defined in a server_name directive within the server context)
+
+```
+server {	# Configuration for example_website1.com
+	server_name example_website.com
+	...
+	location /dir1/ {		# Settings will take effect when visting example_website1.com/dir1/page.html
+		...
+	}
+
+	location /dir2/ {		# Settings will take effect when visting example_website1.com/dir2/page.html
+		...
+	}
+}
+
+server {	# Configuration for example_website2.com
+	server_name example_website2.com
+	...
+	location /dir1/ {
+		...
+	}
+
+	location /dir2/ {
+		...
+	}
+}
+```
+
+#### General formatting rules
+
 + the file extension must be .conf
 + directives must be followed by ';'
 + unclosed braces '{}' are not allowed
 + Currently, the only accepted format for server contexts is
+
   	```
 	server {
 		...
 	}
+	```
 
 	as opposed to for example
 
+	```
 	server
 	{
 		...
@@ -60,40 +97,129 @@ mydomain.com:4242
 
 + Comments can be created by typing '#' -> can also be used inline, in which case, everything after it is ignored (there is no option to close it off)
 
-+ port's ("listen" directive) value must be a number 0-65535. Setting it to under 1024 will give a warning
+#### Server-context directives
 
-+ server_name field is optional. Several strings can be specified, which have to be separated by spaces
+These directives are defined within a server context, outside of location contexts. They apply regardless of location
 
-+ client_max_body_size can be set in kilobytes or megabytes (for example 1K or 5M). The field can be omitted, and then the default will be in effect, which is 1m. If it is set to "0" (not 0K or 0M though), body size will be unlimited (though we might want to limit the max max_body_size...? For now, I'll just limit it at LONG_MAX :D)
+##### listen
 
-+ `host` is supposed to be the IP-address of the server. The field is not mandatory, if not specified, will be set to 127.0.0.1
+Defines which port the server's listening on for requests. Must be a single number in the range 0-65535. Setting it to under 1024 will give a warning about requiring certain permissions.
 
-+ setting up default error pages is optional, but if done, must be done in the server context in the following format:
+```
+	listen 4242;
+```
 
-	```
-	error_page <error_code1> <error_code2> <error_code_n> <error_page_address>
-	```
+##### host
 
-	(whitespaces between the elements are not counted)
+The IP-address of the server. Optional directive - the default value is 127.0.0.1 (the loopback address)
 
-	The error page address can be a URI or a URL at the moment
-	(thus, if the error page address does not contain at least one '/', an error will be thrown during the parsing)
+```
+	host 13.13.13.1;
+```
 
-+ inside a location context, the allowed_methods directive can be used to list the allowed methods (only POST, GET, and DELETE are implemented). Example in which DELETE is not allowed:
+##### server_name
 
-	```
-	location / {
-		allowed_methods GET POST
+The hostname of the server / the domain name. Or multiple of these, in which case they must be separated by spaces. If the server is hosting 'example.com', this is where 'example.com' is specified.
+
+```
+	server_name website1.com website2com;
+```
+
+##### client_max_body_size
+
+Can be used to limit the body size of requests the client can send.
+
++ it is an optional field: if omitted, will be set to 1M
+
++ can be set to 0, which will remove any limit
+
++ to specify a distinct value, the unit of measurement must also be included: can either be K or M
+
+```
+	client_max_body_size 5M;
+```
+
+##### error_page
+
+Allows a pre-defined page to be displayed if a certain type of error occured. In the example below, if the client tried to GET a page that does not exist, the server won't just see the default 404 page of their browser, but an html page fetched from the server:
+
+```
+	error_page 404 example.com/errors/404.html;
+```
+
+Multiple codes can be defined, but only a single string at the end. However, it doesn't have to be a URL, it can also be a URI, but must include at least one '/'
+
+Note: this might need to be subject to changes
+
+#### Location-context directives
+
+##### allowed_methods
+
+Mandatory directive for all location contexts. Currently supported methods: POST, GET, DELETE. Must list at least one allowed method (capitalized). Trying to use a method within a location where it is not allowed will return error code 405
+
+```
+	allowed_methods GET POST;
+```
+
+##### root
+
+Mandatory directive. NOTE: might remove this requirement if there's a redirection.
+It is used to define where on the server are the files located.
+
+For example, a client is trying to visit www.example.com/daily_news/highscore.html
+
+`example.com` is the server name. The location context that will handle this request might look like this:
+
+```
+	location /daily_news/ {
+		root /websites/website1/pages/;
 	}
-	```
+```
 
-	Trying to use a disallowed method will return code 405. Not listing any method as allowed will throw an exception, as well as specifying a method that is not supported
+In which case, the server will look in its /websites/website1/pages/daily_news/ directory for a highscore.html file.
 
-+ all location contexts must also contain a `root` directive, no matter which type location it is. Its value must be a single string (it cannot contain whitespaces)
+In other words, 'root' is attached as a prefix to the location URI to get the full address of a location within a server's filesystem.
 
-+ `index`can be used inside a location module to set up how a request ending with '/' (a directory) is handled: files can be defined that will be used as an index. The last file can be a file with an absolute path. The files will be checked in the order they are given
+This directive must be a single string
 
-+ `autoindex` can be used inside non-cgi location context: is set to off by default, and as such, is not mandatory. It is used to turn on or off directory listing. If turned on, it will take effect if no `index` file can be found
+##### index
+
+Optional. It can be used to set up how a request ending with '/' (a directory) is handled: files can be defined that will be displayed in such a case. The last file can be a file with an absolute path. The files will be checked in the order they are given
+
+```
+	index index_file1.html index_file2.html /files/default_index.html;
+```
+
+##### autoindex
+
+Can be used inside non-cgi (for what a cgi is, see redirections) location context: is set to off by default, and as such, is not mandatory. It is used to turn on or off directory listing. If turned on, it will take effect if no files defined by the 'index' directive can be found
+
+#### Redirections
+
+Redirections are handled inside location contexts. Only one type of redirection is allowed in one location
+
+##### alias
+
+Instead of using the default `root` + `location` to derive the files' location within the filesystem, this directive can be used to define a different path, which will be used as an absolute path. For example:
+
+```
+	location /first_place/ {
+		root /website1/docs/;
+		alias /website2/utils/redirection/;
+		...
+	}
+```
+
+The path used to search for files will be /website2/utils/redirection/
+If this directory does not exist, and exception will be thrown
+
+##### proxy_pass
+
+In this case, requests will be redirected to an entirely different server. This server can be defined as an IP-address + port.
+
+##### cgi_pass
+
+This redirection is used for cgi scripts
 
 + a location context may also contain redirections:
 	

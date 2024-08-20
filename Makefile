@@ -46,6 +46,12 @@ unpack-test: $(TARBALL)
 conf-parse-test:
 	c++ -Wall -Wextra -Werror -std=c++17 -ggdb3 srcs/WebErrors/WebErrors.cpp srcs/WebParser/WebParser.cpp srcs/config_parse_test_main.cpp -I srcs/WebErrors -lstdc++fs -o parseTest
 
-# ---
+flask-run-debug:
+	cd fun_facts && ./setup.sh && python app.py
+	@echo "Starting Flask server... access it from localhost:8085"
+
+flask-clean:
+	@echo "Cleaning python venv..."
+	rm -rf ./fun_facts/venv ./fun_facts/__pycache__
 
 .PHONY: all clean fclean re proxy-pass-test up down unpack-test conf-parse-test

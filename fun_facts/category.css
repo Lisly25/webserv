@@ -1,0 +1,29 @@
+p {
+    color: rgb(0, 0, 0);
+    text-align: center;
+    font-size: xx-large;
+    font-family: 'Times New Roman', sans-serif;
+    padding: 1cm;
+    margin-left: 7cm;
+    margin-right: 7cm;
+    margin-top: 1cm;
+    margin-bottom: 1cm;
+    border: 4mm ridge rgba(115, 50, 220, 0.6);
+  }
+
+h1 {
+    color:rgb(47, 63, 70);
+    text-align: center;
+    font: italic bold xxx-large italic small-caps bold cursive;
+    font-family: 'Cambria', cursive;
+}
+
+a {
+    color:rgb(148, 205, 231);
+    text-align: center;
+    font-size: xx-large;
+}
+
+#links {
+    text-align: center;
+}
