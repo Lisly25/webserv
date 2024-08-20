@@ -10,6 +10,8 @@ Request::Request()
 Request::Request(const std::string& rawRequest, const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap)
     : _rawRequest(rawRequest), _server(nullptr), _location(nullptr), _proxyInfo(nullptr)
 {
+    parseRequest();
+    std::cout << _requestData.method << std::endl;
     initialize(servers, proxyInfoMap);
     if (!_server || !_location)
         throw std::runtime_error("No matching  Server or location found for request");
@@ -28,6 +30,49 @@ void Request::initialize(const std::vector<Server>& servers, const std::unordere
                 return;
         }
     }
+}
+void Request::extractHeaders()
+{
+    std::istringstream stream(_rawRequest);
+    std::string line;
+    while (std::getline(stream, line) && line != "\r") {
+        size_t pos = line.find(':');
+        if (pos != std::string::npos) {
+            std::string key = line.substr(0, pos);
+            std::string value = line.substr(pos + 1);
+            _requestData.headers[key] = value;
+        }
+    }
+    _requestData.content_type = _requestData.headers["Content-Type"];
+    _requestData.content_length = _requestData.headers["Content-Length"];
+}
+
+void Request::extractBody()
+{
+    size_t bodyPos = _rawRequest.find("\r\n\r\n");
+    if (bodyPos != std::string::npos) {
+        _requestData.body = _rawRequest.substr(bodyPos + 4);
+    }
+}
+
+void Request::parseRequest()
+{
+    std::istringstream stream(_rawRequest);
+    std::string requestLine;
+    std::getline(stream, requestLine);
+
+    _requestData.method = requestLine.substr(0, requestLine.find(' '));
+    std::string uri = extractUri(requestLine);
+    _requestData.uri = uri;
+
+    size_t queryPos = uri.find('?');
+    if (queryPos != std::string::npos) {
+        _requestData.query_string = uri.substr(queryPos + 1);
+        _requestData.uri = uri.substr(0, queryPos);
+    }
+
+    extractHeaders();
+    extractBody();
 }
 
 std::string Request::extractUri(const std::string& requestLine) const
@@ -80,11 +125,11 @@ bool Request::matchLocationSetData(const Server& server, const std::string& uri,
     {
         //std::cout << "Checking Location: " << location.uri << " against URI: " << uri << std::endl;
 
-        if (uri.find(location.uri) == 0)  // Matches the beginning of the URI
+        if (uri.find(location.uri) == 0)
         {
             if (!bestMatchLocation || location.uri.length() > bestMatchLocation->uri.length())
             {
-                bestMatchLocation = &location;  // Prefer longer matches
+                bestMatchLocation = &location;
             }
         }
     }
@@ -131,6 +176,8 @@ void Request::setProxyInfo(const std::unordered_map<std::string, addrinfo*>& pro
 }
 
 const std::string& Request::getRawRequest() const { return _rawRequest; }
+
+const RequestData &Request::getRequestData() const { return _requestData; }
 
 const Server* Request::getServer() const { return _server; }
 

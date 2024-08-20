@@ -19,7 +19,8 @@
 #include <cstring>
 #include <ctime>
 #include <sys/wait.h>
-class Request;
+#include "Request.hpp"
+
 
 #define PIPES 2
 #define WRITEND 0
