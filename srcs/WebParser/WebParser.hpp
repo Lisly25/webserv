@@ -52,6 +52,7 @@ public:
 
     //for testing:
     void                printParsedInfo(void);
+    void                printAutoIndexToFile(void);
 
     static std::string      trimSpaces(const std::string& str);
 private:
@@ -86,13 +87,14 @@ private:
 
     //in WebParserUtils
 
-    static bool                 checkSemicolon(std::string line);
-    static bool                 checkComment(std::string line);
-    static std::string          removeInLineComment(std::string line);
-    static bool                 checkBracesPerLine(std::string line);
-    static bool                 locateServerContextStart(std::string line, std::string contextName);
-    static bool                 locateLocationContextStart(std::string line, std::string contextName);
-    static std::string          removeDirectiveKey(std::string line, std::string key);
-    static std::string          createStandardTarget(std::string uri, std::string root);
-    static bool                 verifyTarget(std::string path);
+    static bool                     checkSemicolon(std::string line);
+    static bool                     checkComment(std::string line);
+    static std::string              removeInLineComment(std::string line);
+    static bool                     checkBracesPerLine(std::string line);
+    static bool                     locateServerContextStart(std::string line, std::string contextName);
+    static bool                     locateLocationContextStart(std::string line, std::string contextName);
+    static std::string              removeDirectiveKey(std::string line, std::string key);
+    static std::string              createStandardTarget(std::string uri, std::string root);
+    static bool                     verifyTarget(std::string path);
+    static std::vector<std::string> generateIndexPage(std::string path);
 };

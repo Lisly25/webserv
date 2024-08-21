@@ -177,3 +177,60 @@ std::string WebParser::trimSpaces(const std::string& str)
     }).base();
     return std::string(start, end);
 }
+std::vector<std::string>    WebParser::generateIndexPage(std::string path)
+{
+    std::vector<std::string>    IndexPageBody;
+
+    IndexPageBody.push_back("<!doctype html>\n");
+    IndexPageBody.push_back("<html lang=\"en-US\">\n");
+    IndexPageBody.push_back("<head>\n");
+    IndexPageBody.push_back("   <meta charset=\"UTF-8\" />\n");
+    IndexPageBody.push_back("   <style>\n");
+    IndexPageBody.push_back("       h1 {\n");
+    IndexPageBody.push_back("           text-align: center;\n");
+    IndexPageBody.push_back("           font-size: xxx-large;\n");
+    IndexPageBody.push_back("       }\n");
+    IndexPageBody.push_back("\n");
+    IndexPageBody.push_back("       #link {\n");
+    IndexPageBody.push_back("           font-size: xx-large;\n");
+    IndexPageBody.push_back("       }\n");
+    IndexPageBody.push_back("   </style>\n");
+    IndexPageBody.push_back("</head>\n");
+    IndexPageBody.push_back("<body>\n");
+    IndexPageBody.push_back("   <div>\n");
+    IndexPageBody.push_back("       <h1>AUTO-INDEXED LIST OF CONTENTS</h1>\n");
+    IndexPageBody.push_back("   </div>\n");
+    IndexPageBody.push_back("   <div id=\"link\">\n");
+
+    /*for (const auto& entry : std::filesystem::directory_iterator(path))
+    {
+        std::filesystem::path   filename = entry.path();
+        std::cout << "### file: " << filename << std::endl; 
+    }*/
+
+    for (const auto& entry : std::filesystem::directory_iterator(path))
+    {
+        std::filesystem::path   filepath = entry.path();
+        std::string link = "        <a href=\"" + std::string(filepath) + "\">" + std::string(filepath.filename()) + "</a><br>\n";
+        IndexPageBody.push_back(link);
+    }
+
+    IndexPageBody.push_back("   </div>\n");
+    IndexPageBody.push_back("</body>\n");
+    IndexPageBody.push_back("</html>");
+    return (IndexPageBody);
+}
+
+//For testing!
+
+void    WebParser::printAutoIndexToFile(void)
+{
+    std::vector<std::string>    AutoIndexBody = generateIndexPage("/home/skorbai/webserv/gh_repo/");
+    std::ofstream   outfile;
+    outfile.open("autoindex.html", std::ios::trunc);
+    for (size_t i = 0; i < AutoIndexBody.size(); i++)
+    {
+        outfile << AutoIndexBody[i];
+    }
+    outfile.close();
+}
