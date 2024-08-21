@@ -163,16 +163,17 @@ bool WebParser::verifyTarget(std::string path)
 
 std::string WebParser::trimSpaces(const std::string& str)
 {
+    if (str.empty())
+        return "";
+
     auto start = std::find_if_not(str.begin(), str.end(), [](unsigned char ch) {
         return std::isspace(ch);
     });
-
+    if (start == str.end()) {
+        return "";
+    }
     auto end = std::find_if_not(str.rbegin(), str.rend(), [](unsigned char ch) {
         return std::isspace(ch);
     }).base();
-
-    if (start >= end) {
-        return "";
-    }
     return std::string(start, end);
 }

@@ -17,7 +17,7 @@ Request::Request(const std::string& rawRequest, const std::vector<Server>& serve
         RequestValidator(*this, servers, proxyInfoMap).validate();
         if (!_server || !_location)
             throw std::runtime_error("No matching Server or location found for request");
-        std::cout << "Request validated" << _requestData << std::endl;
+        //std::cout << "Request validated" << _requestData << std::endl;
     }
     catch (const std::exception& e)
     {

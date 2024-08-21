@@ -64,8 +64,8 @@ void ProxyHandler::passRequest(std::string &response)
         char        buffer[8192];
         ssize_t     bytesRead = 0;
 
-        std::cout << "Sending request to proxy: " << proxyHost << std::endl;
-        std::cout << "Request: " << modifiedRequest << std::endl;
+        //std::cout << "Sending request to proxy: " << proxyHost << std::endl;
+        //std::cout << "Request: " << modifiedRequest << std::endl;
         if (send(proxySocket.getFd(), modifiedRequest.c_str(), modifiedRequest.length(), 0) < 0)
             throw WebErrors::ProxyException("Error sending to proxy server");
 
@@ -75,11 +75,11 @@ void ProxyHandler::passRequest(std::string &response)
             if (bytesRead > 0)
             {
                 response.append(buffer, bytesRead);
-                std::cout << "Received response from proxy: " << proxyHost << "\n" ;
+                //std::cout << "Received response from proxy: " << proxyHost << "\n" ;
             }
             else if (bytesRead == 0)
             {
-                std::cout << "Proxy server closed the connection." << std::endl;
+               // std::cout << "Proxy server closed the connection." << std::endl;
                 break;
             }
             else if (bytesRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)

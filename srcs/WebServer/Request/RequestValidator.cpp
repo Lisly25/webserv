@@ -25,18 +25,17 @@ bool Request::RequestValidator::validate() const
                     {
                         throw std::runtime_error("404 Not Found");
                     }
-                }
+                    if (!isProtocolValid())
+                    {
+                        throw std::runtime_error("505 HTTP Version Not Supported");
+                    }
 
-                if (!isProtocolValid())
-                {
-                    throw std::runtime_error("505 HTTP Version Not Supported");
-                }
+                    if (!areHeadersValid())
+                    {
+                        throw std::runtime_error("400 Bad Request");
+                    }
 
-                if (!areHeadersValid())
-                {
-                    throw std::runtime_error("400 Bad Request");
                 }
-
                 return true;
             }
         }
@@ -78,8 +77,6 @@ bool Request::RequestValidator::isProtocolValid() const
 
 bool Request::RequestValidator::areHeadersValid() const
 {
-    std::cout << "IN HEADER VALIDATION" << std::endl;
-    std::cout << "Host: " << _request._requestData.headers.find("Host")->second << std::endl;
     if (_request._requestData.headers.find("Host") == _request._requestData.headers.end())
         return false;
     return true;
@@ -87,12 +84,14 @@ bool Request::RequestValidator::areHeadersValid() const
 
 bool Request::RequestValidator::isServerMatch(const Server& server) const
 {
-    size_t hostPos = _request._rawRequest.find("Host: ");
-    if (hostPos == std::string::npos)
-        return false;
+    const auto& headers = _request._requestData.headers;
+    auto        hostIt = headers.find("Host");
 
-    size_t hostEnd = _request._rawRequest.find("\r\n", hostPos);
-    std::string hostHeader = _request._rawRequest.substr(hostPos + 6, hostEnd - (hostPos + 6));
+    if (hostIt == headers.end()) return false;
+
+    std::string hostHeader = WebParser::trimSpaces(hostIt->second);
+
+    if (hostHeader.empty()) return false;
 
     for (const auto& serverName : server.server_name)
     {
@@ -105,6 +104,7 @@ bool Request::RequestValidator::isServerMatch(const Server& server) const
     }
     return false;
 }
+
 
 bool Request::RequestValidator::matchLocationSetData(const Server& server) const
 {
