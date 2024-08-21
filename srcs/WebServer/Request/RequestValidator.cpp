@@ -1,6 +1,7 @@
 #include "Request.hpp"
 #include <iostream>
 #include <sys/stat.h> 
+#include <filesystem>
 
 Request::RequestValidator::RequestValidator(Request& request, const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap)
     : _request(request), _servers(servers), _proxyInfoMap(proxyInfoMap) {}
@@ -60,15 +61,22 @@ bool Request::RequestValidator::isValidMethod() const
 
 bool Request::RequestValidator::isPathValid() const
 {
-    const std::string fullPath = _request._location->root + _request._requestData.uri;
+    std::string fullPath = std::filesystem::current_path().generic_string() + _request._location->root + _request._requestData.uri;
 
-    std::cout << "fullPath: " << fullPath << std::endl;
-    auto fileExists = [](const std::string& path) -> bool {
-        struct stat buffer;
-        return (stat(path.c_str(), &buffer) == 0);
-    };
-    return fileExists(fullPath);
+    if (std::filesystem::is_directory(fullPath))
+    {
+        fullPath += "/index.html";
+        std::cout << "Checking fullPath (directory with index.html): " << fullPath << std::endl;
+    }
+
+    fullPath = std::filesystem::absolute(fullPath).generic_string();
+    std::cout << "Checking fullPath: " << fullPath << std::endl;
+
+    _request._requestData.uri = fullPath;
+    return std::filesystem::exists(fullPath);
 }
+
+
 
 bool Request::RequestValidator::isProtocolValid() const
 {

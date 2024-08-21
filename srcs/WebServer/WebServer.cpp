@@ -272,7 +272,7 @@ void WebServer::handleOutgoingData(int clientSocket)
             }
             else
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
-            //std::cout << "Response sent to client " << res.getResponse() << std::endl;
+            std::cout << "Response sent to client " << res.getResponse() << std::endl;
         }
         _requestMap.erase(it);
     }

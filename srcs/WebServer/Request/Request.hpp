@@ -62,6 +62,7 @@ private:
     std::string extractUri(const std::string& rawRequest) const;
     void        parseRequestLine(const std::string& requestLine);
 
+
 public:
     class RequestValidator
     {

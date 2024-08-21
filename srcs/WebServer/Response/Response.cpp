@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <string>
+//#include "StaticFileHandler.hpp"
 
 Response::Response(const Request &request)
 {
@@ -23,12 +24,20 @@ Response::Response(const Request &request)
 std::string Response::generate(const Request &request)
 {
     try {
+            std::cout << request.getRequestData().uri << std::endl;
+            std::cout << request.getRequestData().uri << std::endl;
+            std::cout << request.getRequestData().uri << std::endl;
+            std::cout << request.getRequestData().uri << std::endl;
+        
+        std::cout << "Location type: " << request.getLocation()->type << std::endl;
+                std::cout << "Location type: " << request.getLocation()->type << std::endl;
+                        std::cout << "Location type: " << request.getLocation()->type << std::endl;
+                                std::cout << "Location type: " << request.getLocation()->type << std::endl;
         std::string response;
 
         if (request.getLocation()->type == LocationType::PROXY)
         {
-            ProxyHandler    proxyHandler(request);
-            proxyHandler.passRequest(response);
+            ProxyHandler(request).passRequest(response);
         }
         else if (request.getLocation()->type == LocationType::CGI)
         {
@@ -40,7 +49,9 @@ std::string Response::generate(const Request &request)
         }
         else
         {
-            // handleStandard(request, response);
+            std::cout << "Static file handler" << std::endl;
+  //          StaticFileHandler(request).serveFile(response);
+            std::cout << response << std::endl;
         }
         return response;
     }
