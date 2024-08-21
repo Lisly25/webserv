@@ -11,3 +11,6 @@ docker-services/*
 /tests/*
 !/tests/*.gz
 !/tests/*.conf
+
+*.d
+*.o

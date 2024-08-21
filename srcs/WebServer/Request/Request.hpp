@@ -8,6 +8,7 @@
 
 struct RequestData
 {
+    std::string httpVersion;
     std::string method;
     std::string uri;
     std::string query_string;
@@ -23,6 +24,7 @@ inline std::ostream& operator<<(std::ostream& os, const RequestData& requestData
     os << "Method: " << requestData.method << "\n";
     os << "URI: " << requestData.uri << "\n";
     os << "Query String: " << requestData.query_string << "\n";
+    os << "Version: " << requestData.httpVersion << "\n";  // Added output for HTTP version
     os << "Headers:\n";
     for (const auto& header : requestData.headers) {
         os << "  " << header.first << ": " << header.second << "\n";
@@ -53,16 +55,12 @@ private:
     const Location* _location = nullptr;
     addrinfo*       _proxyInfo;
 
-
-    void        parseRequest();
-    void        extractHeaders();
-    void        extractBody();
-
-    void        checkValidity(const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
-    std::string extractUri(const std::string& requestLine) const;
-    bool        isServerMatch(const Server& server);
-    bool        matchLocationSetData(const Server& server, const std::string& uri, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
-    void        setProxyInfo(const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
+    void        parseRequest(void);
+    void        parseHeadersAndBody(std::istringstream& stream);
+    void        parseHeaderLine(const std::string& line);
+    void        setContentTypeAndLength();
+    std::string extractUri(const std::string& rawRequest) const;
+    void        parseRequestLine(const std::string& requestLine);
 
 public:
     class RequestValidator
@@ -76,6 +74,11 @@ public:
         const std::vector<Server>&                          _servers;
         const std::unordered_map<std::string, addrinfo*>&   _proxyInfoMap;
 
+        bool isPathValid()      const;
+        bool isValidMethod()    const;
+        bool isProtocolValid()  const;
+        bool isMethodValid()    const;
+        bool areHeadersValid()  const;
         bool isServerMatch(const Server& server) const;
         bool matchLocationSetData(const Server& server) const;
     };
