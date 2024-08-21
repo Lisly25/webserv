@@ -53,6 +53,7 @@ public:
     //for testing:
     void                printParsedInfo(void);
 
+    static std::string      trimSpaces(const std::string& str);
 private:
 
     std::vector<std::string> _configFile;

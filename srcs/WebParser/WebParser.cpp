@@ -561,7 +561,8 @@ std::string WebParser::extractRoot(size_t contextStart, size_t contextEnd) const
     if (directiveLocation == -1)
         throw WebErrors::ConfigFormatException("Error: only one 'root' directive per location context is allowed");
     if (directiveLocation == 0)
-        throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts");
+        return "";
+    //throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts");
     
     std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
 

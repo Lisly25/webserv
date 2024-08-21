@@ -1,15 +1,13 @@
 #include "WebParser.hpp"
+#include <algorithm>
 
 bool WebParser::checkSemicolon(std::string line)
 {
-    int i = line.length();
+    if (std::all_of(line.begin(), line.end(), ::isspace))
+        return true;
 
-    if (i == 0)
-        return (true);
-    i--;
-    if (line[i] == ';' || line[i] == '}' || line[i] == '{')
-        return (true);
-    return (false);
+    const char    lastChar = line.back();
+    return (lastChar == ';' || lastChar == '}' || lastChar == '{');
 }
 
 bool WebParser::checkComment(std::string line)
@@ -161,4 +159,20 @@ bool WebParser::verifyTarget(std::string path)
     if (access(ptr, F_OK) == -1)
         return (false);
     return (true);
+}
+
+std::string WebParser::trimSpaces(const std::string& str)
+{
+    auto start = std::find_if_not(str.begin(), str.end(), [](unsigned char ch) {
+        return std::isspace(ch);
+    });
+
+    auto end = std::find_if_not(str.rbegin(), str.rend(), [](unsigned char ch) {
+        return std::isspace(ch);
+    }).base();
+
+    if (start >= end) {
+        return "";
+    }
+    return std::string(start, end);
 }
