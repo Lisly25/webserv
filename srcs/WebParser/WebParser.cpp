@@ -614,7 +614,7 @@ void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t conte
         //parse the alias, and store it in location.target
         _servers.back().locations.back().target = removeDirectiveKey(_configFile[aliasLocation], "alias");
         if (!verifyTarget(_servers.back().locations.back().target))
-            throw WebErrors::ConfigFormatException("Error: no executable at " + _servers.back().locations.back().target);
+            throw WebErrors::ConfigFormatException("Error: " + _servers.back().locations.back().target + " does not exist");
         _servers.back().locations.back().type = ALIAS;
         return ;
     }
@@ -639,7 +639,7 @@ void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t conte
     //since there is no redirection, create location.target from location.root + location.uri
     _servers.back().locations.back().target = createStandardTarget(_servers.back().locations.back().uri, _servers.back().locations.back().root);
     if (!verifyTarget(_servers.back().locations.back().target))
-        throw WebErrors::ConfigFormatException("Error: no executable at " + _servers.back().locations.back().target);
+        throw WebErrors::ConfigFormatException("Error: " + _servers.back().locations.back().target + " does not exist");
     _servers.back().locations.back().type = STANDARD;
 }
 
