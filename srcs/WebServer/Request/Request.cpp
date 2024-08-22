@@ -101,12 +101,14 @@ void Request::setContentTypeAndLength()
     }
 }
 
-const std::string& Request::getRawRequest() const { return _rawRequest; }
+const std::string&  Request::getRawRequest() const { return _rawRequest; }
 
-const RequestData& Request::getRequestData() const { return _requestData; }
+const RequestData&  Request::getRequestData() const { return _requestData; }
 
-const Server* Request::getServer() const { return _server; }
+const Server*       Request::getServer() const { return _server; }
 
-const Location* Request::getLocation() const { return _location; }
+const Location*     Request::getLocation() const { return _location; }
 
-addrinfo* Request::getProxyInfo() const { return _proxyInfo; }
+addrinfo*           Request::getProxyInfo() const { return _proxyInfo; }
+
+int                 Request::getErrorCode() const { return _errorCode; }

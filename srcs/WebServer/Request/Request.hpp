@@ -39,24 +39,29 @@ inline std::ostream& operator<<(std::ostream& os, const RequestData& requestData
     return os;
 }
 
+enum ErrorCodes { INVALID_METHOD = 405, NOT_FOUND = 404, HTTP_VERSION_NOT_SUPPORTED = 505, BAD_REQUEST = 400 };
+
 class Request
 {
 public:
     Request();
-    Request(const std::string& rawRequest, const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
+    Request(const std::string& rawRequest, const std::vector<Server>& servers,\
+        const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
 
     const std::string&  getRawRequest() const;
     const Server*       getServer() const;
     const Location*     getLocation() const;
     addrinfo*           getProxyInfo() const;
     const RequestData&  getRequestData() const;
-
+    int                 getErrorCode() const;
 private:
     RequestData     _requestData = {};
     std::string     _rawRequest;
     const Server*   _server = nullptr;
     const Location* _location = nullptr;
     addrinfo*       _proxyInfo;
+
+    int             _errorCode = 0;
 
     void        parseRequest(void);
     void        parseHeadersAndBody(std::istringstream& stream);
@@ -70,7 +75,9 @@ public:
     class RequestValidator
     {
     public:
-        RequestValidator(Request& request, const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
+        RequestValidator(Request& request, const std::vector<Server>& servers,\
+            const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
+        ~RequestValidator() = default;
         bool validate() const;
 
     private:

@@ -1,4 +1,5 @@
 #include "Response.hpp"
+#include "ErrorHandler/ErrorHandler.hpp"
 #include "ProxyHandler/ProxyHandler.hpp"
 #include "Request.hpp"
 #include "ScopedSocket.hpp"
@@ -34,8 +35,11 @@ std::string Response::generate(const Request &request)
                         std::cout << "Location type: " << request.getLocation()->type << std::endl;
                                 std::cout << "Location type: " << request.getLocation()->type << std::endl;
         std::string response;
-
-        if (request.getLocation()->type == LocationType::PROXY)
+        if (request.getErrorCode() != 0)
+        {
+            ErrorHandler(request).handleError(response);
+        }
+        else if (request.getLocation()->type == LocationType::PROXY)
         {
             ProxyHandler(request).passRequest(response);
         }

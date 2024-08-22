@@ -20,20 +20,20 @@ bool Request::RequestValidator::validate() const
                 {
                     if (!isValidMethod())
                     {
-                        throw std::runtime_error("405 Method Not Allowed");
+                        _request._errorCode = INVALID_METHOD;
                     }
                     if (!isPathValid())
                     {
-                        throw std::runtime_error("404 Not Found");
+                        _request._errorCode = NOT_FOUND;
                     }
                     if (!isProtocolValid())
                     {
-                        throw std::runtime_error("505 HTTP Version Not Supported");
+                        _request._errorCode = HTTP_VERSION_NOT_SUPPORTED;
                     }
 
                     if (!areHeadersValid())
                     {
-                        throw std::runtime_error("400 Bad Request");
+                        _request._errorCode = BAD_REQUEST;
                     }
 
                 }
@@ -44,19 +44,13 @@ bool Request::RequestValidator::validate() const
     return false;
 }
 
-
 bool Request::RequestValidator::isValidMethod() const
 {
     const std::string& method = _request._requestData.method;
 
-    if ((method == "GET" && _request._location->allowedGET)
+    return  ((method == "GET" && _request._location->allowedGET)
         || (method == "POST" && _request._location->allowedPOST)
-        || (method == "DELETE" && _request._location->allowedDELETE))
-    {
-        return true;
-    }
-    
-    return false;
+        || (method == "DELETE" && _request._location->allowedDELETE));
 }
 
 bool Request::RequestValidator::isPathValid() const

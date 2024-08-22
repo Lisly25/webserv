@@ -169,7 +169,6 @@ void WebServer::acceptAddClient(int serverSocketFd)
     }
 }
 
-
 std::string WebServer::getBoundary(const std::string &request)
 {
     try
