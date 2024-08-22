@@ -61,20 +61,46 @@ bool Request::RequestValidator::isValidMethod() const
 
 bool Request::RequestValidator::isPathValid() const
 {
-    std::string fullPath = std::filesystem::current_path().generic_string() + _request._location->root + _request._requestData.uri;
+    std::string relativeUri = _request._requestData.uri;
+    if (relativeUri.find(_request._location->uri) == 0)
+        relativeUri = relativeUri.substr(_request._location->uri.length());
+    if (!relativeUri.empty() && relativeUri.front() != '/')
+        relativeUri = "/" + relativeUri;
 
+    std::string fullPath = std::filesystem::current_path().generic_string() + _request._location->root + relativeUri;
     if (std::filesystem::is_directory(fullPath))
     {
-        fullPath += "/index.html";
-        std::cout << "Checking fullPath (directory with index.html): " << fullPath << std::endl;
-    }
+        if (_request._location->autoIndexOn)
+            std::cout << "Autoindex enabled, serving directory listing" << std::endl;
+        else
+        {
+            bool indexFound = false;
+            for (const auto& indexFile : _request._location->index)
+            {
+                std::string indexPath = fullPath + "/" + indexFile;
+                std::cout << "Checking index file: " << indexPath << std::endl;
 
+                if (std::filesystem::exists(indexPath))
+                {
+                    fullPath = indexPath;
+                    indexFound = true;
+                    break;
+                }
+            }
+            if (!indexFound)
+            {
+                std::cout << "No index file found and autoindex is off. Path is invalid." << std::endl;
+                return false;
+            }
+        }
+    }
     fullPath = std::filesystem::absolute(fullPath).generic_string();
     std::cout << "Checking fullPath: " << fullPath << std::endl;
 
     _request._requestData.uri = fullPath;
     return std::filesystem::exists(fullPath);
 }
+
 
 
 

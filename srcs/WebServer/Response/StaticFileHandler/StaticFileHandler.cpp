@@ -40,13 +40,13 @@ void StaticFileHandler::serveFile(std::string& response)
 
     std::string mimeType = getMimeType(fullPath);
 
+    // Serve the file without modifying the original request URI
     response = "HTTP/1.1 200 OK\r\n";
     response += "Content-Type: " + mimeType + "\r\n";
     response += "Content-Length: " + std::to_string(fileContent.size()) + "\r\n";
     response += "Cache-Control: max-age=3600\r\n";
     response += "\r\n" + fileContent;
 }
-
 
 std::string StaticFileHandler::getMimeType(const std::string& path) const
 {
