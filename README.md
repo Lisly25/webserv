@@ -85,10 +85,10 @@ server {	# Configuration for example_website2.com
 
 	This latter format will throw an error.
 
-+ location context must also be formatted in a similar way, the only difference being that the location keyword must be followed by a URI (this string must start with a '/' symbol since we don't handle regular expressions here). Example of correct format:
++ location context must also be formatted in a similar way, the only difference being that the location keyword must be followed by a URI (this string must start AND end with a '/' symbol since we don't handle regular expressions here). Example of correct format:
 
 	```
-	location /some/URI {
+	location /some/URI/ {
 		...
 	}
 	```
@@ -173,7 +173,7 @@ Mandatory directive for all location contexts. Currently supported methods: POST
 
 ##### root
 
-Mandatory directive. NOTE: might remove this requirement if there's a redirection.
+Mandatory directive. Exceptions: if the location contains a 'proxy_pass' or 'alias' directive, as well.
 It is used to define where on the server are the files located.
 
 For example, a client is trying to visit www.example.com/daily_news/highscore.html
@@ -229,7 +229,7 @@ In this case, requests will be redirected to an entirely different server. This 
 
 ##### cgi_pass
 
-This redirection is used for cgi scripts
+This redirection is used for cgi scripts. The path that is its value must start with '/'
 
 + a location context may also contain redirections:
 	

@@ -51,6 +51,7 @@ const std::vector<Server> &WebParser::getServers(void) const
     return (_servers);
 }
 
+//Can we remove this + parseCGIPass now?
 void WebParser::parseProxyPass(const std::string &line)
 {
     size_t pos = line.find("http://");
@@ -366,11 +367,13 @@ std::string     WebParser::extractServerRoot(size_t contextStart, size_t context
     if (directiveLocation == -1)
         throw WebErrors::ConfigFormatException("Error: multiple server_root directives per server");
     if (directiveLocation == 0)
-        return (NULL);
+        return ("");
     
     std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
     if (line.size() == 0)
-        return (NULL);
+        return ("");
+    if (line[0] != '/')
+        throw WebErrors::ConfigFormatException("Error: server_root directive must be an absolute path");
     if (!verifyTarget(line))
         throw WebErrors::ConfigFormatException("Error: location defined as server_root (" + line + ") does not exist");
     return (line);
@@ -580,14 +583,18 @@ std::string WebParser::extractRoot(size_t contextStart, size_t contextEnd) const
     if (directiveLocation == -1)
         throw WebErrors::ConfigFormatException("Error: only one 'root' directive per location context is allowed");
     if (directiveLocation == 0)
-        throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts");
+    {   
+        if (locateDirective(contextStart, contextEnd, "alias") != 0 || locateDirective(contextStart, contextEnd, "proxy_pass") != 0)
+            return ("");
+        throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts that do not contain 'proxy_pass' or 'alias' directives");
+    }
     
     std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
 
     //checking that the root starts with '/' (it should since we aren't using regular expressions?)
     if (line.length() == 0)
         throw WebErrors::ConfigFormatException("Error: root directive must have a value");
-    if (line[0] != '/')
+    if (line[0] != '/' && _servers.back().server_name.size() == 0)
         throw WebErrors::ConfigFormatException("Error: root directive's value must begin with '/'");
 
     //for now the only further error checking I'll do is regarding whitespaces
@@ -646,19 +653,29 @@ void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t conte
         //parse the proxy_pass, and store it in location.target
         //no error checking is done yet
         _servers.back().locations.back().target = removeDirectiveKey(_configFile[proxyLocation], "proxy_pass");
+        if (_servers.back().locations.back().target.size() == 0)
+            throw WebErrors::ConfigFormatException("Error: proxy_pass directive cannot be empty");
         _servers.back().locations.back().type = PROXY;
         return ;
     }
     else if (cgiLocation != 0)
     {
-        //parse the cgi_pass, and store it in location.target
+        //parse the cgi_pass, and create target from server_root + cgi_pass
         //no error checking is done yet
         _servers.back().locations.back().target = removeDirectiveKey(_configFile[cgiLocation], "cgi_pass");
+        if (_servers.back().locations.back().target.size() == 0)
+            throw WebErrors::ConfigFormatException("Error: cgi_pass directive cannot be empty");
+        if (_servers.back().locations.back().target[0] != '/')
+            throw WebErrors::ConfigFormatException("Error: cgi_pass's value string must start with /");
+        if (_servers.back().server_root.size() != 0)
+            _servers.back().locations.back().target = createStandardTarget(_servers.back().locations.back().target, _servers.back().server_root);
         _servers.back().locations.back().type = CGI;
         return ;
     }
-    //since there is no redirection, create location.target from location.root + location.uri
+    //since there is no redirection, create location.target from server_root + location.root + location.uri
     _servers.back().locations.back().target = createStandardTarget(_servers.back().locations.back().uri, _servers.back().locations.back().root);
+    if (_servers.back().server_root.size() != 0)
+        _servers.back().locations.back().target = createStandardTarget(_servers.back().locations.back().target, _servers.back().server_root);
     if (!verifyTarget(_servers.back().locations.back().target))
         throw WebErrors::ConfigFormatException("Error: " + _servers.back().locations.back().target + " does not exist");
     _servers.back().locations.back().type = STANDARD;
