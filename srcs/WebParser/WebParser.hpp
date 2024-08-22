@@ -33,6 +33,7 @@ struct Server {
     std::vector<int>               error_codes;
     std::string                    error_page;
     std::vector<Location>          locations;
+    std::string                    server_root;
 };
 
 class WebParser
@@ -75,6 +76,7 @@ private:
     int                         extractPort(size_t contextStart, size_t contextEnd) const;
     std::vector<std::string>    extractServerName(size_t contextStart, size_t contextEnd);
     long                        extractClientMaxBodySize(size_t contextStart, size_t contextEnd) const;
+    std::string                 extractServerRoot(size_t contextStart, size_t contextEnd) const;
     std::string                 extractHost(size_t contextStart, size_t contextEnd) const;
     void                        extractErrorPageInfo(size_t contextStart, size_t contextEnd);
     std::string                 extractLocationUri(size_t contextStart) const;
