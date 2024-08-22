@@ -125,6 +125,16 @@ The hostname of the server / the domain name. Or multiple of these, in which cas
 	server_name website1.com website2com;
 ```
 
+#### server_root
+
+Used to define a default directory for the whole server: all other URIs will be relative to this (error pages, index pages, roots within locations, etc.) This must be an absolute path, and a single string. Only an optional argument: if not present, then the above listed URIs will be interpreted as absolute paths themselves.
+
+If the directive is present, but has no value, it will be interpreted as having no server_root defined.
+
+```
+	server_root	/home/user/webpages/;
+```
+
 ##### client_max_body_size
 
 Can be used to limit the body size of requests the client can send.

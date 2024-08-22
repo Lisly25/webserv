@@ -197,6 +197,7 @@ void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
     _servers.back().server_name = extractServerName(contextStart, contextEnd);
     _servers.back().client_max_body_size = extractClientMaxBodySize(contextStart, contextEnd);
     _servers.back().host = extractHost(contextStart, contextEnd);
+    _servers.back().server_root = extractServerRoot(contextStart, contextEnd);
     extractErrorPageInfo(contextStart, contextEnd);
     //host info still needs to be extracted
 
@@ -357,6 +358,25 @@ long WebParser::extractClientMaxBodySize(size_t contextStart, size_t contextEnd)
     return (numericComponent);
 }
 
+std::string     WebParser::extractServerRoot(size_t contextStart, size_t contextEnd) const
+{
+    std::string key = "server_root";
+    ssize_t directiveLocation = locateDirective(contextStart, contextEnd, key);
+   
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: multiple server_root directives per server");
+    if (directiveLocation == 0)
+        return (NULL);
+    
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+    if (line.size() == 0)
+        return (NULL);
+    if (!verifyTarget(line))
+        throw WebErrors::ConfigFormatException("Error: location defined as server_root (" + line + ") does not exist");
+    return (line);
+}
+
+
 //optional field, if not set, will set it to 127.0.0.1
 //should we also test this by pinging the address if it's not 127.0.0.1? (And throw an error if we didn't successfully ping ourselves)
 //if we don't do that, I'll implement further error checks to see if the input corresponds to IP-address format
@@ -451,6 +471,7 @@ void WebParser::printParsedInfo(void)
         {
             std::cout << servers[i].server_name[j] << std::endl;
         }
+        std::cout << "Server-wide root: " << servers[i].server_root << std::endl;
         std::cout << "Default error page address: " << servers[i].error_page << std::endl;
         std::cout << "And the error codes it is applied to: " << std::endl;
         for (size_t k = 0; k < servers[i].error_codes.size(); k++)
