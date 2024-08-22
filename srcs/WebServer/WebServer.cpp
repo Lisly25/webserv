@@ -264,6 +264,7 @@ void WebServer::handleOutgoingData(int clientSocket)
         {
             const Request &request = it->second;
             Response res(request);
+            std::cout << "Response -> " << res.getResponse() << std::endl;
             int bytesSent = send(clientSocket, res.getResponse().c_str(), res.getResponse().length(), 0);
             if (bytesSent == -1)
             {

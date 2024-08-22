@@ -1,5 +1,6 @@
 #include "StaticFileHandler.hpp"
 #include <filesystem>
+#include <numeric>
 
 StaticFileHandler::StaticFileHandler(const Request& request) 
     : _request(request) {}
@@ -9,9 +10,16 @@ void StaticFileHandler::serveFile(std::string& response)
     const std::string& fullPath = _request.getRequestData().uri;
     std::cout << "Serving file at path: " << fullPath << std::endl;
 
-    if (fullPath.find("..") != std::string::npos)
+    if (std::filesystem::is_directory(fullPath) && _request.getLocation()->autoIndexOn)
     {
-        response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+        std::vector<std::string> indexPage = WebParser::generateIndexPage(fullPath);
+        std::string content = std::accumulate(indexPage.begin(), indexPage.end(), std::string(""));
+
+        response = "HTTP/1.1 200 OK\r\n";
+        response += "Content-Type: text/html\r\n";
+        response += "Content-Length: " + std::to_string(content.size()) + "\r\n";
+        response += "Cache-Control: max-age=3600\r\n";
+        response += "\r\n" + content;
         return;
     }
 
@@ -38,6 +46,7 @@ void StaticFileHandler::serveFile(std::string& response)
     response += "Cache-Control: max-age=3600\r\n";
     response += "\r\n" + fileContent;
 }
+
 
 std::string StaticFileHandler::getMimeType(const std::string& path) const
 {

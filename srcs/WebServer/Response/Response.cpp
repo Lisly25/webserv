@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <string>
-//#include "StaticFileHandler.hpp"
+#include "StaticFileHandler.hpp"
 
 Response::Response(const Request &request)
 {
@@ -50,8 +50,8 @@ std::string Response::generate(const Request &request)
         else
         {
             std::cout << "Static file handler" << std::endl;
-  //          StaticFileHandler(request).serveFile(response);
-            std::cout << response << std::endl;
+            StaticFileHandler(request).serveFile(response);
+            //std::cout << response << std::endl;
         }
         return response;
     }

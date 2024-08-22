@@ -16,7 +16,10 @@ struct RequestData
     std::string body;  
     std::string script_filename;
     std::string content_type; 
-    std::string content_length; 
+    std::string content_length;
+    std::string resolvedPath;
+    std::string absoluteRootPath;
+    bool        shouldAutoIndex;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const RequestData& requestData)

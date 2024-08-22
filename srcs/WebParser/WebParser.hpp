@@ -51,10 +51,11 @@ public:
     const std::vector<Server> &getServers() const;
 
     //for testing:
-    void                printParsedInfo(void);
-    void                printAutoIndexToFile(void);
+    void                        printParsedInfo(void);
+    void                        printAutoIndexToFile(void);
 
-    static std::string      trimSpaces(const std::string& str);
+    static std::string              trimSpaces(const std::string& str);
+    static std::vector<std::string> generateIndexPage(std::string path);
 private:
 
     std::vector<std::string> _configFile;
@@ -96,5 +97,4 @@ private:
     static std::string              removeDirectiveKey(std::string line, std::string key);
     static std::string              createStandardTarget(std::string uri, std::string root);
     static bool                     verifyTarget(std::string path);
-    static std::vector<std::string> generateIndexPage(std::string path);
 };
