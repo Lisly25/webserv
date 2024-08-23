@@ -51,6 +51,7 @@ const std::vector<Server> &WebParser::getServers(void) const
     return (_servers);
 }
 
+//Can we remove this + parseCGIPass now?
 void WebParser::parseProxyPass(const std::string &line)
 {
     size_t pos = line.find("http://");
@@ -199,8 +200,8 @@ void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
     _servers.back().server_name = extractServerName(contextStart, contextEnd);
     _servers.back().client_max_body_size = extractClientMaxBodySize(contextStart, contextEnd);
     _servers.back().host = extractHost(contextStart, contextEnd);
+    _servers.back().server_root = extractServerRoot(contextStart, contextEnd);
     extractErrorPageInfo(contextStart, contextEnd);
-    //host info still needs to be extracted
 
     size_t i;
     i = contextStart + 1;
@@ -359,6 +360,29 @@ long WebParser::extractClientMaxBodySize(size_t contextStart, size_t contextEnd)
     return (numericComponent);
 }
 
+std::string     WebParser::extractServerRoot(size_t contextStart, size_t contextEnd) const
+{
+    std::string key = "server_root";
+    ssize_t directiveLocation = locateDirective(contextStart, contextEnd, key);
+   
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: multiple server_root directives per server");
+    if (directiveLocation == 0)
+        return ("");
+    
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+    if (line.size() == 0)
+        return ("");
+    if (line[0] != '/')
+        throw WebErrors::ConfigFormatException("Error: server_root directive must be an absolute path");
+    if (line.back() != '/')
+        throw WebErrors::ConfigFormatException("Error: server_root directive must end with '/'");
+    if (!verifyTarget(line))
+        throw WebErrors::ConfigFormatException("Error: location defined as server_root (" + line + ") does not exist");
+    return (line);
+}
+
+
 //optional field, if not set, will set it to 127.0.0.1
 //should we also test this by pinging the address if it's not 127.0.0.1? (And throw an error if we didn't successfully ping ourselves)
 //if we don't do that, I'll implement further error checks to see if the input corresponds to IP-address format
@@ -382,60 +406,42 @@ std::string     WebParser::extractHost(size_t contextStart, size_t contextEnd) c
 //Will consider the field optional for now
 void    WebParser::extractErrorPageInfo(size_t contextStart, size_t contextEnd)
 {
-    std::string key = "error_page";
-    ssize_t     directiveLocation = locateDirective(contextStart, contextEnd, key);
-
-    if (directiveLocation == -1)
-        throw WebErrors::ConfigFormatException("Error: can only have one error_page directive");
-    if (directiveLocation == 0)
-        return ;
-
-    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+    std::string                 keyword = "error_page";
+    size_t                      searchStart = contextStart;
+    size_t                      searchEnd = contextStart + 1;
+    ssize_t                     directiveLocation;
+    std::string                 line;
+    size_t                      i;
+    std::map<int, std::string>  errorPages;
+    std::string                 value;
+    int                         key;
     
-    size_t  i;
-    i = line.length();
-    while (i > 0 && !isspace(line[i]))
-        i--;
-    if (i == line.length())
-        throw WebErrors::ConfigFormatException("Error: must specify page address for error_page directive");
-    std::string errorAddress = line.substr(i, line.length() - i);
-    if (errorAddress.find('/') == std::string::npos)
-        throw WebErrors::ConfigFormatException("Error: address of error page should be an URI/URL (but the given one did not even contain '/')");
-    _servers.back().error_page = errorAddress;
-    line = line.substr(0, i);
-    i = 0;
-    while (line[i])
+    while (searchEnd <= contextEnd)
     {
-        if (!isspace(line[i]) && (line[i] > '9' || line[i] < '0'))
-            throw WebErrors::ConfigFormatException("Error: default error page must be expressed in one URI/URL");
-        i++;
-    }
-
-    std::stringstream stream(line);
-    int         errorCode;
-    std::vector<int>    errorCodeVec;
-
-    while (1)
-    {
-        stream >> errorCode;
-        if (stream.fail())
-            break ;
-        if (errorCode < 400 || errorCode > 599)
-            throw WebErrors::ConfigFormatException("Error: default error page was specified for invalid error code. Valid range is 400 - 599");
-        try
+        directiveLocation = locateDirective(searchStart, searchEnd, keyword);
+        searchEnd++;
+        searchStart++;
+        if (directiveLocation == 0)
+            continue;
+        line = removeDirectiveKey(_configFile[directiveLocation], keyword);
+        i = line.length();
+        while (i > 0 && !isspace(line[i]))
+            i--;
+        if (i == line.length())
+            throw WebErrors::ConfigFormatException("Error: must specify page address for error_page directive");
+        value = line.substr(i, line.length() - i);
+        line = line.substr(0, i);
+        i = 0;
+        while (line[i])
         {
-            errorCodeVec.push_back(errorCode);
+            if (!isspace(line[i]) && (line[i] > '9' || line[i] < '0'))
+                throw WebErrors::ConfigFormatException("Error: default error page must be expressed in one URI/URL");
+            i++;
         }
-        catch(const std::exception& e)
-        {
-            std::cerr << e.what() << std::endl;
-            throw WebErrors::BaseException("Vector operation failed");
-        }
+        key = getErrorCode(line);
+        errorPages.insert(std::pair<int, std::string>(key, value));
     }
-    if (errorCodeVec.empty())
-        throw WebErrors::ConfigFormatException("Error: must specify error codes within error_page directive");
-    stream >> errorAddress;
-    _servers.back().error_codes = errorCodeVec;
+    _servers.back().error_page = errorPages;
 }
 
 void WebParser::printParsedInfo(void)
@@ -453,11 +459,11 @@ void WebParser::printParsedInfo(void)
         {
             std::cout << servers[i].server_name[j] << std::endl;
         }
-        std::cout << "Default error page address: " << servers[i].error_page << std::endl;
-        std::cout << "And the error codes it is applied to: " << std::endl;
-        for (size_t k = 0; k < servers[i].error_codes.size(); k++)
+        std::cout << "Server-wide root: " << servers[i].server_root << std::endl;
+        std::cout << "Map of error codes and pages: " << std::endl;
+        for (auto const &pair: servers[i].error_page)
         {
-            std::cout << servers[i].error_codes[k] << std::endl;
+            std::cout << "Code: " << pair.first << " - Page: " << pair.second << std::endl;
         }
         std::cout << "Client body max size in bytes: " << servers[i].client_max_body_size << std::endl;
         std::cout << "Location info for this server: " << std::endl;
@@ -561,15 +567,18 @@ std::string WebParser::extractRoot(size_t contextStart, size_t contextEnd) const
     if (directiveLocation == -1)
         throw WebErrors::ConfigFormatException("Error: only one 'root' directive per location context is allowed");
     if (directiveLocation == 0)
-        return "";
-    //throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts");
+    {   
+        if (locateDirective(contextStart, contextEnd, "alias") != 0 || locateDirective(contextStart, contextEnd, "proxy_pass") != 0)
+            return ("");
+        throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts that do not contain 'proxy_pass' or 'alias' directives");
+    }
     
     std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
 
     //checking that the root starts with '/' (it should since we aren't using regular expressions?)
     if (line.length() == 0)
         throw WebErrors::ConfigFormatException("Error: root directive must have a value");
-    if (line[0] != '/')
+    if (line[0] != '/' && _servers.back().server_name.size() == 0)
         throw WebErrors::ConfigFormatException("Error: root directive's value must begin with '/'");
 
     //for now the only further error checking I'll do is regarding whitespaces
@@ -628,21 +637,31 @@ void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t conte
         //parse the proxy_pass, and store it in location.target
         //no error checking is done yet
         _servers.back().locations.back().target = removeDirectiveKey(_configFile[proxyLocation], "proxy_pass");
+        if (_servers.back().locations.back().target.size() == 0)
+            throw WebErrors::ConfigFormatException("Error: proxy_pass directive cannot be empty");
         _servers.back().locations.back().type = PROXY;
         return ;
     }
     else if (cgiLocation != 0)
     {
-        //parse the cgi_pass, and store it in location.target
+        //parse the cgi_pass, and create target from server_root + cgi_pass
         //no error checking is done yet
         _servers.back().locations.back().target = removeDirectiveKey(_configFile[cgiLocation], "cgi_pass");
+        if (_servers.back().locations.back().target.size() == 0)
+            throw WebErrors::ConfigFormatException("Error: cgi_pass directive cannot be empty");
+        if (_servers.back().locations.back().target[0] != '/')
+            throw WebErrors::ConfigFormatException("Error: cgi_pass's value string must start with /");
+        if (_servers.back().server_root.size() != 0)
+            _servers.back().locations.back().target = createStandardTarget(_servers.back().locations.back().target, _servers.back().server_root);
         _servers.back().locations.back().type = CGI;
         return ;
     }
-    //since there is no redirection, create location.target from location.root + location.uri
+    //since there is no redirection, create location.target from server_root + location.root + location.uri
     _servers.back().locations.back().target = createStandardTarget(_servers.back().locations.back().uri, _servers.back().locations.back().root);
-    //if (!verifyTarget(_servers.back().locations.back().target))
-     //   throw WebErrors::ConfigFormatException("Error: " + _servers.back().locations.back().target + " does not exist");
+    if (_servers.back().server_root.size() != 0)
+        _servers.back().locations.back().target = createStandardTarget(_servers.back().locations.back().target, _servers.back().server_root);
+    if (!verifyTarget(_servers.back().locations.back().target))
+        throw WebErrors::ConfigFormatException("Error: " + _servers.back().locations.back().target + " does not exist");
     _servers.back().locations.back().type = STANDARD;
 }
 
@@ -667,6 +686,8 @@ void    WebParser::extractIndex(size_t contextStart, size_t contextEnd)
     {
         try
         {
+            if (_servers.back().server_root.size() != 0)
+                subLine = createStandardTarget(subLine, _servers.back().server_root);
             _servers.back().locations.back().index.push_back(subLine);
         }
         catch(const std::exception& e)

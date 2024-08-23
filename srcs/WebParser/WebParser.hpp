@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <stack>
 #include <vector>
+#include <map>
 #include <sstream>
 #include <climits>
 #include <unistd.h>
@@ -30,9 +31,9 @@ struct Server {
     long                           client_max_body_size;
     std::string                    host;
     std::vector<std::string>       server_name;
-    std::vector<int>               error_codes;
-    std::string                    error_page;
+    std::map<int, std::string>     error_page;
     std::vector<Location>          locations;
+    std::string                    server_root;
 };
 
 class WebParser
@@ -77,6 +78,7 @@ private:
     int                         extractPort(size_t contextStart, size_t contextEnd) const;
     std::vector<std::string>    extractServerName(size_t contextStart, size_t contextEnd);
     long                        extractClientMaxBodySize(size_t contextStart, size_t contextEnd) const;
+    std::string                 extractServerRoot(size_t contextStart, size_t contextEnd) const;
     std::string                 extractHost(size_t contextStart, size_t contextEnd) const;
     void                        extractErrorPageInfo(size_t contextStart, size_t contextEnd);
     std::string                 extractLocationUri(size_t contextStart) const;
@@ -97,4 +99,6 @@ private:
     static std::string              removeDirectiveKey(std::string line, std::string key);
     static std::string              createStandardTarget(std::string uri, std::string root);
     static bool                     verifyTarget(std::string path);
+    static std::vector<std::string> generateIndexPage(std::string path);
+    static int                      getErrorCode(std::string line);
 };

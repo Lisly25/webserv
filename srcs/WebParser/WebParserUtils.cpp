@@ -1,5 +1,5 @@
 #include "WebParser.hpp"
-#include <algorithm>
+#include "WebErrors.hpp"
 
 bool WebParser::checkSemicolon(std::string line)
 {
@@ -184,38 +184,32 @@ std::vector<std::string>    WebParser::generateIndexPage(std::string path)
     IndexPageBody.push_back("<!doctype html>\n");
     IndexPageBody.push_back("<html lang=\"en-US\">\n");
     IndexPageBody.push_back("<head>\n");
-    IndexPageBody.push_back("   <meta charset=\"UTF-8\" />\n");
-    IndexPageBody.push_back("   <style>\n");
-    IndexPageBody.push_back("       h1 {\n");
-    IndexPageBody.push_back("           text-align: center;\n");
-    IndexPageBody.push_back("           font-size: xxx-large;\n");
-    IndexPageBody.push_back("       }\n");
+    IndexPageBody.push_back("\t<meta charset=\"UTF-8\" />\n");
+    IndexPageBody.push_back("\t<style>\n");
+    IndexPageBody.push_back("\t\th1 {\n");
+    IndexPageBody.push_back("\t\t\ttext-align: center;\n");
+    IndexPageBody.push_back("\t\t\tfont-size: xxx-large;\n");
+    IndexPageBody.push_back("\t\t}\n");
     IndexPageBody.push_back("\n");
-    IndexPageBody.push_back("       #link {\n");
-    IndexPageBody.push_back("           font-size: xx-large;\n");
-    IndexPageBody.push_back("       }\n");
-    IndexPageBody.push_back("   </style>\n");
+    IndexPageBody.push_back("\t\t#link {\n");
+    IndexPageBody.push_back("\t\t\tfont-size: xx-large;\n");
+    IndexPageBody.push_back("\t\t}\n");
+    IndexPageBody.push_back("\t</style>\n");
     IndexPageBody.push_back("</head>\n");
     IndexPageBody.push_back("<body>\n");
-    IndexPageBody.push_back("   <div>\n");
-    IndexPageBody.push_back("       <h1>AUTO-INDEXED LIST OF CONTENTS</h1>\n");
-    IndexPageBody.push_back("   </div>\n");
-    IndexPageBody.push_back("   <div id=\"link\">\n");
-
-    /*for (const auto& entry : std::filesystem::directory_iterator(path))
-    {
-        std::filesystem::path   filename = entry.path();
-        std::cout << "### file: " << filename << std::endl; 
-    }*/
+    IndexPageBody.push_back("\t<div>\n");
+    IndexPageBody.push_back("\t\t<h1>AUTO-INDEXED LIST OF CONTENTS</h1>\n");
+    IndexPageBody.push_back("\t</div>\n");
+    IndexPageBody.push_back("\t<div id=\"link\">\n");
 
     for (const auto& entry : std::filesystem::directory_iterator(path))
     {
         std::filesystem::path   filepath = entry.path();
-        std::string link = "        <a href=\"" + std::string(filepath) + "\">" + std::string(filepath.filename()) + "</a><br>\n";
+        std::string link = "\t\t<a href=\"" + std::string(filepath.filename()) + "\">" + std::string(filepath.filename()) + "</a><br>\n";
         IndexPageBody.push_back(link);
     }
 
-    IndexPageBody.push_back("   </div>\n");
+    IndexPageBody.push_back("\t</div>\n");
     IndexPageBody.push_back("</body>\n");
     IndexPageBody.push_back("</html>");
     return (IndexPageBody);
@@ -225,7 +219,7 @@ std::vector<std::string>    WebParser::generateIndexPage(std::string path)
 
 void    WebParser::printAutoIndexToFile(void)
 {
-    std::vector<std::string>    AutoIndexBody = generateIndexPage("/home/skorbai/webserv/gh_repo/");
+    std::vector<std::string>    AutoIndexBody = generateIndexPage("/mnt/c/Hive/webserv/");
     std::ofstream   outfile;
     outfile.open("autoindex.html", std::ios::trunc);
     for (size_t i = 0; i < AutoIndexBody.size(); i++)
@@ -233,4 +227,22 @@ void    WebParser::printAutoIndexToFile(void)
         outfile << AutoIndexBody[i];
     }
     outfile.close();
+}
+
+int     WebParser::getErrorCode(std::string line)
+{
+    std::stringstream stream(line);
+    int         errorCode;
+
+    stream >> errorCode;
+    if (stream.fail())
+        throw WebErrors::ConfigFormatException("Error: missing error code in error_page directive");
+    if (errorCode < 400 || errorCode > 599)
+        throw WebErrors::ConfigFormatException("Error: default error page was specified for invalid error code. Valid range is 400 - 599");
+    
+    std::string leftover;
+    stream >> leftover;
+    if (leftover.size() != 0)
+        throw WebErrors::ConfigFormatException("Error: error_page directive must be a single pair of error code and error page URI");
+    return (errorCode);
 }
