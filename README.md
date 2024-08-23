@@ -154,12 +154,10 @@ Can be used to limit the body size of requests the client can send.
 Allows a pre-defined page to be displayed if a certain type of error occured. In the example below, if the client tried to GET a page that does not exist, the server won't just see the default 404 page of their browser, but an html page fetched from the server:
 
 ```
-	error_page 404 example.com/errors/404.html;
+	error_page 404 error_404.html;
 ```
 
-Multiple codes can be defined, but only a single string at the end. However, it doesn't have to be a URL, it can also be a URI, but must include at least one '/'
-
-Note: this might need to be subject to changes
+Multiple codes can be defined, in which case another error_page rule has to be added, with a new code - page pair. If there are several rules for the same code in one server context, the first one will be used. The server will look for the errror pages in the location defined by server_root, if it was defined. Otherwise, it will be interpreted as an absolute path.
 
 #### Location-context directives
 

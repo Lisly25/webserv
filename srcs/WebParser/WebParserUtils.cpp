@@ -1,4 +1,5 @@
 #include "WebParser.hpp"
+#include "WebErrors.hpp"
 
 bool WebParser::checkSemicolon(std::string line)
 {
@@ -213,4 +214,22 @@ void    WebParser::printAutoIndexToFile(void)
         outfile << AutoIndexBody[i];
     }
     outfile.close();
+}
+
+int     WebParser::getErrorCode(std::string line)
+{
+    std::stringstream stream(line);
+    int         errorCode;
+
+    stream >> errorCode;
+    if (stream.fail())
+        throw WebErrors::ConfigFormatException("Error: missing error code in error_page directive");
+    if (errorCode < 400 || errorCode > 599)
+        throw WebErrors::ConfigFormatException("Error: default error page was specified for invalid error code. Valid range is 400 - 599");
+    
+    std::string leftover;
+    stream >> leftover;
+    if (leftover.size() != 0)
+        throw WebErrors::ConfigFormatException("Error: error_page directive must be a single pair of error code and error page URI");
+    return (errorCode);
 }

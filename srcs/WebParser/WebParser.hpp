@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <stack>
 #include <vector>
+#include <map>
 #include <sstream>
 #include <climits>
 #include <unistd.h>
@@ -30,8 +31,7 @@ struct Server {
     long                           client_max_body_size;
     std::string                    host;
     std::vector<std::string>       server_name;
-    std::vector<int>               error_codes;
-    std::string                    error_page;
+    std::map<int, std::string>     error_page;
     std::vector<Location>          locations;
     std::string                    server_root;
 };
@@ -98,4 +98,5 @@ private:
     static std::string              createStandardTarget(std::string uri, std::string root);
     static bool                     verifyTarget(std::string path);
     static std::vector<std::string> generateIndexPage(std::string path);
+    static int                      getErrorCode(std::string line);
 };
