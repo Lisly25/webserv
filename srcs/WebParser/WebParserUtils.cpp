@@ -1,5 +1,6 @@
 #include "WebParser.hpp"
 #include "WebErrors.hpp"
+#include <algorithm>
 
 bool WebParser::checkSemicolon(std::string line)
 {

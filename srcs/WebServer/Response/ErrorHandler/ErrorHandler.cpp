@@ -9,7 +9,7 @@ void ErrorHandler::handleError(std::string& response) const
 {
     int errorCode = _request.getErrorCode();
     std::string errorMessage = getErrorMessage(errorCode);
-    std::string errorPage = getErrorPage(errorCode);
+    std::string errorPage = WebParser::getErrorPage(errorCode, *_request.getServer());
 
     response = "HTTP/1.1 " + std::to_string(errorCode) + " " + errorMessage + "\r\n";
     response += "Content-Type: text/html\r\n";
@@ -28,15 +28,4 @@ std::string ErrorHandler::getErrorMessage(int errorCode) const
     case 505: return "HTTP Version Not Supported";
     default: return "Internal Server Error";
     }
-}
-
-std::string ErrorHandler::getErrorPage(int errorCode) const
-{
-    // Generate a simple HTML error page
-    std::string errorPage = "<html><head><title>" + getErrorMessage(errorCode) + "</title></head><body>";
-    errorPage += "<h1>" + getErrorMessage(errorCode) + "</h1>";
-    errorPage += "<p>The server encountered an error and could not complete your request.</p>";
-    errorPage += "</body></html>";
-
-    return errorPage;
 }

@@ -95,9 +95,6 @@ bool Request::RequestValidator::isPathValid() const
     return std::filesystem::exists(fullPath);
 }
 
-
-
-
 bool Request::RequestValidator::isProtocolValid() const
 {
     return _request._requestData.httpVersion == "HTTP/1.1";
@@ -132,7 +129,6 @@ bool Request::RequestValidator::isServerMatch(const Server& server) const
     }
     return false;
 }
-
 
 bool Request::RequestValidator::matchLocationSetData(const Server& server) const
 {

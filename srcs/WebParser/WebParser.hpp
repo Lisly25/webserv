@@ -101,6 +101,5 @@ private:
     static std::string              removeDirectiveKey(std::string line, std::string key);
     static std::string              createStandardTarget(std::string uri, std::string root);
     static bool                     verifyTarget(std::string path);
-    static std::vector<std::string> generateIndexPage(std::string path);
     static int                      getErrorCode(std::string line);
 };
