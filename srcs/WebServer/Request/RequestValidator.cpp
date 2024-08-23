@@ -56,16 +56,23 @@ bool Request::RequestValidator::isValidMethod() const
 bool Request::RequestValidator::isPathValid() const
 {
     std::string relativeUri = _request._requestData.uri;
+
     if (relativeUri.find(_request._location->uri) == 0)
         relativeUri = relativeUri.substr(_request._location->uri.length());
+
     if (!relativeUri.empty() && relativeUri.front() != '/')
         relativeUri = "/" + relativeUri;
 
-    std::string fullPath = std::filesystem::current_path().generic_string() + _request._location->root + relativeUri;
+    // Construct the full path using the root directive
+    std::string fullPath = _request._location->root + relativeUri;
+
+    // Check if the path is a directory
     if (std::filesystem::is_directory(fullPath))
     {
         if (_request._location->autoIndexOn)
+        {
             std::cout << "Autoindex enabled, serving directory listing" << std::endl;
+        }
         else
         {
             bool indexFound = false;
@@ -81,6 +88,7 @@ bool Request::RequestValidator::isPathValid() const
                     break;
                 }
             }
+
             if (!indexFound)
             {
                 std::cout << "No index file found and autoindex is off. Path is invalid." << std::endl;
@@ -88,12 +96,15 @@ bool Request::RequestValidator::isPathValid() const
             }
         }
     }
+
+    // Convert the path to an absolute path and store it in the request data
     fullPath = std::filesystem::absolute(fullPath).generic_string();
     std::cout << "Checking fullPath: " << fullPath << std::endl;
 
     _request._requestData.uri = fullPath;
     return std::filesystem::exists(fullPath);
 }
+
 
 bool Request::RequestValidator::isProtocolValid() const
 {

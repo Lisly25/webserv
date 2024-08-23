@@ -40,21 +40,34 @@ std::string ProxyHandler::modifyRequestForProxy()
     try
     {
         std::string modifiedRequest = _request.getRawRequest();
-        size_t      hostPos = modifiedRequest.find("Host: ");
-        
+        size_t hostPos = modifiedRequest.find("Host: ");
+
         if (hostPos != std::string::npos)
         {
             size_t hostEnd = modifiedRequest.find("\r\n", hostPos);
             if (hostEnd != std::string::npos)
                 modifiedRequest.replace(hostPos + 6, hostEnd - (hostPos + 6), proxyHost);
         }
+        std::string locationUri = _request.getLocation()->uri;
+        size_t uriPos = modifiedRequest.find(locationUri);
+        if (uriPos != std::string::npos && locationUri != "/")
+        {
+            std::string newUri = modifiedRequest.substr(uriPos + locationUri.length());
+            if (newUri.empty() || newUri[0] != '/')
+                newUri = "/" + newUri;
+            modifiedRequest.replace(uriPos, modifiedRequest.find(" ", uriPos) - uriPos, newUri);
+            std::cout << "Modified request: " << modifiedRequest << std::endl;
+        }
         return modifiedRequest;
     }
     catch (const std::exception &e)
     {
-        throw ;
+        throw;
     }
 }
+
+
+
 
 void ProxyHandler::passRequest(std::string &response)
 {
