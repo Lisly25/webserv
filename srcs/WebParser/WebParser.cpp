@@ -374,6 +374,8 @@ std::string     WebParser::extractServerRoot(size_t contextStart, size_t context
         return ("");
     if (line[0] != '/')
         throw WebErrors::ConfigFormatException("Error: server_root directive must be an absolute path");
+    if (line.back() != '/')
+        throw WebErrors::ConfigFormatException("Error: server_root directive must end with '/'");
     if (!verifyTarget(line))
         throw WebErrors::ConfigFormatException("Error: location defined as server_root (" + line + ") does not exist");
     return (line);
@@ -702,6 +704,8 @@ void    WebParser::extractIndex(size_t contextStart, size_t contextEnd)
     {
         try
         {
+            if (_servers.back().server_root.size() != 0)
+                subLine = createStandardTarget(subLine, _servers.back().server_root);
             _servers.back().locations.back().index.push_back(subLine);
         }
         catch(const std::exception& e)
