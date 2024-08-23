@@ -246,3 +246,24 @@ int     WebParser::getErrorCode(std::string line)
         throw WebErrors::ConfigFormatException("Error: error_page directive must be a single pair of error code and error page URI");
     return (errorCode);
 }
+
+//Returns an empty string if no page is found / can't access() the page
+std::string   WebParser::getErrorPage(int errorCode, Server server)
+{
+    std::string errorPage;
+    try
+    {
+        errorPage = server.error_page.at(errorCode);
+    }
+    catch(const std::out_of_range& e)
+    {
+        std::cerr << "No error page for code " << errorCode << '\n';
+        return ("");
+    }
+    if (access(errorPage.c_str(), R_OK) == -1)
+    {
+        std::cerr << "Error: error_page has no write permission" << std::endl;
+        return ("");
+    }
+    return (errorPage);
+}
