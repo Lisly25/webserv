@@ -11,6 +11,7 @@
 #include <climits>
 #include <unistd.h>
 #include <cstring>
+#include <regex>
 
 enum LocationType { UNDEFINED, CGI, PROXY, ALIAS, STANDARD };
 
@@ -50,6 +51,7 @@ public:
     const std::string         &getProxyPass() const;
     const std::string         &getCgiPass() const;
     const std::vector<Server> &getServers() const;
+    static std::string               getErrorPage(int errorCode, Server server);
 
     //for testing:
     void                printParsedInfo(void);

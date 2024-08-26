@@ -428,6 +428,8 @@ void    WebParser::extractErrorPageInfo(size_t contextStart, size_t contextEnd)
         if (i == line.length())
             throw WebErrors::ConfigFormatException("Error: must specify page address for error_page directive");
         value = line.substr(i, line.length() - i);
+        value = std::regex_replace(value, std::regex("^ +"), "");
+        value = createStandardTarget(value, _servers.back().server_root);
         line = line.substr(0, i);
         i = 0;
         while (line[i])
