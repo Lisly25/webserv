@@ -1,14 +1,15 @@
 
 #include "CGIHandler.hpp"
 
-CGI::CGI(Request& request, std::string& response) : _request(request), _response(response), _path(_request.getLocation()->target)
+CGIHandler::CGIHandler(const Request& request) : _request(request), _response(""), _path(_request.getLocation()->target)
 {
-    if (validateExecutable() == false)
-        return;
+    /*if (validateExecutable() == false)*/
+    /*    return;*/
+    std::cout << "\033[31mIN CGI: going to RUN IT\033[0m\n";
     executeScript();
 };
 
-bool    CGI::validateExecutable( void )
+bool    CGIHandler::validateExecutable( void )
 {
     if (access(_path.c_str(), F_OK) < 0)
     {
@@ -23,7 +24,7 @@ bool    CGI::validateExecutable( void )
     return true;
 };
 
-void    CGI::executeScript( void )
+void    CGIHandler::executeScript( void )
 {
     pid_t   pid;
 
@@ -48,21 +49,22 @@ void    CGI::executeScript( void )
     }
 };
 
-void    CGI::setEnvp( char const *envp[] )
+void    CGIHandler::setEnvp( char const *envp[] )
 {
     std::vector<std::string>    env;
     std::string 	        query;
+    RequestData reqData = _request.getRequestData();
 
     env.resize(9);
-    env[0] = "REQUEST_METHOD=";
-    env[1] = "QUERY_STRING=";
-    env[2] = "CONTENT_TYPE=text/html";
-    env[3] = "CONTENT_LENGTH=";
-    env[4] = "DOCUMENT_ROOT=";
+    env[0] = "REQUEST_METHOD=" + reqData.method;
+    env[1] = "QUERY_STRING=" + reqData.query_string;
+    env[2] = "CONTENT_TYPE=" + reqData.content_type;
+    env[3] = "CONTENT_LENGTH=" + reqData.content_length;
+    env[4] = "DOCUMENT_ROOT=" + reqData.absoluteRootPath;
     env[5] = "SCRIPT_FILENAME=" + _path;
     env[6] = "SCRIPT_NAME=" + _path;
     env[7] = "REDIRECT_STATUS=200";
-    env[8] = "REQUEST_BODY=";
+    env[8] = "REQUEST_BODY=" + reqData.body;
 
     envp[0] = env[0].c_str();
     envp[1] = env[1].c_str();
@@ -75,7 +77,7 @@ void    CGI::setEnvp( char const *envp[] )
     envp[8] = env[8].c_str();
 };
 
-void    CGI::child( void )
+void    CGIHandler::child( void )
 {
     char    const   *argv[] = {PYTHON3, _path.c_str(), NULL};
     char    const   *envp[9];
@@ -132,7 +134,7 @@ bool    waitForChild( pid_t pid )
     return true;
 };
 
-void    CGI::parent( pid_t pid )
+void    CGIHandler::parent( pid_t pid )
 {
     close(_pipe[WRITEND]);
     if (waitForChild( pid ) == false)
@@ -159,7 +161,7 @@ void    CGI::parent( pid_t pid )
     close(_pipe[READEND]);
 };
 
-std::string&    CGI::getCGIResponse( void ) const
+std::string    CGIHandler::getCGIResponse( void ) const
 {
     return _response;
 }

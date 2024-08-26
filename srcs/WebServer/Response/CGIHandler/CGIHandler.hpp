@@ -29,16 +29,16 @@
 #define CODE500 "500"
 #define PYTHON3 "/bin/python3"
 #define ERROR "\033[31ERROR: \033[0"
-class   CGI
+class   CGIHandler
 {
     public:
-        CGI(Request& request, std::string& respose);
-        ~CGI() = delete;
+        CGIHandler(const Request& request);
+//        ~CGIHandler() = delete;
 
-        std::string&    getCGIResponse( void ) const;
+        std::string    getCGIResponse( void ) const;
     private:
-        Request&            _request;
-        std::string&        _response;
+        const Request&            _request;
+        std::string        _response;
         std::string         _path;
         int                 _pipe[PIPES];
         bool    validateExecutable( void );

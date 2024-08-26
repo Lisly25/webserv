@@ -1,4 +1,5 @@
 #include "Response.hpp"
+#include "CGIHandler/CGIHandler.hpp"
 #include "ErrorHandler/ErrorHandler.hpp"
 #include "ProxyHandler/ProxyHandler.hpp"
 #include "Request.hpp"
@@ -25,18 +26,20 @@ Response::Response(const Request &request)
 std::string Response::generate(const Request &request)
 {
     try {
-            std::cout << request.getRequestData().uri << std::endl;
-            std::cout << request.getRequestData().uri << std::endl;
-            std::cout << request.getRequestData().uri << std::endl;
-            std::cout << request.getRequestData().uri << std::endl;
+            std::cout << "\033[35mURI: \033[0m" << request.getRequestData().uri << std::endl;
+            std::cout << "\033[35mTARGET: \033[0m" << request.getLocation()->target << std::endl;
+            /*std::cout << request.getRequestData().uri << std::endl;*/
+            /*std::cout << request.getRequestData().uri << std::endl;*/
+            /*std::cout << request.getRequestData().uri << std::endl;*/
         
         std::cout << "Location type: " << request.getLocation()->type << std::endl;
-                std::cout << "Location type: " << request.getLocation()->type << std::endl;
-                        std::cout << "Location type: " << request.getLocation()->type << std::endl;
-                                std::cout << "Location type: " << request.getLocation()->type << std::endl;
+                /*std::cout << "Location type: " << request.getLocation()->type << std::endl;*/
+                /*        std::cout << "Location type: " << request.getLocation()->type << std::endl;*/
+                /*                std::cout << "Location type: " << request.getLocation()->type << std::endl;*/
         std::string response;
         if (request.getErrorCode() != 0)
         {
+//            std::cout << "\033[31mCGI NOT going to RUN\033[0m\n";
             ErrorHandler(request).handleError(response);
         }
         else if (request.getLocation()->type == LocationType::PROXY)
@@ -46,6 +49,8 @@ std::string Response::generate(const Request &request)
         else if (request.getLocation()->type == LocationType::CGI)
         {
             // handleCGI(request, response);
+            CGIHandler cgi = CGIHandler(request);
+            response = cgi.getCGIResponse();
         }
         else if (request.getLocation()->type == LocationType::ALIAS)
         {
