@@ -56,7 +56,7 @@ std::string ProxyHandler::modifyRequestForProxy()
             if (newUri.empty() || newUri[0] != '/')
                 newUri = "/" + newUri;
             modifiedRequest.replace(uriPos, modifiedRequest.find(" ", uriPos) - uriPos, newUri);
-            std::cout << "Modified request: " << modifiedRequest << std::endl;
+            //std::cout << "Modified request: " << modifiedRequest << std::endl;
         }
         return modifiedRequest;
     }

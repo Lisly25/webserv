@@ -25,15 +25,16 @@ Response::Response(const Request &request)
 std::string Response::generate(const Request &request)
 {
     try {
-            std::cout << request.getRequestData().uri << std::endl;
-            std::cout << request.getRequestData().uri << std::endl;
-            std::cout << request.getRequestData().uri << std::endl;
-            std::cout << request.getRequestData().uri << std::endl;
+        //    std::cout << request.getRequestData().uri << std::endl;
+        //    std::cout << request.getRequestData().uri << std::endl;
+        //    std::cout << request.getRequestData().uri << std::endl;
+        //    std::cout << request.getRequestData().uri << std::endl;
+        //
+        //std::cout << "Location type: " << request.getLocation()->type << std::endl;
+        //        std::cout << "Location type: " << request.getLocation()->type << std::endl;
+        //                std::cout << "Location type: " << request.getLocation()->type << std::endl;
+        //                        std::cout << "Location type: " << request.getLocation()->type << std::endl;
         
-        std::cout << "Location type: " << request.getLocation()->type << std::endl;
-                std::cout << "Location type: " << request.getLocation()->type << std::endl;
-                        std::cout << "Location type: " << request.getLocation()->type << std::endl;
-                                std::cout << "Location type: " << request.getLocation()->type << std::endl;
         std::string response;
         if (request.getErrorCode() != 0)
         {
