@@ -49,11 +49,8 @@ std::string Response::generate(const Request &request)
         {
             // handleCGI(request, response);
         }
-        else if (request.getLocation()->type == LocationType::ALIAS)
-        {
-            // handleAlias(request, response);
-        }
-        else
+        else if (request.getLocation()->type == LocationType::STANDARD
+            || request.getLocation()->type == LocationType::ALIAS)
         {
             std::cout << "Static file handler" << std::endl;
             StaticFileHandler(request).serveFile(response);

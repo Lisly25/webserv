@@ -18,11 +18,17 @@ bool Request::RequestValidator::validate() const
 
                 if (_request._location->type != PROXY)
                 {
+                    std::cout << "NOT PROXY" << std::endl;
+                    std::cout << _request._requestData.uri << std::endl;
+                    std::cout << _request._requestData.uri << std::endl;
+                    std::cout << _request._requestData.uri << std::endl;
+                    std::cout << _request._requestData.uri << std::endl;
+                    std::cout << _request._requestData.uri << std::endl;
                     if (!isValidMethod())
                     {
                         _request._errorCode = INVALID_METHOD;
                     }
-                    if (!isPathValid())
+                    if (_request._location->type != LocationType::CGI && !isPathValid())
                     {
                         _request._errorCode = NOT_FOUND;
                     }
@@ -53,25 +59,14 @@ bool Request::RequestValidator::isValidMethod() const
         || (method == "DELETE" && _request._location->allowedDELETE));
 }
 
-bool Request::RequestValidator::isPathValid() const
+bool Request::RequestValidator::checkForIndexing(std::string& fullPath) const
 {
-    std::string relativeUri = _request._requestData.uri;
-
-    if (relativeUri.find(_request._location->uri) == 0)
-        relativeUri = relativeUri.substr(_request._location->uri.length());
-
-    if (!relativeUri.empty() && relativeUri.front() != '/')
-        relativeUri = "/" + relativeUri;
-
-    // Construct the full path using the root directive
-    std::string fullPath = _request._location->root + relativeUri;
-
-    // Check if the path is a directory
     if (std::filesystem::is_directory(fullPath))
     {
         if (_request._location->autoIndexOn)
         {
             std::cout << "Autoindex enabled, serving directory listing" << std::endl;
+            return true;
         }
         else
         {
@@ -88,7 +83,6 @@ bool Request::RequestValidator::isPathValid() const
                     break;
                 }
             }
-
             if (!indexFound)
             {
                 std::cout << "No index file found and autoindex is off. Path is invalid." << std::endl;
@@ -96,13 +90,51 @@ bool Request::RequestValidator::isPathValid() const
             }
         }
     }
+    return true;
+}
 
-    // Convert the path to an absolute path and store it in the request data
-    fullPath = std::filesystem::absolute(fullPath).generic_string();
-    std::cout << "Checking fullPath: " << fullPath << std::endl;
+bool Request::RequestValidator::isPathValid() const
+{
+    std::string relativeUri = _request._requestData.uri;
 
-    _request._requestData.uri = fullPath;
-    return std::filesystem::exists(fullPath);
+    if (_request._location->type == ALIAS)
+    {
+        if (relativeUri.find(_request._location->uri) == 0)
+            relativeUri = relativeUri.substr(_request._location->uri.length());
+
+        if (!relativeUri.empty() && relativeUri.front() != '/')
+            relativeUri = "/" + relativeUri;
+
+        std::string fullPath = _request._location->target + relativeUri;
+        fullPath = std::filesystem::absolute(fullPath).generic_string();
+
+        std::cout << "Alias fullPath: " << fullPath << std::endl;
+
+        if (!checkForIndexing(fullPath))
+            return false;
+        _request._requestData.uri = fullPath;
+
+        return std::filesystem::exists(fullPath);
+    }
+    else // Handle normal root case
+    {
+        if (relativeUri.find(_request._location->uri) == 0)
+            relativeUri = relativeUri.substr(_request._location->uri.length());
+
+        if (!relativeUri.empty() && relativeUri.front() != '/')
+            relativeUri = "/" + relativeUri;
+
+        std::string fullPath = _request._location->root + relativeUri;
+
+        if (!checkForIndexing(fullPath))
+            return false;
+
+        fullPath = std::filesystem::absolute(fullPath).generic_string();
+        std::cout << "Checking fullPath: " << fullPath << std::endl;
+
+        _request._requestData.uri = fullPath;
+        return std::filesystem::exists(fullPath);
+    }
 }
 
 
@@ -141,27 +173,40 @@ bool Request::RequestValidator::isServerMatch(const Server& server) const
     return false;
 }
 
+
 bool Request::RequestValidator::matchLocationSetData(const Server& server) const
 {
-    std::string     uri = _request._requestData.uri;
+    std::string uri = _request._requestData.uri;
     const Location* bestMatchLocation = nullptr;
 
     for (const auto& location : server.locations)
     {
-        if (uri.find(location.uri) == 0 && 
-            (!bestMatchLocation || location.uri.length() > bestMatchLocation->uri.length()))
-            bestMatchLocation = &location;
-        else if (location.uri == "/" && !bestMatchLocation)
-            bestMatchLocation = &location;
+        std:: cout << "Location uri: " << location.uri << std::endl;
+        std::cout << "Request uri: " << uri << std::endl;
+        if (uri.find(location.uri) == 0)
+        {
+            if (!bestMatchLocation || location.uri.length() > bestMatchLocation->uri.length())
+            {
+                bestMatchLocation = &location;
+            }
+        }
     }
+
     if (!bestMatchLocation)
         return false;
+
+    std::cout << "Best match location: " << bestMatchLocation->uri << std::endl;
+
     _request._location = bestMatchLocation;
+
     if (bestMatchLocation->type == PROXY)
     {
-        if (auto it = _proxyInfoMap.find(bestMatchLocation->target); it != _proxyInfoMap.end())
+        auto it = _proxyInfoMap.find(bestMatchLocation->target);
+        if (it != _proxyInfoMap.end())
+        {
             _request._proxyInfo = it->second;
+        }
     }
+
     return true;
 }
-
