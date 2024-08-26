@@ -34,12 +34,11 @@ std::string Response::generate(const Request &request)
         //        std::cout << "Location type: " << request.getLocation()->type << std::endl;
         //                std::cout << "Location type: " << request.getLocation()->type << std::endl;
         //                        std::cout << "Location type: " << request.getLocation()->type << std::endl;
-        
+
         std::string response;
         if (request.getErrorCode() != 0)
         {
-            std::cout << "Error handler" << std::endl;
-            std::cout << "Error handler" << std::endl;
+            std::cout << "ERROR CODE: " << request.getErrorCode() << std::endl;
             ErrorHandler(request).handleError(response);
         }
         else if (request.getLocation()->type == LocationType::PROXY)
@@ -48,6 +47,7 @@ std::string Response::generate(const Request &request)
         }
         else if (request.getLocation()->type == LocationType::CGI)
         {
+            std::cout << "CGI PASSING" << std::endl;
             // handleCGI(request, response);
         }
         else if (request.getLocation()->type == LocationType::STANDARD

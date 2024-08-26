@@ -570,7 +570,8 @@ std::string WebParser::extractRoot(size_t contextStart, size_t contextEnd) const
         throw WebErrors::ConfigFormatException("Error: only one 'root' directive per location context is allowed");
     if (directiveLocation == 0)
     {   
-        if (locateDirective(contextStart, contextEnd, "alias") != 0 || locateDirective(contextStart, contextEnd, "proxy_pass") != 0)
+        if (locateDirective(contextStart, contextEnd, "alias") != 0 || locateDirective(contextStart, contextEnd, "proxy_pass") != 0
+            || locateDirective(contextStart, contextEnd, "cgi_pass") != 0)
             return ("");
         throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts that do not contain 'proxy_pass' or 'alias' directives");
     }

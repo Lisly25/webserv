@@ -1,6 +1,6 @@
 services:
   homer:
-    container_name: homer
+    container_name: homer-webserv
     image: b4bz/homer:latest
     ports:
       - "4141:8080"
@@ -9,17 +9,16 @@ services:
     environment:
       - INIT_ASSETS=1
 
-  portainer:
-    container_name: portainer
-    image: portainer/portainer-ce
+  heimdall:
+    container_name: heimdall-webserv
+    image: linuxserver/heimdall
     ports:
-      - "4545:9000"
+      - "4545:80"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./portainer_data:/data
-    
+      - ./heimdall:/config
+
   netdata:
-    container_name: netdata
+    container_name: netdata-webserv
     image: netdata/netdata
     ports:
       - "4646:19999"

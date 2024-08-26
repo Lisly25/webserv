@@ -238,6 +238,7 @@ void WebServer::handleIncomingData(int clientSocket)
         }
         if (!totalRequest.empty())
         {
+            std::cout << "RAW REQUEST -> " << totalRequest << std::endl;
             _requestMap[clientSocket] = Request(totalRequest, _parser.getServers(), _proxyInfoMap);
             epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT);
         }
