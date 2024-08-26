@@ -85,6 +85,7 @@ public:
         const std::vector<Server>&                          _servers;
         const std::unordered_map<std::string, addrinfo*>&   _proxyInfoMap;
 
+        bool checkForIndexing(std::string& fullPath) const;
         bool isPathValid()      const;
         bool isValidMethod()    const;
         bool isProtocolValid()  const;

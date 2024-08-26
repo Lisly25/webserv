@@ -32,7 +32,7 @@ void StaticFileHandler::serveFile(std::string& response)
     std::string fileContent;
     try {
         readFileContent(fullPath, fileContent);
-        std::cout << "File content size: " << fileContent.size() << std::endl;
+        std::cout << "size: " << fileContent.size() << std::endl;
     } catch (const std::exception& e) {
         response = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
         return;
@@ -77,5 +77,5 @@ void StaticFileHandler::readFileContent(const std::string& path, std::string& co
     ss << fileStream.rdbuf();
     content = ss.str();
 
-    std::cout << "File content length: " << content.size() << std::endl;
+    //std::cout << "File content length: " << content.size() << std::endl;
 }

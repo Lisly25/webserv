@@ -8,153 +8,254 @@ Request::RequestValidator::RequestValidator(Request& request, const std::vector<
 
 bool Request::RequestValidator::validate() const
 {
-    for (const auto& srv : _servers)
+    try
     {
-        if (isServerMatch(srv))
+        for (const auto& srv : _servers)
         {
-            if (matchLocationSetData(srv))
+            if (isServerMatch(srv))
             {
-                _request._server = &srv;
-
-                if (_request._location->type != PROXY)
+                if (matchLocationSetData(srv))
                 {
-                    if (!isValidMethod())
-                    {
-                        _request._errorCode = INVALID_METHOD;
-                    }
-                    if (!isPathValid())
-                    {
-                        _request._errorCode = NOT_FOUND;
-                    }
-                    if (!isProtocolValid())
-                    {
-                        _request._errorCode = HTTP_VERSION_NOT_SUPPORTED;
-                    }
+                    _request._server = &srv;
 
-                    if (!areHeadersValid())
+                    if (_request._location->type != PROXY)
                     {
-                        _request._errorCode = BAD_REQUEST;
-                    }
+                        if (!isValidMethod())
+                        {
+                            _request._errorCode = INVALID_METHOD;
+                        }
+                        if (!isPathValid())
+                        {
+                            _request._errorCode = NOT_FOUND;
+                        }
+                        if (!isProtocolValid())
+                        {
+                            _request._errorCode = HTTP_VERSION_NOT_SUPPORTED;
+                        }
 
+                        if (!areHeadersValid())
+                        {
+                            _request._errorCode = BAD_REQUEST;
+                        }
+
+                    }
+                    return true;
                 }
-                return true;
             }
         }
+        return false;
     }
-    return false;
+    catch (const std::exception& e)
+    {
+        throw ;
+    }
 }
 
 bool Request::RequestValidator::isValidMethod() const
 {
-    const std::string& method = _request._requestData.method;
+    try
+    {
+        const std::string& method = _request._requestData.method;
 
-    return  ((method == "GET" && _request._location->allowedGET)
-        || (method == "POST" && _request._location->allowedPOST)
-        || (method == "DELETE" && _request._location->allowedDELETE));
+        return  ((method == "GET" && _request._location->allowedGET)
+            || (method == "POST" && _request._location->allowedPOST)
+            || (method == "DELETE" && _request._location->allowedDELETE));
+    }
+    catch (const std::exception& e)
+    {
+        throw std::runtime_error(std::string("Error validating method: ") + e.what());
+    }
+}
+
+bool Request::RequestValidator::checkForIndexing(std::string& fullPath) const
+{
+    try
+    {
+        if (std::filesystem::is_directory(fullPath))
+        {
+            if (_request._location->autoIndexOn)
+            {
+                std::cout << "Autoindex enabled, serving directory listing" << std::endl;
+                return true;
+            }
+            else
+            {
+                bool indexFound = false;
+                for (const auto& indexFile : _request._location->index)
+                {
+                    std::string indexPath = fullPath + "/" + indexFile;
+                    std::cout << "Checking index file: " << indexPath << std::endl;
+
+                    if (std::filesystem::exists(indexPath))
+                    {
+                        fullPath = indexPath;
+                        indexFound = true;
+                        break;
+                    }
+                }
+                if (!indexFound)
+                {
+                    std::cout << "No index file found and autoindex is off. Path is invalid." << std::endl;
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        throw std::runtime_error(std::string("Error checking indexing: ") + e.what());
+    }
 }
 
 bool Request::RequestValidator::isPathValid() const
 {
-    std::string relativeUri = _request._requestData.uri;
-    if (relativeUri.find(_request._location->uri) == 0)
-        relativeUri = relativeUri.substr(_request._location->uri.length());
-    if (!relativeUri.empty() && relativeUri.front() != '/')
-        relativeUri = "/" + relativeUri;
-
-    std::string fullPath = std::filesystem::current_path().generic_string() + _request._location->root + relativeUri;
-    if (std::filesystem::is_directory(fullPath))
+    try
     {
-        if (_request._location->autoIndexOn)
-            std::cout << "Autoindex enabled, serving directory listing" << std::endl;
-        else
-        {
-            bool indexFound = false;
-            for (const auto& indexFile : _request._location->index)
-            {
-                std::string indexPath = fullPath + "/" + indexFile;
-                std::cout << "Checking index file: " << indexPath << std::endl;
+        std::string relativeUri = _request._requestData.uri;
 
-                if (std::filesystem::exists(indexPath))
-                {
-                    fullPath = indexPath;
-                    indexFound = true;
-                    break;
-                }
-            }
-            if (!indexFound)
-            {
-                std::cout << "No index file found and autoindex is off. Path is invalid." << std::endl;
+        auto handleAlias = [&]() -> bool {
+            if (relativeUri.find(_request._location->uri) == 0)
+                relativeUri = relativeUri.substr(_request._location->uri.length());
+            if (!relativeUri.empty() && relativeUri.front() != '/')
+                relativeUri = "/" + relativeUri;
+            std::string fullPath = _request._location->target + relativeUri;
+            fullPath = std::filesystem::absolute(fullPath).generic_string();
+            std::cout << "Alias fullPath: " << fullPath << std::endl;
+            if (!checkForIndexing(fullPath))
                 return false;
-            }
-        }
+
+            _request._requestData.uri = fullPath;
+            return std::filesystem::exists(fullPath);
+        };
+
+        auto handleRoot = [&]() -> bool {
+            if (relativeUri.find(_request._location->uri) == 0)
+                relativeUri = relativeUri.substr(_request._location->uri.length());
+            if (!relativeUri.empty() && relativeUri.front() != '/')
+                relativeUri = "/" + relativeUri;
+            std::string fullPath = _request._location->root + _request._location->uri + relativeUri;
+            if (!checkForIndexing(fullPath))
+                return false;
+            fullPath = std::filesystem::absolute(fullPath).generic_string();
+            std::cout << "Checking fullPath: " << fullPath << std::endl;
+            _request._requestData.uri = fullPath;
+            return std::filesystem::exists(fullPath);
+        };
+
+        auto handleCGIPass = [&]() -> bool {
+            std::string fullPath = "." + _request._location->target;
+            fullPath = std::filesystem::absolute(fullPath).generic_string();
+            std::cout << "CGI fullPath: " << fullPath << std::endl;
+            _request._requestData.uri = fullPath;
+            return std::filesystem::exists(fullPath);
+        };
+
+        if (_request._location->type == ALIAS)
+            return handleAlias();
+        else if (_request._location->type == CGI)
+            return handleCGIPass();
+        else
+            return handleRoot();
     }
-    fullPath = std::filesystem::absolute(fullPath).generic_string();
-    std::cout << "Checking fullPath: " << fullPath << std::endl;
-
-    _request._requestData.uri = fullPath;
-    return std::filesystem::exists(fullPath);
+    catch (const std::exception& e)
+    {
+        throw std::runtime_error(std::string("Error validating path: ") + e.what());
+    }
 }
-
-
-
 
 bool Request::RequestValidator::isProtocolValid() const
 {
-    return _request._requestData.httpVersion == "HTTP/1.1";
+    try
+    {
+        return _request._requestData.httpVersion == "HTTP/1.1";
+    }
+    catch (const std::exception& e)
+    {
+        throw std::runtime_error(std::string("Error validating protocol: ") + e.what());
+    }
 }
 
 bool Request::RequestValidator::areHeadersValid() const
 {
-    if (_request._requestData.headers.find("Host") == _request._requestData.headers.end())
-        return false;
-    return true;
+    try
+    {
+        if (_request._requestData.headers.find("Host") == _request._requestData.headers.end())
+            return false;
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        throw std::runtime_error(std::string("Error validating headers: ") + e.what());
+    }
 }
 
 bool Request::RequestValidator::isServerMatch(const Server& server) const
 {
-    const auto& headers = _request._requestData.headers;
-    auto        hostIt = headers.find("Host");
-
-    if (hostIt == headers.end()) return false;
-
-    std::string hostHeader = WebParser::trimSpaces(hostIt->second);
-
-    if (hostHeader.empty()) return false;
-
-    for (const auto& serverName : server.server_name)
+    try
     {
-        std::string fullServerName = serverName + ":" + std::to_string(server.port);
-        if (hostHeader == fullServerName)
-        {
-            _request._server = &server;
-            return true;
-        }
-    }
-    return false;
-}
+        const auto& headers = _request._requestData.headers;
+        auto hostIt = headers.find("Host");
 
+        if (hostIt == headers.end()) return false;
+
+        std::string hostHeader = WebParser::trimSpaces(hostIt->second);
+
+        if (hostHeader.empty()) return false;
+
+        for (const auto& serverName : server.server_name)
+        {
+            std::string fullServerName = serverName + ":" + std::to_string(server.port);
+            if (hostHeader == fullServerName)
+            {
+                _request._server = &server;
+                return true;
+            }
+        }
+        return false;
+    }
+    catch (const std::exception& e)
+    {
+        throw std::runtime_error(std::string("Error matching server: ") + e.what());
+    }
+}
 
 bool Request::RequestValidator::matchLocationSetData(const Server& server) const
 {
-    std::string     uri = _request._requestData.uri;
-    const Location* bestMatchLocation = nullptr;
+    try
+    {
+        std::string uri = _request._requestData.uri;
+        const Location* bestMatchLocation = nullptr;
 
-    for (const auto& location : server.locations)
-    {
-        if (uri.find(location.uri) == 0 && 
-            (!bestMatchLocation || location.uri.length() > bestMatchLocation->uri.length()))
-            bestMatchLocation = &location;
-        else if (location.uri == "/" && !bestMatchLocation)
-            bestMatchLocation = &location;
+        for (const auto& location : server.locations)
+        {
+            if (uri.find(location.uri) == 0)
+            {
+                if (!bestMatchLocation || location.uri.length() > bestMatchLocation->uri.length())
+                {
+                    bestMatchLocation = &location;
+                }
+            }
+        }
+
+        if (!bestMatchLocation)
+            return false;
+
+        _request._location = bestMatchLocation;
+
+        if (bestMatchLocation->type == PROXY)
+        {
+            auto it = _proxyInfoMap.find(bestMatchLocation->target);
+            if (it != _proxyInfoMap.end())
+            {
+                _request._proxyInfo = it->second;
+            }
+        }
+
+        return true;
     }
-    if (!bestMatchLocation)
-        return false;
-    _request._location = bestMatchLocation;
-    if (bestMatchLocation->type == PROXY)
+    catch (const std::exception& e)
     {
-        if (auto it = _proxyInfoMap.find(bestMatchLocation->target); it != _proxyInfoMap.end())
-            _request._proxyInfo = it->second;
+        throw std::runtime_error(std::string("Error matching location and setting data: ") + e.what());
     }
-    return true;
 }
-

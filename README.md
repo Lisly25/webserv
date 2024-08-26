@@ -85,10 +85,10 @@ server {	# Configuration for example_website2.com
 
 	This latter format will throw an error.
 
-+ location context must also be formatted in a similar way, the only difference being that the location keyword must be followed by a URI (this string must start with a '/' symbol since we don't handle regular expressions here). Example of correct format:
++ location context must also be formatted in a similar way, the only difference being that the location keyword must be followed by a URI (this string must start AND end with a '/' symbol since we don't handle regular expressions here). Example of correct format:
 
 	```
-	location /some/URI {
+	location /some/URI/ {
 		...
 	}
 	```
@@ -125,6 +125,16 @@ The hostname of the server / the domain name. Or multiple of these, in which cas
 	server_name website1.com website2com;
 ```
 
+#### server_root
+
+Used to define a default directory for the whole server: all other URIs will be relative to this (error pages, index pages, roots within locations, etc.) This must be an absolute path, and a single string. Only an optional argument: if not present, then the above listed URIs will be interpreted as absolute paths themselves.
+
+If the directive is present, but has no value, it will be interpreted as having no server_root defined.
+
+```
+	server_root	/home/user/webpages/;
+```
+
 ##### client_max_body_size
 
 Can be used to limit the body size of requests the client can send.
@@ -144,12 +154,10 @@ Can be used to limit the body size of requests the client can send.
 Allows a pre-defined page to be displayed if a certain type of error occured. In the example below, if the client tried to GET a page that does not exist, the server won't just see the default 404 page of their browser, but an html page fetched from the server:
 
 ```
-	error_page 404 example.com/errors/404.html;
+	error_page 404 error_404.html;
 ```
 
-Multiple codes can be defined, but only a single string at the end. However, it doesn't have to be a URL, it can also be a URI, but must include at least one '/'
-
-Note: this might need to be subject to changes
+Multiple codes can be defined, in which case another error_page rule has to be added, with a new code - page pair. If there are several rules for the same code in one server context, the first one will be used. The server will look for the errror pages in the location defined by server_root, if it was defined. Otherwise, it will be interpreted as an absolute path.
 
 #### Location-context directives
 
@@ -163,7 +171,7 @@ Mandatory directive for all location contexts. Currently supported methods: POST
 
 ##### root
 
-Mandatory directive. NOTE: might remove this requirement if there's a redirection.
+Mandatory directive. Exceptions: if the location contains a 'proxy_pass' or 'alias' directive, as well.
 It is used to define where on the server are the files located.
 
 For example, a client is trying to visit www.example.com/daily_news/highscore.html
@@ -219,7 +227,7 @@ In this case, requests will be redirected to an entirely different server. This 
 
 ##### cgi_pass
 
-This redirection is used for cgi scripts
+This redirection is used for cgi scripts. The path that is its value must start with '/'
 
 + a location context may also contain redirections:
 	
