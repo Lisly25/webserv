@@ -97,44 +97,38 @@ bool Request::RequestValidator::isPathValid() const
 {
     std::string relativeUri = _request._requestData.uri;
 
-    if (_request._location->type == ALIAS)
-    {
+    auto handleAlias = [&]() -> bool {
         if (relativeUri.find(_request._location->uri) == 0)
             relativeUri = relativeUri.substr(_request._location->uri.length());
-
         if (!relativeUri.empty() && relativeUri.front() != '/')
             relativeUri = "/" + relativeUri;
-
         std::string fullPath = _request._location->target + relativeUri;
         fullPath = std::filesystem::absolute(fullPath).generic_string();
-
         std::cout << "Alias fullPath: " << fullPath << std::endl;
-
         if (!checkForIndexing(fullPath))
             return false;
-        _request._requestData.uri = fullPath;
 
+        _request._requestData.uri = fullPath;
         return std::filesystem::exists(fullPath);
-    }
-    else // Handle normal root case
-    {
+    };
+
+    auto handleRoot = [&]() -> bool {
         if (relativeUri.find(_request._location->uri) == 0)
             relativeUri = relativeUri.substr(_request._location->uri.length());
-
         if (!relativeUri.empty() && relativeUri.front() != '/')
             relativeUri = "/" + relativeUri;
-
-        std::string fullPath = _request._location->root + relativeUri;
-
+        std::string fullPath = _request._location->root + _request._location->uri + relativeUri;
         if (!checkForIndexing(fullPath))
             return false;
-
         fullPath = std::filesystem::absolute(fullPath).generic_string();
         std::cout << "Checking fullPath: " << fullPath << std::endl;
-
         _request._requestData.uri = fullPath;
         return std::filesystem::exists(fullPath);
-    }
+    };
+    if (_request._location->type == ALIAS)
+        return handleAlias();
+    else
+        return handleRoot();
 }
 
 
