@@ -39,6 +39,7 @@ bool Request::RequestValidator::validate() const
                         }
 
                     }
+                    std::cout << "ERROR CODE VALIDATION: " << _request._errorCode << std::endl;
                     return true;
                 }
             }
@@ -143,13 +144,20 @@ bool Request::RequestValidator::isPathValid() const
             return std::filesystem::exists(fullPath);
         };
 
-        auto handleCGIPass = [&]() -> bool {
-            std::string fullPath = "." + _request._location->target;
+             auto handleCGIPass = [&]() -> bool {
+            std::string fullPath = _request._location->target;
+            std::string::size_type queryPos = fullPath.find('?');
+            if (queryPos != std::string::npos) {
+                fullPath = fullPath.substr(0, queryPos);
+            }
+            fullPath = "." + fullPath;
             fullPath = std::filesystem::absolute(fullPath).generic_string();
             std::cout << "CGI fullPath: " << fullPath << std::endl;
             _request._requestData.uri = fullPath;
             return std::filesystem::exists(fullPath);
         };
+
+
 
         if (_request._location->type == ALIAS)
             return handleAlias();

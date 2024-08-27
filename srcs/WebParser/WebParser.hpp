@@ -51,7 +51,7 @@ public:
     const std::string         &getProxyPass() const;
     const std::string         &getCgiPass() const;
     const std::vector<Server> &getServers() const;
-    static std::string               getErrorPage(int errorCode, Server server);
+    static std::string               getErrorPage(int errorCode, const Server *server);
 
     //for testing:
     void                        printParsedInfo(void);

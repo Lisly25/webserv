@@ -49,6 +49,9 @@ std::string Response::generate(const Request &request)
         else if (request.getLocation()->type == LocationType::CGI)
         {
             std::cout << "CGI PASSING" << std::endl;
+                    std::cout << request.getRequestData().query_string << std::endl;
+        std::cout << request.getRequestData().query_string << std::endl;
+        std::cout << request.getRequestData().query_string << std::endl;
             // handleCGI(request, response);
             CGIHandler cgi = CGIHandler(request);
             response = cgi.getCGIResponse();
