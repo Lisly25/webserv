@@ -65,6 +65,9 @@ void Request::parseRequestLine(const std::string& requestLine)
             _requestData.query_string = _requestData.uri.substr(queryPos + 1);
             _requestData.uri = _requestData.uri.substr(0, queryPos);
         }
+        std::cout << _requestData.query_string << std::endl;
+        std::cout << _requestData.query_string << std::endl;
+        std::cout << _requestData.query_string << std::endl;
     }
     catch (const std::exception& e)
     {

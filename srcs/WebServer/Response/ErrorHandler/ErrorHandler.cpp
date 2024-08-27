@@ -9,7 +9,7 @@ void ErrorHandler::handleError(std::string& response) const
 {
     int errorCode = _request.getErrorCode();
     std::string errorMessage = getErrorMessage(errorCode);
-    std::string errorPage = WebParser::getErrorPage(errorCode, *_request.getServer());
+    std::string errorPage = WebParser::getErrorPage(errorCode, _request.getServer());
 
     response = "HTTP/1.1 " + std::to_string(errorCode) + " " + errorMessage + "\r\n";
     response += "Content-Type: text/html\r\n";

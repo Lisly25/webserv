@@ -249,12 +249,12 @@ int     WebParser::getErrorCode(std::string line)
 }
 
 //Returns an empty string if no page is found / can't access() the page
-std::string   WebParser::getErrorPage(int errorCode, Server server)
+std::string   WebParser::getErrorPage(int errorCode, const Server *server)
 {
     std::string errorPage;
     try
     {
-        errorPage = server.error_page.at(errorCode);
+        errorPage = server->error_page.at(errorCode);
     }
     catch(const std::out_of_range& e)
     {

@@ -40,6 +40,7 @@ bool Request::RequestValidator::validate() const
                         }
 
                     }
+                    std::cout << "ERROR CODE VALIDATION: " << _request._errorCode << std::endl;
                     return true;
                 }
             }
@@ -146,12 +147,13 @@ bool Request::RequestValidator::isPathValid() const
 
         auto handleCGIPass = [&]() -> bool {
             std::string fullPath = "." + _request._location->target;
-            std::cout << "\033[31mCGI fullPath w/o absolute: \033[0m" << fullPath << std::endl;
             fullPath = std::filesystem::canonical(fullPath).generic_string();
             std::cout << "CGI fullPath: " << fullPath << std::endl;
             _request._requestData.uri = fullPath;
-            return true;//std::filesystem::exists(fullPath);
+            return std::filesystem::exists(fullPath);
         };
+
+
 
         if (_request._location->type == ALIAS)
             return handleAlias();
