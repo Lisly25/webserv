@@ -573,7 +573,7 @@ std::string WebParser::extractRoot(size_t contextStart, size_t contextEnd) const
         if (locateDirective(contextStart, contextEnd, "alias") != 0 || locateDirective(contextStart, contextEnd, "proxy_pass") != 0
             || locateDirective(contextStart, contextEnd, "cgi_pass") != 0)
             return ("");
-        throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts that do not contain 'proxy_pass' or 'alias' directives");
+        throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts that do not contain 'proxy_pass', 'cgi_pass' or 'alias' directives");
     }
     
     std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
