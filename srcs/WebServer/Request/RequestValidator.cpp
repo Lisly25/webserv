@@ -20,10 +20,11 @@ bool Request::RequestValidator::validate() const
 
                     if (_request._location->type != PROXY)
                     {
-                        if (!isValidMethod())
-                        {
-                            _request._errorCode = INVALID_METHOD;
-                        }
+                        /*if (!isValidMethod())*/
+                        /*{*/
+                        /*    std::cout << "here1\n";*/
+                        /*    _request._errorCode = INVALID_METHOD;*/
+                        /*}*/
                         if (!isPathValid())
                         {
                             _request._errorCode = NOT_FOUND;
@@ -145,10 +146,11 @@ bool Request::RequestValidator::isPathValid() const
 
         auto handleCGIPass = [&]() -> bool {
             std::string fullPath = "." + _request._location->target;
-            fullPath = std::filesystem::absolute(fullPath).generic_string();
+            std::cout << "\033[31mCGI fullPath w/o absolute: \033[0m" << fullPath << std::endl;
+            fullPath = std::filesystem::canonical(fullPath).generic_string();
             std::cout << "CGI fullPath: " << fullPath << std::endl;
             _request._requestData.uri = fullPath;
-            return std::filesystem::exists(fullPath);
+            return true;//std::filesystem::exists(fullPath);
         };
 
         if (_request._location->type == ALIAS)
