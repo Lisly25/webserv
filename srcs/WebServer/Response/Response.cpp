@@ -50,8 +50,6 @@ std::string Response::generate(const Request &request)
         {
             std::cout << "CGI PASSING" << std::endl;
             std::cout << request.getRequestData().query_string << std::endl;
-            std::cout << request.getRequestData().query_string << std::endl;
-            std::cout << request.getRequestData().query_string << std::endl;
             CGIHandler cgi = CGIHandler(request);
             response = cgi.getCGIResponse();
             std::cout << "\033[31mresponse from CGI: \033[0m" << response << std::endl;

@@ -145,14 +145,14 @@ bool Request::RequestValidator::isPathValid() const
             return std::filesystem::exists(fullPath);
         };
 
-             auto handleCGIPass = [&]() -> bool {
-            std::string fullPath = _request._location->target;
+        auto handleCGIPass = [&]() -> bool {
+            std::cout << "\033[31mCGI fullPath w/o absolute: \033[0m" << fullPath << std::endl;
             std::string::size_type queryPos = fullPath.find('?');
             if (queryPos != std::string::npos) {
                 fullPath = fullPath.substr(0, queryPos);
             }
             fullPath = "." + fullPath;
-            fullPath = std::filesystem::absolute(fullPath).generic_string();
+            fullPath = std::filesystem::canonical(fullPath).generic_string();
             std::cout << "CGI fullPath: " << fullPath << std::endl;
             _request._requestData.uri = fullPath;
             return std::filesystem::exists(fullPath);
