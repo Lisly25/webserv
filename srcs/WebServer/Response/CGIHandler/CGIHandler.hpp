@@ -23,8 +23,8 @@
 
 
 #define PIPES 2
-#define WRITEND 0
-#define READEND 1
+#define WRITEND 1
+#define READEND 0
 #define CODE404 "404"
 #define CODE500 "500"
 #define PYTHON3 "/bin/python3"

@@ -39,7 +39,7 @@ std::string Response::generate(const Request &request)
         std::string response;
         if (request.getErrorCode() != 0)
         {
-//            std::cout << "\033[31mCGI NOT going to RUN\033[0m\n";
+            std::cout << "\033[31mCGI NOT going to RUN\033[0m\n";
             ErrorHandler(request).handleError(response);
         }
         else if (request.getLocation()->type == LocationType::PROXY)
@@ -49,12 +49,12 @@ std::string Response::generate(const Request &request)
         else if (request.getLocation()->type == LocationType::CGI)
         {
             std::cout << "CGI PASSING" << std::endl;
-                    std::cout << request.getRequestData().query_string << std::endl;
-        std::cout << request.getRequestData().query_string << std::endl;
-        std::cout << request.getRequestData().query_string << std::endl;
-            // handleCGI(request, response);
+            std::cout << request.getRequestData().query_string << std::endl;
+            std::cout << request.getRequestData().query_string << std::endl;
+            std::cout << request.getRequestData().query_string << std::endl;
             CGIHandler cgi = CGIHandler(request);
             response = cgi.getCGIResponse();
+            std::cout << "\033[31mresponse from CGI: \033[0m" << response << std::endl;
         }
         else if (request.getLocation()->type == LocationType::STANDARD
             || request.getLocation()->type == LocationType::ALIAS)

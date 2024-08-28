@@ -20,10 +20,11 @@ bool Request::RequestValidator::validate() const
 
                     if (_request._location->type != PROXY)
                     {
-                        if (!isValidMethod())
-                        {
-                            _request._errorCode = INVALID_METHOD;
-                        }
+                        /*if (!isValidMethod())*/
+                        /*{*/
+                        /*    std::cout << "here1\n";*/
+                        /*    _request._errorCode = INVALID_METHOD;*/
+                        /*}*/
                         if (!isPathValid())
                         {
                             _request._errorCode = NOT_FOUND;
