@@ -146,6 +146,7 @@ bool Request::RequestValidator::isPathValid() const
         };
 
         auto handleCGIPass = [&]() -> bool {
+            std::string fullPath = _request._location->target;
             std::string::size_type queryPos = fullPath.find('?');
             if (queryPos != std::string::npos) {
                 fullPath = fullPath.substr(0, queryPos);
