@@ -133,7 +133,7 @@ void Request::setContentTypeAndLength()
         _requestData.content_type = _requestData.headers["Content-Type"];
         if (_requestData.headers.find("Content-Length") != _requestData.headers.end())
         {
-            _requestData.content_length = std::stoi(_requestData.headers["Content-Length"]);
+            _requestData.content_length = _requestData.headers["Content-Length"];
         }
     }
     catch (const std::exception& e)

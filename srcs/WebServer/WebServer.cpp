@@ -226,6 +226,8 @@ void WebServer::handleIncomingData(int clientSocket)
             bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
             if (bytesRead <= 0)
             {
+                if (bytesRead < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+                    continue;
                 if (bytesRead == 0)
                     throw std::runtime_error("Client closed connection");
                 throw std::runtime_error("Error reading request from client");
