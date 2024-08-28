@@ -9,7 +9,7 @@ CGIHandler::CGIHandler(const Request& request) : _request(request), _response(""
     std::cout << "\033[31mIN CGI: going to RUN IT\033[0m\n";
     std::cout << "\033[37mWITH: " << _path << "\033[0m\n";
     std::cout << "\033[37mWITH METHOD: " << reqData.method << "\033[0m\n";
-    std::cout << "\033[37mWITH QUERY_STRING: " << reqData.query_string << "\033[0m\n";
+    std::cout << "\033[37mWITH CONTENT_LENGTH: " << reqData.content_length << "\033[0m\n";
     executeScript();
 };
 
@@ -59,7 +59,7 @@ void    CGIHandler::setEnvp( char const *envp[] )
     std::string 	        query;
     RequestData reqData = _request.getRequestData();
 
-    env[0] = "REQUEST_METHOD=DELETE";
+    env[0] = "REQUEST_METHOD=" + reqData.method;
     env[1] = "QUERY_STRING=" + reqData.query_string;
     env[2] = "CONTENT_TYPE=" + reqData.content_type;
     env[3] = "CONTENT_LENGTH=" + reqData.content_length;
