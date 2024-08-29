@@ -40,24 +40,32 @@ std::string ProxyHandler::modifyRequestForProxy()
     try
     {
         std::string modifiedRequest = _request.getRawRequest();
-        size_t hostPos = modifiedRequest.find("Host: ");
 
-        if (hostPos != std::string::npos)
-        {
-            size_t hostEnd = modifiedRequest.find("\r\n", hostPos);
-            if (hostEnd != std::string::npos)
-                modifiedRequest.replace(hostPos + 6, hostEnd - (hostPos + 6), proxyHost);
-        }
-        std::string locationUri = _request.getLocation()->uri;
-        size_t uriPos = modifiedRequest.find(locationUri);
-        if (uriPos != std::string::npos && locationUri != "/")
-        {
-            std::string newUri = modifiedRequest.substr(uriPos + locationUri.length());
-            if (newUri.empty() || newUri[0] != '/')
-                newUri = "/" + newUri;
-            modifiedRequest.replace(uriPos, modifiedRequest.find(" ", uriPos) - uriPos, newUri);
-            //std::cout << "Modified request: " << modifiedRequest << std::endl;
-        }
+        auto replaceHostHeader = [&](const std::string& newHost) {
+            size_t hostPos = modifiedRequest.find("Host: ");
+            if (hostPos != std::string::npos)
+            {
+                size_t hostEnd = modifiedRequest.find("\r\n", hostPos);
+                if (hostEnd != std::string::npos)
+                    modifiedRequest.replace(hostPos + 6, hostEnd - (hostPos + 6), newHost);
+            }
+        };
+
+        auto modifyUri = [&]() {
+            std::string locationUri = _request.getLocation()->uri;
+            size_t uriPos = modifiedRequest.find(locationUri);
+            if (uriPos != std::string::npos && locationUri != "/")
+            {
+                std::string newUri = modifiedRequest.substr(uriPos + locationUri.length());
+                if (newUri.empty() || newUri[0] != '/')
+                    newUri = "/" + newUri;
+                modifiedRequest.replace(uriPos, modifiedRequest.find(" ", uriPos) - uriPos, newUri);
+            }
+        };
+
+        replaceHostHeader(proxyHost);
+        modifyUri();
+
         return modifiedRequest;
     }
     catch (const std::exception &e)
@@ -65,9 +73,6 @@ std::string ProxyHandler::modifyRequestForProxy()
         throw;
     }
 }
-
-
-
 
 void ProxyHandler::passRequest(std::string &response)
 {
@@ -77,8 +82,6 @@ void ProxyHandler::passRequest(std::string &response)
         char        buffer[8192];
         ssize_t     bytesRead = 0;
 
-        //std::cout << "Sending request to proxy: " << proxyHost << std::endl;
-        //std::cout << "Request: " << modifiedRequest << std::endl;
         if (send(proxySocket.getFd(), modifiedRequest.c_str(), modifiedRequest.length(), 0) < 0)
             throw WebErrors::ProxyException("Error sending to proxy server");
 
@@ -88,17 +91,13 @@ void ProxyHandler::passRequest(std::string &response)
             if (bytesRead > 0)
             {
                 response.append(buffer, bytesRead);
-                //std::cout << "Received response from proxy: " << proxyHost << "\n" ;
             }
             else if (bytesRead == 0)
-            {
-               // std::cout << "Proxy server closed the connection." << std::endl;
                 break;
-            }
             else if (bytesRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
                 throw WebErrors::ProxyException("Error reading from proxy server");
         }
-        //std::cout << "Final received data from proxy: " << proxyHost << "  " << response << std::endl;
+        std::cout << "Final received data from proxy: " << proxyHost << "  " << response << std::endl;
     }
     catch (const std::exception &e)
     {
