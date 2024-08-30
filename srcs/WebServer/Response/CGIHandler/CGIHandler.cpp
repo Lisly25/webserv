@@ -36,6 +36,7 @@ void CGIHandler::executeScript(void)
 
 void CGIHandler::child(void)
 {
+    std::ofstream logFile("cgi_error.log", std::ios::app);
     try
     {
         char const *argv[] = {PYTHON3, _path.c_str(), NULL};
@@ -53,25 +54,35 @@ void CGIHandler::child(void)
         childSetEnvp(envp);
         execve(PYTHON3, (char *const *)argv, (char *const *)envp);
 
-        std::cerr << "CGI: child execve failed.\n";
+        logFile << "CGI: child execve failed.\n";
         exit(EXIT_FAILURE);
     }
     catch (const std::exception &e)
     {
-        std::cerr << "CGI: Error in child process: " << e.what() << std::endl;
+        logFile << "CGI: Error in child process: " << e.what() << std::endl;
         exit(EXIT_FAILURE);
     }
 }
 
 void CGIHandler::parent(pid_t pid)
 {
+    std::ofstream logFile("cgi_error.log", std::ios::app);
     try
     {
-        char    buffer[4096];
-        int     bytes;
+        char buffer[4096];
+        int bytes;
+        size_t totalBytesWritten = 0;
+        size_t totalBytesRead = 0;
 
         close(_input_pipe[READEND]);
-        write(_input_pipe[WRITEND], _request.getRequestData().body.c_str(), _request.getRequestData().body.size());
+        size_t bodySize = _request.getRequestData().body.size();
+        logFile << "CGI: Body size to be written: " << bodySize << " bytes." << std::endl;
+        ssize_t written = write(_input_pipe[WRITEND], _request.getRequestData().body.c_str(), bodySize);
+        if (written == -1 || static_cast<size_t>(written) != bodySize) {
+            throw std::runtime_error("Failed to write complete CGI input pipe data.");
+        }
+        totalBytesWritten += bodySize;
+        logFile << "CGI: Total bytes written: " << totalBytesWritten << " bytes." << std::endl;
         close(_input_pipe[WRITEND]);
         close(_output_pipe[WRITEND]);
 
@@ -79,19 +90,25 @@ void CGIHandler::parent(pid_t pid)
         {
             throw std::runtime_error("CGI process timed out.");
         }
+
         while ((bytes = read(_output_pipe[READEND], buffer, sizeof(buffer))) > 0)
         {
+            totalBytesRead += bytes;
             _response.append(buffer, bytes);
         }
+        logFile << "CGI: Total bytes read: " << totalBytesRead << " bytes." << std::endl;
+
         if (bytes == -1)
         {
             throw std::runtime_error("Failed to read CGI output.");
         }
+
         close(_output_pipe[READEND]);
     }
     catch (const std::exception &e)
     {
-       throw ;
+        logFile << "CGI: Error in parent process: " << e.what() << std::endl;
+        _response = WebParser::getErrorPage(500, _request.getServer());
     }
 }
 
