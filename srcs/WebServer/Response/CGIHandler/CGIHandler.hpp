@@ -44,9 +44,9 @@ class   CGIHandler
         int              _input_pipe[PIPES];
 
         bool            validateExecutable( void );
-        bool            waitForChild(pid_t pid);
+        bool            parentWaitForChild(pid_t pid);
         void            executeScript( void );
         void            child( void );
         void            parent( pid_t pid );
-        void            setEnvp( char const *envp[] );
+        void            childSetEnvp( char const *envp[] );
 };

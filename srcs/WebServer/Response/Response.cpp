@@ -26,16 +26,8 @@ Response::Response(const Request &request)
 std::string Response::generate(const Request &request)
 {
     try {
-            std::cout << "\033[35mURI: \033[0m" << request.getRequestData().uri << std::endl;
-            std::cout << "\033[35mTARGET: \033[0m" << request.getLocation()->target << std::endl;
-            /*std::cout << request.getRequestData().uri << std::endl;*/
-            /*std::cout << request.getRequestData().uri << std::endl;*/
-            /*std::cout << request.getRequestData().uri << std::endl;*/
-        
-        std::cout << "Location type: " << request.getLocation()->type << std::endl;
-                /*std::cout << "Location type: " << request.getLocation()->type << std::endl;*/
-                /*        std::cout << "Location type: " << request.getLocation()->type << std::endl;*/
-                /*                std::cout << "Location type: " << request.getLocation()->type << std::endl;*/
+        std::cout << "\033[35mURI: \033[0m" << request.getRequestData().uri << std::endl;
+        std::cout << "\033[35mTARGET: \033[0m" << request.getLocation()->target << std::endl;
         std::string response;
         if (request.getErrorCode() != 0)
         {
@@ -44,11 +36,11 @@ std::string Response::generate(const Request &request)
         }
         else if (request.getLocation()->type == LocationType::PROXY)
         {
+            std::cout << "\033[31mPROXY going to RUN\033[0m\n";
             ProxyHandler(request).passRequest(response);
         }
         else if (request.getLocation()->type == LocationType::CGI)
         {
-            std::cout << "CGI PASSING" << std::endl;
             std::cout << request.getRequestData().query_string << std::endl;
             CGIHandler cgi = CGIHandler(request);
             response = cgi.getCGIResponse();
@@ -57,9 +49,8 @@ std::string Response::generate(const Request &request)
         else if (request.getLocation()->type == LocationType::STANDARD
             || request.getLocation()->type == LocationType::ALIAS)
         {
-            std::cout << "Static file handler" << std::endl;
+            std::cout << "\033[31mSTATIC going to RUN\033[0m\n";
             StaticFileHandler(request).serveFile(response);
-            //std::cout << response << std::endl;
         }
         return response;
     }
