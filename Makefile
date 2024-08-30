@@ -8,7 +8,6 @@ NAME = webserv
 DOCKER_COMPOSE_FILE := ./docker-services/docker-compose.yml
 
 CGI_TESTS_DIR = ~/HIVE/webserv/tests/cgi-tests
-TAR_FILE = $(CGI_TESTS_DIR)/POST-EXAMPLES.tar.gz
 
 all: $(NAME)
 
@@ -23,12 +22,13 @@ clean: down
 
 fclean: clean
 	$(RM) $(NAME)
-	find $(CGI_TESTS_DIR) -type f ! -name 'POST-EXAMPLES.tar.gz' -delete
+	find $(CGI_TESTS_DIR) -type f ! -name 'POST-EXAMPLES.tar.gz.part*' -delete
 
 re: fclean $(NAME)
 
 run-cgi-tests:
-	tar -xzvf $(TAR_FILE) -C $(CGI_TESTS_DIR)
+	cat  $(CGI_TESTS_DIR)/POST-EXAMPLES.tar.gz.part-* > $(CGI_TESTS_DIR)/POST-EXAMPLES.tar.gz
+	tar -xzvf $(CGI_TESTS_DIR)/POST-EXAMPLES.tar.gz -C $(CGI_TESTS_DIR)
 	./tests/CGI-POST-DELETE-TEST.sh
 
 # TESTS ----

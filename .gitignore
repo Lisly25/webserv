@@ -9,7 +9,7 @@ docker-services/*
 
 # Ignore everything in the tests but not the *.conf and the tar
 tests/cgi-tests/*
-!/tests/cgi-tests/*.gz
+!/tests/cgi-tests/*.gz.part*
 !/tests/*.gz
 !/tests/*.py
 !/tests/*.conf
