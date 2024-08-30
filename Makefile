@@ -6,8 +6,9 @@ CPPFLAGS = -Wall -Wextra -Werror -std=c++17 -pedantic $(addprefix -I, $(shell fi
 NAME = webserv
 
 DOCKER_COMPOSE_FILE := ./docker-services/docker-compose.yml
-TESTS_DIR := ./tests
-TARBALL := $(TESTS_DIR)/tests_binaries.tar.gz
+
+CGI_TESTS_DIR = ~/HIVE/webserv/tests/cgi-tests
+TAR_FILE = $(CGI_TESTS_DIR)/POST-EXAMPLES.tar.gz
 
 all: $(NAME)
 
@@ -22,9 +23,13 @@ clean: down
 
 fclean: clean
 	$(RM) $(NAME)
-	$(RM) -r $(TESTS_DIR)/cgi_tester $(TESTS_DIR)/tester $(TESTS_DIR)/ubuntu_cgi_tester $(TESTS_DIR)/ubuntu_tester
+	find $(CGI_TESTS_DIR) -type f ! -name 'POST-EXAMPLES.tar.gz' -delete
 
 re: fclean $(NAME)
+
+run-cgi-tests:
+	tar -xzvf $(TAR_FILE) -C $(CGI_TESTS_DIR)
+	./tests/CGI-POST-DELETE-TEST.sh
 
 # TESTS ----
 
@@ -40,18 +45,9 @@ up:
 down:
 	@docker compose -f $(DOCKER_COMPOSE_FILE) down
 
-unpack-test: $(TARBALL)
-	tar -xvzf $(TARBALL) -C $(TESTS_DIR)
 
 conf-parse-test:
 	c++ -Wall -Wextra -Werror -std=c++17 -ggdb3 srcs/WebErrors/WebErrors.cpp srcs/WebParser/WebParser.cpp srcs/config_parse_test_main.cpp -I srcs/WebErrors -lstdc++fs -o parseTest
 
-flask-run-debug:
-	cd fun_facts && ./setup.sh
-	@echo "Starting Flask server... access it from localhost:8085"
-
-flask-clean:
-	@echo "Cleaning python venv..."
-	rm -rf ./fun_facts/venv ./fun_facts/__pycache__
 
 .PHONY: all clean fclean re proxy-pass-test up down unpack-test conf-parse-test
