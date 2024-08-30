@@ -149,13 +149,13 @@ void WebServer::epollController(int clientSocket, int operation, uint32_t events
     }
 }
 
-void WebServer::acceptAddClient(int serverSocketFd)
+void WebServer::acceptAddClientToEpoll(int clientSocketFd)
 {
     try
     {
         struct sockaddr_in  clientAddr;
         socklen_t           clientLen = sizeof(clientAddr);
-        ScopedSocket        clientSocket(accept(serverSocketFd, (struct sockaddr *)&clientAddr, &clientLen), O_NONBLOCK | FD_CLOEXEC);
+        ScopedSocket        clientSocket(accept(clientSocketFd, (struct sockaddr *)&clientAddr, &clientLen), 0);
 
         if (clientSocket.getFd() < 0)
             throw std::runtime_error("Error accepting client connection");
@@ -224,23 +224,20 @@ void WebServer::handleIncomingData(int clientSocket)
         while (totalBytes == -1 || totalRequest.length() < static_cast<size_t>(totalBytes))
         {
             bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
-            if (bytesRead <= 0)
+            if (bytesRead > 0)
             {
-                if (bytesRead < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
-                    continue;
-                if (bytesRead == 0)
-                    throw std::runtime_error("Client closed connection");
-                throw std::runtime_error("Error reading request from client");
+                totalRequest.append(buffer, bytesRead);
+                if (totalBytes == -1)
+                    totalBytes = getRequestTotalLength(totalRequest);
             }
-
-            totalRequest.append(buffer, bytesRead);
-
-            if (totalBytes == -1)
-                totalBytes = getRequestTotalLength(totalRequest);
+            else if (bytesRead == 0)
+                throw std::runtime_error("Client closed connection");
+            else if (bytesRead == -1)
+                throw std::runtime_error("Error reading from client");
         }
+
         if (!totalRequest.empty())
         {
-            //std::cout << "RAW REQUEST -> " << totalRequest << std::endl;
             _requestMap[clientSocket] = Request(totalRequest, _parser.getServers(), _proxyInfoMap);
             epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT);
         }
@@ -256,7 +253,6 @@ void WebServer::handleIncomingData(int clientSocket)
     }
 }
 
-
 void WebServer::handleOutgoingData(int clientSocket)
 {
     try
@@ -266,8 +262,8 @@ void WebServer::handleOutgoingData(int clientSocket)
         {
             const Request &request = it->second;
             Response res(request);
-            //std::cout << "Response -> " << res.getResponse() << std::endl;
-            int bytesSent = send(clientSocket, res.getResponse().c_str(), res.getResponse().length(), 0);
+            const int bytesSent = send(clientSocket, res.getResponse().c_str(), res.getResponse().length(), 0);
+
             if (bytesSent == -1)
             {
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
@@ -275,7 +271,6 @@ void WebServer::handleOutgoingData(int clientSocket)
             }
             else
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
-            // std::cout << "Response sent to client " << res.getResponse() << std::endl;
         }
         _requestMap.erase(it);
     }
@@ -289,7 +284,6 @@ void WebServer::handleOutgoingData(int clientSocket)
         throw;
     }
 }
-
 
 void WebServer::handleEvents(int eventCount)
 {
@@ -306,8 +300,7 @@ void WebServer::handleEvents(int eventCount)
 
             if (getCorrectServerSocket(fd))
             {
-                fcntl(fd, F_SETFL, O_NONBLOCK | FD_CLOEXEC);
-                acceptAddClient(fd);
+                acceptAddClientToEpoll(fd);
             }
             else
             {

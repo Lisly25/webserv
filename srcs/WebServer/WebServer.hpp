@@ -42,7 +42,7 @@ private:
     void                        setSocketFlags(int socket);
     void                        addClientSocket(int clientSocket);
     void                        handleEvents(int eventCount);
-    void                        acceptAddClient(int serverSocketFd);
+    void                        acceptAddClientToEpoll(int serverSocketFd);
 
     void                        handleOutgoingData(int clientSocket); // send()
     void                        handleIncomingData(int clientSocket); // recv()
