@@ -21,7 +21,6 @@
 #include <sys/wait.h>
 #include "Request.hpp"
 
-
 #define PIPES 2
 #define WRITEND 1
 #define READEND 0
@@ -29,21 +28,25 @@
 #define CODE500 "500"
 #define PYTHON3 "/bin/python3"
 #define ERROR "\033[31ERROR: \033[0"
+
 class   CGIHandler
 {
     public:
         CGIHandler(const Request& request);
-//        ~CGIHandler() = delete;
+        ~CGIHandler() = default;
 
-        std::string    getCGIResponse( void ) const;
+        std::string      getCGIResponse( void ) const;
     private:
-        const Request&            _request;
-        std::string        _response;
-        std::string         _path;
-        int                 _pipe[PIPES];
-        bool    validateExecutable( void );
-        void    executeScript( void );
-        void    child( void );
-        void    parent( pid_t pid );
-        void    setEnvp( char const *envp[] );
+        const Request&   _request;
+        std::string      _response;
+        std::string      _path;
+        int              _output_pipe[PIPES];
+        int              _input_pipe[PIPES];
+
+        bool            validateExecutable( void );
+        bool            waitForChild(pid_t pid);
+        void            executeScript( void );
+        void            child( void );
+        void            parent( pid_t pid );
+        void            setEnvp( char const *envp[] );
 };
