@@ -1,6 +1,7 @@
 import os
-import cgi
 import urllib.parse
+
+uploads_dir = os.path.join(os.getcwd(), "uploads")
 
 print("Content-Type: text/plain")
 print()
@@ -8,19 +9,23 @@ print()
 if os.environ.get('REQUEST_METHOD') == 'DELETE':
     query_string = os.environ.get('QUERY_STRING', '')
 
-    print(f"Requested file path: {query_string}")
-
     if query_string:
-        if os.path.exists(query_string):
-            try:
-                os.remove(query_string)
-                print(f"File '{query_string}' deleted successfully.")
-            except OSError as e:
-                print(f"Error: {e.strerror}. File '{query_string}' not deleted.")
+        file_name = urllib.parse.unquote(query_string)
+
+        target_path = os.path.abspath(os.path.join(uploads_dir, file_name))
+
+        if os.path.commonprefix([target_path, uploads_dir]) == uploads_dir:
+            if os.path.exists(target_path):
+                try:
+                    os.remove(target_path)
+                    print(f"File '{file_name}' deleted successfully.")
+                except OSError as e:
+                    print(f"Error: {e.strerror}. File '{file_name}' not deleted.")
+            else:
+                print(f"Error: File '{file_name}' does not exist.")
         else:
-            print(f"Error: File '{query_string}' does not exist.")
+            print("Error: Unauthorized file path.")
     else:
         print("Error: File path not provided.")
 else:
     print("Error: Only DELETE method is supported.")
-

@@ -17,8 +17,8 @@ upload_file() {
 
 delete_file() {
     local filename="$1"
-    echo "Deleting $filename..."
-    curl -X DELETE "$SERVER_URL/delete/\?uploads/$filename"
+    echo "Sending Delete for $filename..."
+    curl -X DELETE "$SERVER_URL/delete/?$filename"
 }
 
 main ()
