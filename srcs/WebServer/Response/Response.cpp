@@ -29,6 +29,9 @@ std::string Response::generate(const Request &request)
         std::cout << "\033[35mURI: \033[0m" << request.getRequestData().uri << std::endl;
         std::cout << "\033[35mTARGET: \033[0m" << request.getLocation()->target << std::endl;
         std::string response;
+
+        std::cout << "RAW REQUEST: " << request.getRequestData() << std::endl;
+        std::cout << "\033[31mRequest: \033[0m" << request.getRequestData().body << std::endl;
         if (request.getErrorCode() != 0)
         {
             std::cout << "\033[31mCGI NOT going to RUN\033[0m\n";
@@ -52,10 +55,12 @@ std::string Response::generate(const Request &request)
             std::cout << "\033[31mSTATIC going to RUN\033[0m\n";
             StaticFileHandler(request).serveFile(response);
         }
+        std::cout << "\033[31mResponse: \033[0m" << response << std::endl;
         return response;
     }
     catch (const std::exception &e)
     {
+        std::cout << "\033[31mError in Response::generate\033[0m\n";
         throw ;
     }
 }

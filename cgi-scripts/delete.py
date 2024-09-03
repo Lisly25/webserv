@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import urllib.parse
 
@@ -8,10 +10,11 @@ print()
 
 if os.environ.get('REQUEST_METHOD') == 'DELETE':
     query_string = os.environ.get('QUERY_STRING', '')
+    params = urllib.parse.parse_qs(query_string)
+    file_name = params.get('filename', [None])[0]
 
-    if query_string:
-        file_name = urllib.parse.unquote(query_string)
-
+    if file_name:
+        file_name = urllib.parse.unquote(file_name)
         target_path = os.path.abspath(os.path.join(uploads_dir, file_name))
 
         if os.path.commonprefix([target_path, uploads_dir]) == uploads_dir:

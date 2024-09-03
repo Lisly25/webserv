@@ -18,17 +18,15 @@ upload_file() {
 delete_file() {
     local filename="$1"
     echo "Sending Delete for $filename..."
-    curl -X DELETE "$SERVER_URL/delete/?$filename"
+    curl -X DELETE "$SERVER_URL/delete/?filename=$filename"
 }
 
-main ()
-{
-    # Upload the files
-    find "$TESTS_DIR" -type f ! -name 'POST-EXAMPLES.tar.gz' | while read -r file; do
+main () {
+    find "$TESTS_DIR" -type f ! -name '*.tar.gz*' | while read -r file; do
         upload_file "$file" &
     done
 
-    wait 
+    wait
 
     sleep 3
 
@@ -36,7 +34,7 @@ main ()
 
     # Remove the files posted
     for file in "$UPLOAD_DIR"/*; do
-        if [ -f "$file" ] && [ "$file" != "$UPLOAD_DIR/POST-EXAMPLES.tar.gz" ]; then
+        if [ -f "$file" ] && [[ "$file" != *.tar.gz ]]; then
             filename=$(basename "$file")
             delete_file "$filename"
         fi

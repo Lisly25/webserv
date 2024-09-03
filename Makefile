@@ -36,6 +36,9 @@ run-cgi-tests:
 proxy-cgi-test: up unpack-test $(NAME)
 	./webserv ./tests/proxy-cgi-test.conf
 
+real-deal-test: up unpack-test $(NAME)
+	./webserv ./tests/real-deal.conf
+
 up:
 	mkdir -p ./docker-services/homer
 	chmod 777 ./docker-services/homer

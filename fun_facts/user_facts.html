@@ -16,8 +16,10 @@
 <body>
     <div id="container">
         <div>
-            <h1>Fun facts submitted by our users:</h1>
-            <p><iframe id="factsFrame" src="/docs/sample_fact.txt" width="800" height="300" frameborder="1"></iframe></p>
+            <h1>Latest Uploaded File Preview:</h1>
+            <div id="filePreview" style="width: 800px; height: 300px; border: 1px solid black; display: flex; justify-content: center; align-items: center;">
+                <p>Loading preview...</p>
+            </div>
         </div>
         <div id="fileList">
             <h1>Uploaded Files:</h1>
@@ -26,21 +28,14 @@
     </div>
     <div>
         <h1>Have a fact you'd like to share? Upload it here:</h1>
-        <form id="uploadForm" action="/install-file" method="post" enctype="multipart/form-data">
+        <form id="uploadForm" method="post" enctype="multipart/form-data">
             <input id="user_fact" type="file" name="user_fact"/>
             <input id="uploadButton" type="submit" value="Upload File"/>
         </form>
-    </div>
-    <div>
-        <h1>Append content to the sample file:</h1>
-        <form id="appendForm" action="/append-content" method="post">
-            <textarea id="appendContent" name="append_content" rows="4" cols="50" placeholder="Enter your fun fact here"></textarea><br>
-            <input id="appendButton" type="submit" value="Append Content"/>
-        </form>
-    </div>
+    </div>    
     <div id="link">
         <h1>For a full list of our users' facts, click </h1>
-        <a id="link" href="/docs/">here</a>
+        <a id="link" href="/list/">here</a>
         <p>Link doesn't work? Make sure autoindex is set to "on" in the configuration file</p>
     </div>
     <div>
@@ -56,72 +51,127 @@
             event.preventDefault();
             
             const formData = new FormData(this);
-            fetch('/install-file', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (response.redirected) {
-                    location.reload();
-                } else {
-                    alert('Error uploading file.');
-                }
-            })
-            .catch(error => alert('Error uploading file: ' + error));
-        });
-
-        document.getElementById('appendForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            
-            const formData = new FormData(this);
-            fetch('/append-content', {
+        
+            fetch('/upload/', {
                 method: 'POST',
                 body: formData
             })
             .then(response => response.text())
             .then(data => {
-                alert('Content appended successfully');
-                document.getElementById('factsFrame').src = '/docs/sample_fact.txt?' + new Date().getTime();
+                alert('File uploaded successfully.');
+                listFiles();
             })
-            .catch(error => alert('Error appending content: ' + error));
-        });
+            .catch(error => alert('Error uploading file: ' + error))
+            .finally(() => {
+                    listFiles();
+                });
 
+        });
+        
+        
+        
         function deleteFile(filename) {
-            fetch(`/docs/${filename}`, { method: 'DELETE' })
-                .then(response => response.json())
+            fetch(`/delete/?filename=${encodeURIComponent(filename)}`, { method: 'DELETE' })
+                .then(response => response.text())
                 .then(data => {
-                    alert(data.message);
-                    if (data.message === 'File deleted successfully') {
-                        location.reload();
-                    }
+                    alert(data.trim());
                 })
-                .catch(error => alert('Error deleting file: ' + error));
+                .catch(error => {
+                    alert('Error deleting file: ' + error);
+                })
+                .finally(() => {
+                    listFiles();
+                });
             return false;
         }
-
+        
         function listFiles() {
-            fetch('/list-files')
-                .then(response => response.json())
-                .then(files => {
+            fetch(`/list/?t=${new Date().getTime()}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(data, 'text/html');
+                    const links = doc.querySelectorAll('a');
+                    
                     const fileList = document.getElementById('files');
                     fileList.innerHTML = ''; 
-                    files.forEach(file => {
+                    
+                    if (links.length > 0) {
+                        const latestFile = links[links.length - 1].textContent;
+                        console.log('Latest file:', latestFile);
+                        showPreview(latestFile);
+                    } else {
+                        document.getElementById('filePreview').innerHTML = '<p>No files uploaded yet.</p>';
+                    }
+                    
+                    links.forEach(link => {
+                        if (link.href.endsWith('/')) return;
+                        
                         const li = document.createElement('li');
-                        li.textContent = file;
+                        li.textContent = link.textContent;
                         
                         const installButton = document.createElement('button');
                         installButton.textContent = 'Install';
                         installButton.onclick = function() {
-                            document.getElementById('factsFrame').src = `/docs/${file}?${new Date().getTime()}`;
+                            const a = document.createElement('a');
+                            a.href = `/list/${link.textContent}`;
+                            a.download = link.textContent;
+                            a.style.display = 'none';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
                         };
                         li.appendChild(installButton);
-
+        
+                        const deleteButton = document.createElement('button');
+                        deleteButton.textContent = 'Delete';
+                        deleteButton.style.marginLeft = '10px';
+                        deleteButton.onclick = function() {
+                            fetch(`/delete/?filename=${encodeURIComponent(link.textContent)}`, { method: 'DELETE' })
+                                .then(response => response.text())
+                                .then(data => {
+                                    alert(data.trim());
+                                    listFiles();
+                                    const remainingFiles = document.querySelectorAll('#files li');
+                                    if (remainingFiles.length > 0) {
+                                        showPreview(remainingFiles[0].textContent);
+                                    } else {
+                                        document.getElementById('filePreview').innerHTML = '<p>No files available for preview.</p>';
+                                    }
+                                })
+                                .catch(error => {
+                                    alert('Error deleting file: ' + error);
+                                })
+                                .finally(() => {
+                                    listFiles();
+                                });
+                        };
+                        li.appendChild(deleteButton);
+        
                         fileList.appendChild(li);
                     });
                 })
                 .catch(error => console.error('Error fetching file list:', error));
         }
-        window.onload = listFiles;
+        
+        function showPreview(fileName) {
+            const filePreview = document.getElementById('filePreview');
+            const imagePath = `/list/${fileName}`;
+            
+            console.log('Image path:', imagePath);
+            
+            filePreview.innerHTML = `<img src="${imagePath}" alt="Image preview" style="max-width: 100%; max-height: 100%;">`;
+        }
+        
+        window.onload = function() {
+            listFiles(); 
+        };
+        
     </script>
 </body>
 </html>

@@ -115,7 +115,6 @@ bool Request::RequestValidator::isPathValid() const
     try
     {
         std::string relativeUri = _request._requestData.uri;
-
         auto handleAlias = [&]() -> bool {
             if (relativeUri.find(_request._location->uri) == 0)
                 relativeUri = relativeUri.substr(_request._location->uri.length());
@@ -128,6 +127,7 @@ bool Request::RequestValidator::isPathValid() const
                 return false;
 
             _request._requestData.uri = fullPath;
+            std::cout << "Checking fullPath: ALIAS " << fullPath << std::endl;
             return std::filesystem::exists(fullPath);
         };
 
