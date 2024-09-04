@@ -5,41 +5,57 @@
 StaticFileHandler::StaticFileHandler(const Request& request) 
     : _request(request) {}
 
-
-
-
 void StaticFileHandler::serveFile(std::string& response)
 {
     const std::string& fullPath = _request.getRequestData().uri;
+    const bool isAutoIndex = std::filesystem::is_directory(fullPath) && _request.getLocation()->autoIndexOn;
+    std::cout << "Serving file at path: " << fullPath << std::endl;
 
-    if (std::filesystem::exists(fullPath) && fullPath == "/fun_facts/index.html") {
-        handleCookies(_request, response);
+    auto appendHeaders = [&](const std::string& status, const std::string& mimeType, size_t contentLength) {
+        response += "HTTP/1.1 " + status + "\r\n";
+        response += "Content-Type: " + mimeType + "\r\n";
+        response += "Content-Length: " + std::to_string(contentLength) + "\r\n";
+        response += "Cache-Control: max-age=3600\r\n";
+    };
+
+    if (isAutoIndex)
+    {
+        std::vector<std::string> indexPage = WebParser::generateIndexPage(fullPath);
+        std::string content = std::accumulate(indexPage.begin(), indexPage.end(), std::string(""));
+
+        appendHeaders("200 OK", "text/html", content.size());
+        response += "\r\n" + content;
+        return;
+    }
+
+    if (std::filesystem::exists(fullPath) && fullPath == "/fun_facts/index.html")
+    {
         response += "HTTP/1.1 302 Found\r\n";
         response += "Location: /home.html\r\n";
         response += "Cache-Control: max-age=3600\r\n";
+        handleCookies(_request, response);
         response += "\r\n";
         return;
     }
 
-    if (!std::filesystem::exists(fullPath)) {
-        response += "HTTP/1.1 404 Not Found\r\n\r\n";
+    if (!std::filesystem::exists(fullPath))
+    {
+        response = "HTTP/1.1 404 Not Found\r\n\r\n";
         return;
     }
 
     std::string fileContent;
     try {
         readFileContent(fullPath, fileContent);
+        std::cout << "size: " << fileContent.size() << std::endl;
     } catch (const std::exception& e) {
-        response += "HTTP/1.1 500 Internal Server Error\r\n\r\n";
+        response = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
         return;
     }
 
     std::string mimeType = getMimeType(fullPath);
-    response += "HTTP/1.1 200 OK\r\n";
+    appendHeaders("200 OK", mimeType, fileContent.size());
     handleCookies(_request, response);
-    response += "Content-Type: " + mimeType + "\r\n";
-    response += "Content-Length: " + std::to_string(fileContent.size()) + "\r\n";
-    response += "Cache-Control: max-age=3600\r\n";
     response += "\r\n" + fileContent;
 }
 
@@ -66,8 +82,6 @@ void StaticFileHandler::handleCookies(const Request &request, std::string &respo
     else
         std::cout << "Returning visitor with 'return_visit'.\n";
 }
-
-
 
 std::string StaticFileHandler::getMimeType(const std::string& path) const
 {
