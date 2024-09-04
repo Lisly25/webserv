@@ -34,6 +34,7 @@ void Request::parseRequest(void)
 
         parseRequestLine(requestLine);
         parseHeadersAndBody(stream);
+        parseCookies();
         setContentTypeAndLength();
     }
     catch (const std::exception& e)
@@ -41,7 +42,6 @@ void Request::parseRequest(void)
         throw ;
     }
 }
-
 
 void Request::parseRequestLine(const std::string& requestLine)
 {
@@ -74,7 +74,6 @@ void Request::parseRequestLine(const std::string& requestLine)
         throw std::runtime_error(std::string("Error parsing request line: ") + e.what());
     }
 }
-
 
 void Request::parseHeadersAndBody(std::istringstream& stream)
 {
@@ -123,6 +122,39 @@ void Request::parseHeaderLine(const std::string& line)
     catch (const std::exception& e)
     {
         throw std::runtime_error(std::string("Error parsing header line: ") + e.what());
+    }
+}
+
+void Request::parseCookies()
+{
+    try
+    {
+        auto it = _requestData.headers.find("Cookie");
+        if (it != _requestData.headers.end())
+        {
+            std::string cookieHeader = it->second;
+            std::istringstream cookieStream(cookieHeader);
+            std::string cookiePair;
+
+            while (std::getline(cookieStream, cookiePair, ';'))
+            {
+                size_t eqPos = cookiePair.find('=');
+                if (eqPos != std::string::npos)
+                {
+                    std::string key = WebParser::trimSpaces(cookiePair.substr(0, eqPos));
+                    std::string value = WebParser::trimSpaces(cookiePair.substr(eqPos + 1));
+                    _requestData.cookies[key] = value;
+                }
+            }
+            for (const auto& cookie : _requestData.cookies)
+            {
+                std::cout << cookie.first << "=" << cookie.second << std::endl;
+            }
+        }
+    }
+    catch (const std::exception& e)
+    {
+        throw std::runtime_error(std::string("Error parsing cookies: ") + e.what());
     }
 }
 

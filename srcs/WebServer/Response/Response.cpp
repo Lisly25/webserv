@@ -26,42 +26,41 @@ Response::Response(const Request &request)
 std::string Response::generate(const Request &request)
 {
     try {
-        std::cout << "\033[35mURI: \033[0m" << request.getRequestData().uri << std::endl;
-        std::cout << "\033[35mTARGET: \033[0m" << request.getLocation()->target << std::endl;
         std::string response;
 
-        std::cout << "RAW REQUEST: " << request.getRequestData() << std::endl;
-        std::cout << "\033[31mRequest: \033[0m" << request.getRequestData().body << std::endl;
+        std::cout << "Cookies received: ";
+        for (const auto &cookie : request.getRequestData().cookies) {
+            std::cout << cookie.first << "=" << cookie.second << "; ";
+        }
+        std::cout << std::endl;
+
+
         if (request.getErrorCode() != 0)
         {
-            std::cout << "\033[31mCGI NOT going to RUN\033[0m\n";
             ErrorHandler(request).handleError(response);
         }
         else if (request.getLocation()->type == LocationType::PROXY)
         {
-            std::cout << "\033[31mPROXY going to RUN\033[0m\n";
             ProxyHandler(request).passRequest(response);
         }
         else if (request.getLocation()->type == LocationType::CGI)
         {
-            std::cout << request.getRequestData().query_string << std::endl;
             CGIHandler cgi = CGIHandler(request);
-            response = cgi.getCGIResponse();
-            std::cout << "\033[31mresponse from CGI: \033[0m" << response << std::endl;
+            response += cgi.getCGIResponse();
         }
         else if (request.getLocation()->type == LocationType::STANDARD
             || request.getLocation()->type == LocationType::ALIAS)
         {
-            std::cout << "\033[31mSTATIC going to RUN\033[0m\n";
             StaticFileHandler(request).serveFile(response);
         }
-        std::cout << "\033[31mResponse: \033[0m" << response << std::endl;
+
+        std::cout << "Response:\n" << response << std::endl;
         return response;
     }
     catch (const std::exception &e)
     {
-        std::cout << "\033[31mError in Response::generate\033[0m\n";
-        throw ;
+        std::cout << "Error in Response::generate\n";
+        throw;
     }
 }
 

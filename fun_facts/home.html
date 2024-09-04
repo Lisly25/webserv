@@ -1,25 +1,89 @@
 <!doctype html>
+<html lang="en-US">
 <head>
     <link href="home.css" rel="stylesheet"/>
     <meta charset="UTF-8" />
+    <style>
+        #cookieStatusBox {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(60, 60, 60, 0.9);
+            color: white;
+            padding: 8px;
+            border-radius: 8px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 1000;
+            width: auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            white-space: nowrap;
+        }
+        #expiryInfo {
+            font-weight: bold;
+            color: #f4d03f;
+        }
+    </style>
 </head>
-<html lang="en-US">
-    <body>
-        <div>
-            <h1>Welcome to webserv!</h1>
-            <p>On this site, you'll be able to browse fun facts to make the evaluation go smoother ...hopefully?</p>
-            <img src="cat_typing.gif" alt="Computer_cat" style="width:300px;height:240px;">
-            <p>Please choose a category:</p>
-        </div>
-        <div id="links">
-            <li><a href="animals.html">Animals</a></li>
-            <li><a href="plants.html">Plants</a></li>
-            <li><a href="fungi.html">Fun-gi</a></li>
-        </div>
-        <div>
-            <p>Feeling adventureous? Check out the fun facts our vistors submitted!</p>
-            <p>Beware! These facts are moderated by the community, and might be untruthful - or worse, un-fun!</p>
-            <p><a href="user_facts.html">Users' facts</a></p>
-        </div>
-    </body>
+<body>
+    <div id="cookieStatusBox">
+        <p id="expiryInfo"></p>
+    </div>
+
+    <div>
+        <h1>Welcome to webserv!</h1>
+        <img src="cat_typing.gif" alt="Computer_cat" style="width:300px;height:240px;">
+        <p>Please choose a category:</p>
+    </div>
+    <div id="links">
+        <li><a href="animals.html">Animals</a></li>
+        <li><a href="plants.html">Plants</a></li>
+        <li><a href="fungi.html">Fun-gi</a></li>
+    </div>
+    <div>
+        <p>Feeling adventurous? Check out the fun facts our visitors submitted!</p>
+        <p>Beware! These facts are moderated by the community and might be untruthful—or worse, un-fun!</p>
+        <p><a href="user_facts.html">Users' facts</a></p>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+            }
+            return null;
+        }
+    
+        function timeLeftForCookie() {
+            const expiryTime = getCookie('visit_expiry');
+            if (!expiryTime) return "N/A";
+            const now = new Date().getTime();
+            const timeLeft = expiryTime - now;
+    
+            if (timeLeft <= 0) {
+                return "Cookie has expired.";
+            }
+    
+            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+    
+            return `Cookie is valid for: ${hours}h ${minutes}m ${seconds}s`;
+        }
+    
+        function updateCookieTime() {
+            const expiryInfo = document.getElementById('expiryInfo');
+            expiryInfo.innerText = timeLeftForCookie();
+        }
+    
+        window.onload = function() {
+            updateCookieTime();
+            setInterval(updateCookieTime, 1000);
+        };
+    </script>
+</body>
 </html>

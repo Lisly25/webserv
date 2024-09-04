@@ -13,6 +13,7 @@ struct RequestData
     std::string uri;
     std::string query_string;
     std::unordered_map<std::string, std::string> headers;
+    std::unordered_map<std::string, std::string> cookies;
     std::string body;  
     std::string script_filename;
     std::string content_type; 
@@ -63,6 +64,7 @@ private:
 
     int             _errorCode = 0;
 
+    void        parseCookies();  
     void        parseRequest(void);
     void        parseHeadersAndBody(std::istringstream& stream);
     void        parseHeaderLine(const std::string& line);

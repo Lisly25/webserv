@@ -11,7 +11,8 @@ public:
 private:
     const Request& _request;
 
-    bool fileExists(const std::string& path) const;
+    void        handleCookies(const Request &request, std::string &response);
+    bool        fileExists(const std::string& path) const;
     std::string getMimeType(const std::string& path) const;
-    void readFileContent(const std::string& path, std::string& content) const;
+    void        readFileContent(const std::string& path, std::string& content) const;
 };
