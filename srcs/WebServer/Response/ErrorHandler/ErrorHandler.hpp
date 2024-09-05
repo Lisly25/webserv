@@ -13,4 +13,5 @@ private:
 
     std::string getErrorMessage(int errorCode) const;
     std::string getErrorPage(int errorCode) const;
+    void        readFileContent(const std::string& path, std::string& content) const;
 };
