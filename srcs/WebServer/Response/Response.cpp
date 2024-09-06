@@ -28,7 +28,7 @@ std::string Response::generate(const Request &request)
     try {
         std::string response;
 
-        std::cout << "Cookies received: ";
+        //std::cout << "Cookies received: ";
         for (const auto &cookie : request.getRequestData().cookies) {
             std::cout << cookie.first << "=" << cookie.second << "; ";
         }
@@ -47,6 +47,7 @@ std::string Response::generate(const Request &request)
         {
             CGIHandler cgi = CGIHandler(request);
             response += cgi.getCGIResponse();
+
         }
         else if (request.getLocation()->type == LocationType::STANDARD
             || request.getLocation()->type == LocationType::ALIAS)
@@ -54,7 +55,7 @@ std::string Response::generate(const Request &request)
             StaticFileHandler(request).serveFile(response);
         }
 
-        std::cout << "Response:\n" << response << std::endl;
+        //std::cout << "Response:\n" << response << std::endl;
         return response;
     }
     catch (const std::exception &e)

@@ -262,8 +262,19 @@ void WebServer::handleOutgoingData(int clientSocket)
         {
             const Request &request = it->second;
             Response res(request);
+            //std::cout << "REQUEST RECEIVED:\n" << request.getRawRequest() << std::endl;
+            // std::cout << "REQUEST RECEIVED:\n" << request.getRawRequest() << std::endl;
+            std::cout << "Response SENTDING:\n" << res.getResponse() << std::endl;
+            std::cout << "Response SENTDING:\n" << res.getResponse() << std::endl;
+
             const int bytesSent = send(clientSocket, res.getResponse().c_str(), res.getResponse().length(), 0);
 
+            std::cout << "BYTES SENT: " << bytesSent << std::endl;
+            std::cout << "BYTES SENT: " << bytesSent << std::endl;
+            std::cout << "BYTES SENT: " << bytesSent << std::endl;
+            std::cout << "BYTES SENT: " << bytesSent << std::endl;
+
+            std::cout << "RESPONSE: " << res.getResponse() << std::endl;
             if (bytesSent == -1)
             {
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);

@@ -23,6 +23,7 @@ def stream_to_file(filepath, initial_data, content_length):
             output_file.write(chunk)
             remaining -= len(chunk)
 
+
 def parse_headers(raw_data):
     """Extract the filename from the headers and determine where the file content starts."""
     header_end = raw_data.find(b"\r\n\r\n")
@@ -34,6 +35,26 @@ def parse_headers(raw_data):
             return filename, header_end + 4
     return None, None
 
+
+def http_response(status_code, content_type, body, additional_headers=None):
+    """Generate an HTTP response with the proper status line, headers, and body."""
+    print(f"HTTP/1.1 {status_code}")
+    headers = {
+        "Content-Type": content_type,
+        "Content-Length": str(len(body)),
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Connection": "close"
+    }
+    if additional_headers:
+        headers.update(additional_headers)
+    for key, value in headers.items():
+        print(f"{key}: {value}")
+    print()
+    print(body)
+    sys.stdout.flush()
+    exit(0)
+
+
 def handle_upload():
     """Handle the file upload process, from reading input to saving the file."""
     upload_dir = os.path.join(os.getcwd(), "uploads")
@@ -44,25 +65,40 @@ def handle_upload():
     
     filename, file_content_start = parse_headers(raw_headers)
     if not filename:
-        print("Error: Unable to extract the filename or find the end of headers.", file=sys.stderr)
-        return
+        http_response(
+            "400 Bad Request", 
+            "text/html", 
+            "<html><body>Error: Unable to extract the filename or find the end of headers.</body></html>"
+        )
+        exit(1)
 
     file_path = os.path.join(upload_dir, filename)
     initial_data = raw_headers[file_content_start:]
     
     stream_to_file(file_path, initial_data, content_length)
 
-    print(f"File '{filename}' uploaded successfully to {upload_dir}.")
+    http_response(
+        "200 OK", 
+        "text/html", 
+        f"<html><body>File '{filename}' uploaded successfully to {upload_dir}.</body></html>",
+        additional_headers={"X-Custom-Header": "FileUpload"}
+    )
+    exit(0)
+
 
 def main():
     """Main function to handle exceptions and initiate the upload process."""
     try:
-        print("Content-Type: text/html")
-        print()
         handle_upload()
     except Exception:
         error_message = traceback.format_exc()
-        print("Error occurred:\n", error_message, file=sys.stderr)
+        http_response(
+            "500 Internal Server Error", 
+            "text/html", 
+            f"<html><body>Error occurred:<pre>{error_message}</pre></body></html>"
+        )
+        exit(1)
+
 
 if __name__ == "__main__":
     main()
