@@ -11,9 +11,17 @@
         #fileList {
             margin-left: 20px;
         }
+        #message {
+            color: red;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
+    <!-- Message div to display success or error messages -->
+    <div id="message"></div>
+    
     <div id="container">
         <div>
             <h1>Latest Uploaded File Preview:</h1>
@@ -26,6 +34,7 @@
             <ul id="files"></ul>
         </div>
     </div>
+    
     <div>
         <h1>Have a fact you'd like to share? Upload it here:</h1>
         <form id="uploadForm" method="post" enctype="multipart/form-data">
@@ -33,50 +42,66 @@
             <input id="uploadButton" type="submit" value="Upload File"/>
         </form>
     </div>    
+    
     <div id="link">
         <h1>For a full list of our users' facts, click </h1>
         <a id="link" href="/list/">here</a>
         <p>Link doesn't work? Make sure autoindex is set to "on" in the configuration file</p>
     </div>
+    
     <script>
         document.getElementById('uploadForm').addEventListener('submit', function(event) {
             event.preventDefault();
-            
             const formData = new FormData(this);
-        
+
             fetch('/upload/', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.text())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error uploading file.');
+                }
+                return response.text();
+            })
             .then(data => {
-                alert('File uploaded successfully.');
+                document.getElementById('message').style.color = 'green';
+                document.getElementById('message').textContent = 'File uploaded successfully.';
                 listFiles();
             })
-            .catch(error => alert('Error uploading file: ' + error))
+            .catch(error => {
+                document.getElementById('message').style.color = 'red';
+                document.getElementById('message').textContent = 'Error uploading file: ' + error.message;
+            })
             .finally(() => {
-                    listFiles();
-                });
-
+                listFiles();
+                location.reload();
+            });
         });
-        
-        
-        
+
         function deleteFile(filename) {
             fetch(`/delete/?filename=${encodeURIComponent(filename)}`, { method: 'DELETE' })
-                .then(response => response.text())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Error deleting file.');
+                    }
+                    return response.text();
+                })
                 .then(data => {
-                    alert(data.trim());
+                    document.getElementById('message').style.color = 'green';
+                    document.getElementById('message').textContent = 'File deleted successfully.';
+                    listFiles();
                 })
                 .catch(error => {
-                    alert('Error deleting file: ' + error);
+                    document.getElementById('message').style.color = 'red';
+                    document.getElementById('message').textContent = 'Error deleting file: ' + error.message;
                 })
                 .finally(() => {
                     listFiles();
+                    location.reload();
                 });
-            return false;
         }
-        
+
         function listFiles() {
             fetch(`/list/?t=${new Date().getTime()}`)
                 .then(response => {
@@ -95,7 +120,6 @@
                     
                     if (links.length > 0) {
                         const latestFile = links[links.length - 1].textContent;
-                        console.log('Latest file:', latestFile);
                         showPreview(latestFile);
                     } else {
                         document.getElementById('filePreview').innerHTML = '<p>No files uploaded yet.</p>';
@@ -107,10 +131,10 @@
                         const li = document.createElement('li');
                         li.textContent = link.textContent;
                         
-                        const installButton = document.createElement('button');
-                        installButton.textContent = 'Download';
-                        installButton.style.marginLeft = '10px';
-                        installButton.onclick = function() {
+                        const downloadButton = document.createElement('button');
+                        downloadButton.textContent = 'Download';
+                        downloadButton.style.marginLeft = '10px';
+                        downloadButton.onclick = function() {
                             const a = document.createElement('a');
                             a.href = `/list/${link.textContent}`;
                             a.download = link.textContent;
@@ -119,52 +143,34 @@
                             a.click();
                             document.body.removeChild(a);
                         };
-                        li.appendChild(installButton);
-        
+                        li.appendChild(downloadButton);
+
                         const deleteButton = document.createElement('button');
                         deleteButton.textContent = 'Delete';
                         deleteButton.style.marginLeft = '10px';
                         deleteButton.onclick = function() {
-                            fetch(`/delete/?filename=${encodeURIComponent(link.textContent)}`, { method: 'DELETE' })
-                                .then(response => response.text())
-                                .then(data => {
-                                    alert(data.trim());
-                                    listFiles();
-                                    const remainingFiles = document.querySelectorAll('#files li');
-                                    if (remainingFiles.length > 0) {
-                                        showPreview(remainingFiles[0].textContent);
-                                    } else {
-                                        document.getElementById('filePreview').innerHTML = '<p>No files available for preview.</p>';
-                                    }
-                                })
-                                .catch(error => {
-                                    alert('Error deleting file: ' + error);
-                                })
-                                .finally(() => {
-                                    listFiles();
-                                });
+                            deleteFile(link.textContent); // Use the updated deleteFile function
                         };
                         li.appendChild(deleteButton);
-        
+
                         fileList.appendChild(li);
                     });
                 })
-                .catch(error => console.error('Error fetching file list:', error));
+                .catch(error => {
+                    document.getElementById('message').style.color = 'red';
+                    document.getElementById('message').textContent = 'Error fetching file list: ' + error.message;
+                });
         }
-        
+
         function showPreview(fileName) {
             const filePreview = document.getElementById('filePreview');
             const imagePath = `/list/${fileName}`;
-            
-            console.log('Image path:', imagePath);
-            
             filePreview.innerHTML = `<img src="${imagePath}" alt="Image preview" style="max-width: 100%; max-height: 100%;">`;
         }
-        
+
         window.onload = function() {
             listFiles(); 
         };
-        
     </script>
 </body>
 </html>
