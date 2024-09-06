@@ -19,7 +19,6 @@
     </style>
 </head>
 <body>
-    <!-- Message div to display success or error messages -->
     <div id="message"></div>
     
     <div id="container">
@@ -45,11 +44,25 @@
     
     <div id="link">
         <h1>For a full list of our users' facts, click </h1>
-        <a id="link" href="/list/">here</a>
+        <!-- When clicked, the link will refresh the file list and then navigate to /list/ -->
+        <a id="refreshLink" href="/list/">here</a>
         <p>Link doesn't work? Make sure autoindex is set to "on" in the configuration file</p>
     </div>
-    
+
     <script>
+        
+        document.getElementById('refreshLink').addEventListener('click', function(event) {
+            event.preventDefault();
+            listFiles();
+            setTimeout(function() {
+                window.location.href = '/list/';
+            }, 100);
+        });
+    
+        function listFiles() {
+            console.log('Refreshing file list...');
+        }
+
         document.getElementById('uploadForm').addEventListener('submit', function(event) {
             event.preventDefault();
             const formData = new FormData(this);
@@ -74,9 +87,9 @@
                 document.getElementById('message').textContent = 'Error uploading file: ' + error.message;
             })
             .finally(() => {
-                listFiles();
-                location.reload();
-            });
+                    listFiles();
+                    location.reload();
+                });
         });
 
         function deleteFile(filename) {
@@ -149,7 +162,7 @@
                         deleteButton.textContent = 'Delete';
                         deleteButton.style.marginLeft = '10px';
                         deleteButton.onclick = function() {
-                            deleteFile(link.textContent); // Use the updated deleteFile function
+                            deleteFile(link.textContent);
                         };
                         li.appendChild(deleteButton);
 

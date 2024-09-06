@@ -15,13 +15,19 @@ void CGIHandler::executeScript(void)
 {
     try
     {
-        pid_t pid;
+        pid_t   pid;
 
         if (pipe(_output_pipe) == -1 || pipe(_input_pipe) == -1)
-            return (std::cerr << "CGI: Failed to create pipes.\n", void());
+        {
+            _response = WebParser::getErrorPage(500, _request.getServer());
+            return std::cerr << "CGI: Failed to create pipes.\n", void();
+        }
         pid = fork();
         if (pid < 0)
-            return (std::cerr << "CGI: Fork failed.\n", void());
+        {
+            _response = WebParser::getErrorPage(500, _request.getServer());
+            return std::cerr << "CGI: Fork failed.\n", void();
+        }
         else if (pid == 0)
             child();
         else
@@ -29,14 +35,14 @@ void CGIHandler::executeScript(void)
     }
     catch (const std::exception &e)
     {
-        std::cerr << "CGI: Error in CGIHandler: " << e.what() << std::endl;
+        std::cerr << "CGI: Exception caught during script execution: " << e.what() << std::endl;
         _response = WebParser::getErrorPage(500, _request.getServer());
     }
 }
 
+
 void CGIHandler::child(void)
 {
-    std::ofstream logFile("cgi_error.log", std::ios::app);
     try
     {
         char const *argv[] = {PYTHON3, _path.c_str(), NULL};
@@ -54,12 +60,13 @@ void CGIHandler::child(void)
         childSetEnvp(envp);
         execve(PYTHON3, (char *const *)argv, (char *const *)envp);
 
-        logFile << "CGI: child execve failed.\n";
+        std::cerr << "CGI: Failed to execute script.\n";
+        std::cout <<  WebParser::getErrorPage(500, _request.getServer());
         exit(EXIT_FAILURE);
     }
     catch (const std::exception &e)
     {
-        logFile << "CGI: Error in child process: " << e.what() << std::endl;
+        std::cout <<  WebParser::getErrorPage(500, _request.getServer());
         exit(EXIT_FAILURE);
     }
 }
@@ -126,7 +133,7 @@ void CGIHandler::childSetEnvp(char const *envp[])
     }
     catch (const std::exception &e)
     {
-        std::cerr << "CGI: Error setting environment variables: " << e.what() << std::endl;
+        std::cout <<  WebParser::getErrorPage(500, _request.getServer());
         exit(EXIT_FAILURE);
     }
 }
@@ -146,17 +153,11 @@ bool CGIHandler::parentWaitForChild(pid_t pid)
         elapsed = static_cast<double>(current - start) / CLOCKS_PER_SEC;
         retPid = waitpid(pid, &status, WNOHANG);
         if (retPid == -1)
-        {
-            std::cerr << "execve failed.\n";
             return false;
-        }
         if (retPid > 0)
             break;
         if (elapsed > timeout)
-        {
-            std::cerr << "CGI timeout.\n";
             return false;
-        }
     }
     return true;
 }
