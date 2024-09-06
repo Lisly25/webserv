@@ -263,7 +263,7 @@ std::string   WebParser::getErrorPage(int errorCode, const Server *server)
     }
     if (access(errorPage.c_str(), R_OK) == -1)
     {
-        std::cerr << "Error: error_page has no write permission" << std::endl;
+        std::cerr << "Error: error_page has no read permission" << std::endl;
         return ("");
     }
     return (errorPage);
