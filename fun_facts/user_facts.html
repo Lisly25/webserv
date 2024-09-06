@@ -19,6 +19,16 @@
     </style>
 </head>
 <body>
+
+    <!-- Add this modal structure to your existing HTML page -->
+    <div id="errorModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; max-width: 600px; background: white; border: 1px solid black; padding: 20px; z-index: 1000;">
+        <div id="modalContent"></div>
+        <button onclick="closeModal()">Close</button>
+    </div>
+
+    <!-- Optional modal background -->
+    <div id="modalBackground" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 999;"></div>
+
     <div id="message"></div>
     
     <div id="container">
@@ -44,7 +54,6 @@
     
     <div id="link">
         <h1>For a full list of our users' facts, click </h1>
-        <!-- When clicked, the link will refresh the file list and then navigate to /list/ -->
         <a id="refreshLink" href="/list/">here</a>
         <p>Link doesn't work? Make sure autoindex is set to "on" in the configuration file</p>
     </div>
@@ -66,14 +75,18 @@
         document.getElementById('uploadForm').addEventListener('submit', function(event) {
             event.preventDefault();
             const formData = new FormData(this);
-
+            let hasError = false;
+            
             fetch('/upload/', {
                 method: 'POST',
                 body: formData
             })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Error uploading file.');
+                    return response.text().then(text => {
+                        hasError = true;
+                        throw new Error(text);
+                    });
                 }
                 return response.text();
             })
@@ -83,20 +96,25 @@
                 listFiles();
             })
             .catch(error => {
-                document.getElementById('message').style.color = 'red';
-                document.getElementById('message').textContent = 'Error uploading file: ' + error.message;
+                hasError = true;
+                showModal(error.message);
             })
             .finally(() => {
-                    listFiles();
+                if (!hasError) {
                     location.reload();
-                });
+                }
+            });
         });
-
+        
         function deleteFile(filename) {
+            let hasError = false;
             fetch(`/delete/?filename=${encodeURIComponent(filename)}`, { method: 'DELETE' })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Error deleting file.');
+                        return response.text().then(text => {
+                            hasError = true;
+                            throw new Error(text);
+                        });
                     }
                     return response.text();
                 })
@@ -106,12 +124,13 @@
                     listFiles();
                 })
                 .catch(error => {
-                    document.getElementById('message').style.color = 'red';
-                    document.getElementById('message').textContent = 'Error deleting file: ' + error.message;
+                    hasError = true;
+                    showModal(error.message);
                 })
                 .finally(() => {
-                    listFiles();
-                    location.reload();
+                    if (!hasError) {
+                        location.reload();
+                    }
                 });
         }
 
@@ -179,6 +198,17 @@
             const filePreview = document.getElementById('filePreview');
             const imagePath = `/list/${fileName}`;
             filePreview.innerHTML = `<img src="${imagePath}" alt="Image preview" style="max-width: 100%; max-height: 100%;">`;
+        }
+
+        function showModal(content) {
+            document.getElementById('modalContent').innerHTML = content;
+            document.getElementById('errorModal').style.display = 'block';
+            document.getElementById('modalBackground').style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('errorModal').style.display = 'none';
+            document.getElementById('modalBackground').style.display = 'none';
         }
 
         window.onload = function() {

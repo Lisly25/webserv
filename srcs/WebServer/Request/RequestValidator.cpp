@@ -25,6 +25,10 @@ bool Request::RequestValidator::validate() const
                         /*    std::cout << "here1\n";*/
                         /*    _request._errorCode = INVALID_METHOD;*/
                         /*}*/
+                        if (_request.getServer()->client_max_body_size < static_cast<long>(_request._requestData.body.size()))
+                        {
+                            _request._errorCode = REQUEST_BODY_TOO_LARGE;
+                        }
                         if (!isPathValid())
                         {
                             _request._errorCode = NOT_FOUND;

@@ -28,15 +28,13 @@ std::string Response::generate(const Request &request)
     try {
         std::string response;
 
-        //std::cout << "Cookies received: ";
-        for (const auto &cookie : request.getRequestData().cookies) {
-            std::cout << cookie.first << "=" << cookie.second << "; ";
-        }
-        std::cout << std::endl;
-
-
         if (request.getErrorCode() != 0)
         {
+            std::cout << "Error code: " << request.getErrorCode() << std::endl;
+            std::cout << "Error code: " << request.getErrorCode() << std::endl;
+            std::cout << "Error code: " << request.getErrorCode() << std::endl;
+            std::cout << "Error code: " << request.getErrorCode() << std::endl;
+            std::cout << "Error code: " << request.getErrorCode() << std::endl;
             ErrorHandler(request).handleError(response);
         }
         else if (request.getLocation()->type == LocationType::PROXY)
@@ -55,7 +53,6 @@ std::string Response::generate(const Request &request)
             StaticFileHandler(request).serveFile(response);
         }
 
-        //std::cout << "Response:\n" << response << std::endl;
         return response;
     }
     catch (const std::exception &e)
@@ -64,6 +61,7 @@ std::string Response::generate(const Request &request)
         throw;
     }
 }
+
 
 const std::string &Response::getResponse() const
 {

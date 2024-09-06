@@ -40,7 +40,7 @@ inline std::ostream& operator<<(std::ostream& os, const RequestData& requestData
     return os;
 }
 
-enum ErrorCodes { INVALID_METHOD = 405, NOT_FOUND = 404, HTTP_VERSION_NOT_SUPPORTED = 505, BAD_REQUEST = 400 };
+enum ErrorCodes { INVALID_METHOD = 405, NOT_FOUND = 404, HTTP_VERSION_NOT_SUPPORTED = 505, BAD_REQUEST = 400, REQUEST_BODY_TOO_LARGE = 413 };
 
 class Request
 {
