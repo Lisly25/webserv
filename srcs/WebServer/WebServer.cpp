@@ -261,11 +261,8 @@ void WebServer::handleOutgoingData(int clientSocket)
         if (it != _requestMap.end())
         {
             const Request &request = it->second;
-            Response res(request);
-            //std::cout << "REQUEST RECEIVED:\n" << request.getRawRequest() << std::endl;
-            // std::cout << "REQUEST RECEIVED:\n" << request.getRawRequest() << std::endl;
-            std::cout << "Response SENTDING:\n" << res.getResponse() << std::endl;
-            std::cout << "Response SENTDING:\n" << res.getResponse() << std::endl;
+            Response res(request, *this);
+            
 
             const int bytesSent = send(clientSocket, res.getResponse().c_str(), res.getResponse().length(), 0);
 
@@ -296,6 +293,38 @@ void WebServer::handleOutgoingData(int clientSocket)
     }
 }
 
+
+
+//void WebServer::checkCgiStatuses(epoll_event event)
+//{
+//    try {
+//        auto it = std::find_if(_cgiProcessInfos.begin(), _cgiProcessInfos.end(),
+//                               [&](const CgiInfo &cgiInfo) { return cgiInfo.readEndFd == event.data.fd; });
+//        if (it != _cgiProcessInfos.end()) {
+//            if (it->isDone) {
+//                finalizeCgiResponse(it);
+//                sendResponseToClient(it->clientSocket, it->responseBuffer);
+//
+//                close(it->readEndFd);   // Close the file descriptor
+//                _cgiProcessInfos.erase(it);  // Remove from the list
+//            } else {
+//                // Otherwise, read more data from the CGI process
+//                if (event.events & EPOLLIN) {
+//                    readCgiData(*it);
+//                } else if (event.events & EPOLLERR) {
+//                    // Handle any error that occurred in the CGI process
+//                    std::cerr << "Error with CGI process: " << it->pid << std::endl;
+//                    finalizeCgiResponse(it);
+//                    _cgiProcessInfos.erase(it);
+//                }
+//            }
+//        }
+//    } catch (const std::exception &e) {
+//        std::cerr << "Exception in checkCgiProcess: " << e.what() << std::endl;
+//    }
+//}
+//
+//
 void WebServer::handleEvents(int eventCount)
 {
     try
@@ -307,19 +336,20 @@ void WebServer::handleEvents(int eventCount)
 
         for (int i = 0; i < eventCount; ++i)
         {
-            const int fd = _events[i].data.fd;
+            _currentEventFd = _events[i].data.fd;
 
-            if (getCorrectServerSocket(fd))
+            if (getCorrectServerSocket(_currentEventFd))
             {
-                acceptAddClientToEpoll(fd);
+                acceptAddClientToEpoll(_currentEventFd);
             }
             else
             {
                 if (_events[i].events & EPOLLIN)
-                    handleIncomingData(fd);
+                    handleIncomingData(_currentEventFd);
                 else if (_events[i].events & EPOLLOUT)
-                    handleOutgoingData(fd);
+                    handleOutgoingData(_currentEventFd);
             }
+            checkCgiStatuses(_events[i]);
         }
     }
     catch (const std::exception &e)
@@ -352,3 +382,8 @@ void WebServer::start()
     }
     std::cout << "Server stopped.\n";
 }
+
+std::vector<CgiInfo>  WebServer::getCgiFdMap() { return _cgiProcessInfos; }
+
+
+int WebServer::getCurrentEventFd() const { return _currentEventFd; }

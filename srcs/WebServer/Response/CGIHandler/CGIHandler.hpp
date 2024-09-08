@@ -34,8 +34,9 @@ class   CGIHandler
     public:
         CGIHandler(const Request& request);
         ~CGIHandler() = default;
+        std::pair<pid_t, int>  executeScript( void );
+        std::string            getCGIResponse( void ) const;
 
-        std::string      getCGIResponse( void ) const;
     private:
         const Request&   _request;
         std::string      _response;
@@ -45,8 +46,7 @@ class   CGIHandler
 
         bool            validateExecutable( void );
         bool            parentWaitForChild(pid_t pid);
-        void            executeScript( void );
         void            child( void );
-        void            parent( pid_t pid );
+        std::pair<pid_t, int>            parent( pid_t pid );
         void            childSetEnvp( char const *envp[] );
 };

@@ -12,7 +12,7 @@
 #include <string>
 #include "StaticFileHandler.hpp"
 
-Response::Response(const Request &request)
+Response::Response(const Request &request, WebServer &webServer) : _response(""), _webServer(webServer)
 {
     try {
         _response = generate(request);
@@ -31,10 +31,6 @@ std::string Response::generate(const Request &request)
         if (request.getErrorCode() != 0)
         {
             std::cout << "Error code: " << request.getErrorCode() << std::endl;
-            std::cout << "Error code: " << request.getErrorCode() << std::endl;
-            std::cout << "Error code: " << request.getErrorCode() << std::endl;
-            std::cout << "Error code: " << request.getErrorCode() << std::endl;
-            std::cout << "Error code: " << request.getErrorCode() << std::endl;
             ErrorHandler(request).handleError(response);
         }
         else if (request.getLocation()->type == LocationType::PROXY)
@@ -43,12 +39,20 @@ std::string Response::generate(const Request &request)
         }
         else if (request.getLocation()->type == LocationType::CGI)
         {
-            CGIHandler cgi = CGIHandler(request);
-            response += cgi.getCGIResponse();
+            std::pair<pid_t, int> cgiInfo = CGIHandler(request).executeScript();
+            if (cgiInfo.first != -1 && cgiInfo.second != -1)
+            {
+                CgiInfo cgiProcessInfo;
+                cgiProcessInfo.pid = cgiInfo.first;
+                cgiProcessInfo.readEndFd = cgiInfo.second;
+                cgiProcessInfo.clientSocket = _webServer.getCurrentEventFd();
+                cgiProcessInfo.isDone = false;
 
+                _webServer.epollController(cgiProcessInfo.readEndFd, EPOLL_CTL_ADD, EPOLLIN);
+                _webServer.getCgiFdMap().push_back(cgiProcessInfo);
+            }
         }
-        else if (request.getLocation()->type == LocationType::STANDARD
-            || request.getLocation()->type == LocationType::ALIAS)
+        else if (request.getLocation()->type == LocationType::STANDARD || request.getLocation()->type == LocationType::ALIAS)
         {
             StaticFileHandler(request).serveFile(response);
         }
@@ -61,6 +65,7 @@ std::string Response::generate(const Request &request)
         throw;
     }
 }
+
 
 
 const std::string &Response::getResponse() const

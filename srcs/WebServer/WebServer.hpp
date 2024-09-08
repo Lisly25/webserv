@@ -15,6 +15,15 @@
 
 #define MAX_EVENTS 100
 
+struct CgiInfo
+{
+    pid_t       pid;
+    int         readEndFd;
+    int         clientSocket;
+    bool        isDone;
+    std::string responseBuffer;
+};
+
 class WebServer
 {
 public:
@@ -23,20 +32,24 @@ public:
     WebServer(const WebServer &) = delete;
     WebServer &operator=(const WebServer &) = delete;
 
-    void start();
-    void epollController(int clientSocket, int operation, uint32_t events);
-
+    void                    start();
+    void                    epollController(int clientSocket, int operation, uint32_t events);
+    std::vector<CgiInfo>    getCgiFdMap();
+    int                     getCurrentEventFd() const;
 private:
+    int                                         _currentEventFd = -1;
     std::vector<ServerSocket>                   _serverSockets = {};
     static bool                                 _running;
     int                                         _epollFd = -1;
     WebParser                                   &_parser;
     std::vector<struct epoll_event>             _events = {};
 
+    std::vector<CgiInfo>                        _cgiProcessInfos = {};
     std::unordered_map<std::string, addrinfo*>  _proxyInfoMap = {};
 
-    std::unordered_map<int, Request> _requestMap;
+    std::unordered_map<int, Request>            _requestMap;
 
+    void                        checkCgiStatuses(epoll_event event);
     std::vector<ServerSocket>   createServerSockets(const std::vector<Server> &server_confs);
     void                        handleClient(int clientSocket);
     void                        setSocketFlags(int socket);
