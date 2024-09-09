@@ -1,6 +1,7 @@
 #include "StaticFileHandler.hpp"
 #include <filesystem>
 #include <numeric>
+#include "ErrorHandler.hpp"
 
 StaticFileHandler::StaticFileHandler(const Request& request) 
     : _request(request) {}

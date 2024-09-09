@@ -6,6 +6,15 @@
 Request::RequestValidator::RequestValidator(Request& request, const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap)
     : _request(request), _servers(servers), _proxyInfoMap(proxyInfoMap) {}
 
+bool Request::RequestValidator::isReadOk() const
+{
+    if (access(_request._requestData.uri.c_str(), R_OK) == -1)
+    {
+        return false;
+    }
+    return true;
+}
+
 bool Request::RequestValidator::validate() const
 {
     try
@@ -20,27 +29,35 @@ bool Request::RequestValidator::validate() const
 
                     if (_request._location->type != PROXY)
                     {
-                        /*if (!isValidMethod())*/
-                        /*{*/
-                        /*    std::cout << "here1\n";*/
-                        /*    _request._errorCode = INVALID_METHOD;*/
-                        /*}*/
+                        if (!isValidMethod())
+                        {
+                            _request._errorCode = INVALID_METHOD;
+                            return true;
+                        }
                         if (_request.getServer()->client_max_body_size < static_cast<long>(_request._requestData.body.size()))
                         {
                             _request._errorCode = REQUEST_BODY_TOO_LARGE;
+                            return true;
                         }
                         if (!isPathValid())
                         {
                             _request._errorCode = NOT_FOUND;
+                            return true;
                         }
                         if (!isProtocolValid())
                         {
                             _request._errorCode = HTTP_VERSION_NOT_SUPPORTED;
+                            return true;
                         }
-
+                        if (!isReadOk())
+                        {
+                            _request._errorCode = FORBIDDEN;
+                            return true;
+                        }
                         if (!areHeadersValid())
                         {
                             _request._errorCode = BAD_REQUEST;
+                            return true;
                         }
 
                     }
