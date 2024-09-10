@@ -17,6 +17,11 @@ void CGIHandler::executeScript(void)
     {
         pid_t   pid;
 
+        if (access(_path.c_str(), R_OK) != 0)
+        {
+            _response = WebParser::getErrorPage(403, _request.getServer());
+            return std::cerr << "CGI: Script is not readable.\n", void();
+        }
         if (pipe(_output_pipe) == -1 || pipe(_input_pipe) == -1)
         {
             _response = WebParser::getErrorPage(500, _request.getServer());
