@@ -35,6 +35,18 @@ bool   Request::RequestValidator::isServerFull() const
     }
 }
 
+bool   Request::RequestValidator::isExistingMethod() const
+{
+    std::string validMethods[] = {"GET", "POST", "DELETE"};
+
+    for (size_t i = 0; i < 3; i++)
+    {
+        if (_request._requestData.method.compare(validMethods[i]) == 0)
+            return true;
+    }
+    return false;
+}
+
 bool Request::RequestValidator::validate() const
 {
     try
@@ -49,7 +61,12 @@ bool Request::RequestValidator::validate() const
 
                     if (_request._location->type != PROXY)
                     {
-                        if (!isValidMethod())
+                        if (!isExistingMethod())
+                        {
+                            _request._errorCode = NOT_IMPLEMENTED;
+                            return true;
+                        }
+                        if (!isAllowedMethod())
                         {
                             _request._errorCode = INVALID_METHOD;
                             return true;
@@ -98,7 +115,7 @@ bool Request::RequestValidator::validate() const
     }
 }
 
-bool Request::RequestValidator::isValidMethod() const
+bool Request::RequestValidator::isAllowedMethod() const
 {
     try
     {
