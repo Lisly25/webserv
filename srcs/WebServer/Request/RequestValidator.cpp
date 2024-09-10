@@ -15,6 +15,26 @@ bool Request::RequestValidator::isReadOk() const
     return true;
 }
 
+bool   Request::RequestValidator::isServerFull() const
+{
+    //the info returned is in bytes, same as our client max body size
+    if (_request._requestData.method != "POST")
+        return true;
+    try
+    {
+        std::filesystem::space_info space = std::filesystem::space(_request._requestData.uri);
+        if (space.available < 1048576)//an arbitrary number
+            return false;
+        if (_request._requestData.body.length() >= static_cast<size_t>(space.available))
+            return false;
+        return true;
+    }
+    catch(const std::exception& e)
+    {
+        throw std::runtime_error(std::string("Error checking server's disk space: ") + e.what());
+    }
+}
+
 bool Request::RequestValidator::validate() const
 {
     try
@@ -59,7 +79,11 @@ bool Request::RequestValidator::validate() const
                             _request._errorCode = BAD_REQUEST;
                             return true;
                         }
-
+                        if (!isServerFull())
+                        {
+                            _request._errorCode = INSUFFICIENT_STORAGE;
+                            return true;
+                        }
                     }
                     std::cout << "ERROR CODE VALIDATION: " << _request._errorCode << std::endl;
                     return true;
