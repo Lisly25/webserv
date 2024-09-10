@@ -20,13 +20,11 @@
 </head>
 <body>
 
-    <!-- Add this modal structure to your existing HTML page -->
     <div id="errorModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; max-width: 600px; background: white; border: 1px solid black; padding: 20px; z-index: 1000;">
         <div id="modalContent"></div>
         <button onclick="closeModal()">Close</button>
     </div>
 
-    <!-- Optional modal background -->
     <div id="modalBackground" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 999;"></div>
 
     <div id="message"></div>
@@ -72,39 +70,72 @@
             console.log('Refreshing file list...');
         }
 
+        function isAscii(str) {
+            return [...str].every(char => char.codePointAt(0) <= 127);
+        }
+        
+        function sanitizeFilename(filename) {
+            const sanitizedFilename = filename.replace(/\s+/g, '_');
+            
+            if (!isAscii(sanitizedFilename)) {
+                showModal('Filename contains non-ASCII characters.');
+                throw new Error('Filename contains non-ASCII characters.');
+            }
+            return sanitizedFilename.replace(/[<>:"\/\\|?*\x00-\x1F]/g, '');
+        }
+        
         document.getElementById('uploadForm').addEventListener('submit', function(event) {
             event.preventDefault();
-            const formData = new FormData(this);
-            let hasError = false;
-            
-            fetch('/upload/', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
+        
+            const fileInput = document.getElementById('user_fact');
+            const file = fileInput.files[0];
+        
+            if (file) {
+                try {
+                    const sanitizedFilename = sanitizeFilename(file.name);
+                    
+                    const formData = new FormData();
+                    formData.append('user_fact', new File([file], sanitizedFilename));
+        
+                    let hasError = false;
+        
+                    fetch('/upload/', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.text().then(text => {
+                                hasError = true;
+                                throw new Error(text);
+                            });
+                        }
+                        return response.text();
+                    })
+                    .then(data => {
+                        document.getElementById('message').style.color = 'green';
+                        document.getElementById('message').textContent = 'File uploaded successfully.';
+                        listFiles();
+                    })
+                    .catch(error => {
                         hasError = true;
-                        throw new Error(text);
+                        showModal(error.message);
+                    })
+                    .finally(() => {
+                        if (!hasError) {
+                            location.reload();
+                        }
                     });
+                } catch (error) {
+                    document.getElementById('message').style.color = 'red';
+                    document.getElementById('message').textContent = error.message;
                 }
-                return response.text();
-            })
-            .then(data => {
-                document.getElementById('message').style.color = 'green';
-                document.getElementById('message').textContent = 'File uploaded successfully.';
-                listFiles();
-            })
-            .catch(error => {
-                hasError = true;
-                showModal(error.message);
-            })
-            .finally(() => {
-                if (!hasError) {
-                    location.reload();
-                }
-            });
+            } else {
+                document.getElementById('message').style.color = 'red';
+                document.getElementById('message').textContent = 'No file selected for upload.';
+            }
         });
+        
         
         function deleteFile(filename) {
             let hasError = false;
