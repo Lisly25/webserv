@@ -31,7 +31,7 @@ std::pair<pid_t, int> CGIHandler::executeScript(void)
         if (access(_path.c_str(), R_OK) != 0)
         {
             _response = WebParser::getErrorPage(403, _request.getServer());
-            return std::cerr << "CGI: Script is not readable.\n", void();
+            return std::make_pair(-1, -1);
         }
         if (pipe(_output_pipe) == -1 || pipe(_input_pipe) == -1)
         {
