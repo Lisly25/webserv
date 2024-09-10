@@ -45,7 +45,6 @@ void CGIHandler::executeScript(void)
     }
 }
 
-
 void CGIHandler::child(void)
 {
     try
