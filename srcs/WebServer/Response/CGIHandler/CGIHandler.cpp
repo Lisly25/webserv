@@ -3,7 +3,7 @@
 #include "WebParser.hpp"
 #include <fcntl.h>
 
-CGIHandler::CGIHandler(const Request& request) : _request(request), _response(""), _path(_request.getRequestData().uri)
+CGIHandler::CGIHandler(const Request& request) : _request(request), _cgiInfo(), _path(_request.getRequestData().uri)
 {
     std::cout << "\033[31mIN CGI: going to RUN IT\033[0m\n";
     std::cout << "\033[37mWITH: " << _path << "\033[0m\n";
@@ -11,64 +11,58 @@ CGIHandler::CGIHandler(const Request& request) : _request(request), _response(""
     std::cout << "\033[37mWITH CONTENT_LENGTH: " << _request.getRequestData().content_length << "\033[0m\n";
 };
 
-static void nonBlockFd(int fd)
+CgiInfo CGIHandler::executeScript(void)
 {
-    int flags = fcntl(fd, F_GETFL);
-    if (flags == -1)
-        throw std::system_error();
-    flags |= O_NONBLOCK;
-    int res = fcntl(fd, F_SETFL, flags);
-    if (res == -1)
-        throw std::system_error();
-}
+    _cgiInfo = CgiInfo();
 
-std::pair<pid_t, int> CGIHandler::executeScript(void)
-{
     try
     {
         pid_t pid;
 
         if (access(_path.c_str(), R_OK) != 0)
         {
-            _response = WebParser::getErrorPage(403, _request.getServer());
-            return std::make_pair(-1, -1);
+            std::cerr << "CGI: Script not found or not readable: " << strerror(errno) << "\n";
+            _cgiInfo.error = true;
+            return _cgiInfo;
         }
+
         if (pipe(_output_pipe) == -1 || pipe(_input_pipe) == -1)
         {
-            _response = WebParser::getErrorPage(500, _request.getServer());
-            std::cerr << "CGI: Failed to create pipes.\n";
-            return std::make_pair(-1, -1);
+            std::cerr << "CGI: Failed to create pipes: " << strerror(errno) << "\n";
+            _cgiInfo.error = true;
+            return _cgiInfo;
         }
+
         nonBlockFd(_output_pipe[READEND]);
         nonBlockFd(_output_pipe[WRITEND]);
         nonBlockFd(_input_pipe[READEND]);
         nonBlockFd(_input_pipe[WRITEND]);
+
         pid = fork();
         if (pid < 0)
         {
-            _response = WebParser::getErrorPage(500, _request.getServer());
-            std::cerr << "CGI: Fork failed.\n";
-            return std::make_pair(-1, -1);
+            std::cerr << "CGI: Fork failed: " << strerror(errno) << "\n";
+            _cgiInfo.error = true;
+            return _cgiInfo;
         }
         else if (pid == 0)
         {
             child();
             std::terminate();
         }
-        else
+        else 
         {
-            return parent(pid);
+            parent(pid);
+            return _cgiInfo;
         }
     }
     catch (const std::exception &e)
     {
-        std::cerr << "CGI: Exception caught during script execution: " << e.what() << std::endl;
-        _response = WebParser::getErrorPage(500, _request.getServer());
-        return std::make_pair(-1, -1);  // Return invalid pair on failure
+        std::cerr << "CGI: Exception during script execution: " << e.what() << "\n";
+        _cgiInfo.error = true;
+        return _cgiInfo;
     }
 }
-
-
 
 void CGIHandler::child(void)
 {
@@ -99,7 +93,7 @@ void CGIHandler::child(void)
     }
 }
 
-std::pair<pid_t, int> CGIHandler::parent(pid_t pid)
+void CGIHandler::parent(pid_t pid)
 {
     try
     {
@@ -112,11 +106,13 @@ std::pair<pid_t, int> CGIHandler::parent(pid_t pid)
         }
         close(_input_pipe[WRITEND]);
         close(_output_pipe[WRITEND]);
-        return std::make_pair(pid, _output_pipe[READEND]);
+        _cgiInfo.startTime = std::time(nullptr);
+        _cgiInfo.pid = pid;
+        _cgiInfo.readEndFd = _output_pipe[READEND];
     }
     catch (const std::exception &e)
     {
-        _response = WebParser::getErrorPage(500, _request.getServer());
+        std::cout <<  WebParser::getErrorPage(500, _request.getServer());
         throw ;
     }
 }
@@ -154,9 +150,13 @@ void CGIHandler::childSetEnvp(char const *envp[])
     }
 }
 
-
-
-std::string CGIHandler::getCGIResponse(void) const
+void CGIHandler::nonBlockFd(int fd)
 {
-    return _response;
+    int flags = fcntl(fd, F_GETFL);
+    if (flags == -1)
+        throw std::system_error();
+    flags |= O_NONBLOCK;
+    int res = fcntl(fd, F_SETFL, flags);
+    if (res == -1)
+        throw std::system_error();
 }

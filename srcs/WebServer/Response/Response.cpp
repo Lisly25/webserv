@@ -39,19 +39,13 @@ std::string Response::generate(const Request &request)
             ProxyHandler(request).passRequest(response);
         }
         else if (request.getLocation()->type == LocationType::CGI)
-        {
-            std::pair<pid_t, int> cgiInfo = CGIHandler(request).executeScript();
-            if (cgiInfo.first != -1 && cgiInfo.second != -1)
-            {
-                CgiInfo cgiProcessInfo;
-                cgiProcessInfo.pid = cgiInfo.first;
-                cgiProcessInfo.readEndFd = cgiInfo.second;
-                cgiProcessInfo.clientSocket = _webServer.getCurrentEventFd();
-                cgiProcessInfo.isDone = false;
-
-                _webServer.epollController(cgiProcessInfo.readEndFd, EPOLL_CTL_ADD, EPOLLIN);
-                _webServer.getCgiFdMap().push_back(cgiProcessInfo);
-            }
+        {   
+            CgiInfo cgiInfo = CGIHandler(request).executeScript();
+            if (cgiInfo.error)
+                return (WebParser::getErrorPage(500, request.getServer()));
+            cgiInfo.clientSocket = _webServer.getCurrentEventFd();
+            _webServer.epollController(cgiInfo.readEndFd, EPOLL_CTL_ADD, EPOLLIN);
+            _webServer.getCgiInfos().push_back(cgiInfo);
         }
         else if (request.getLocation()->type == LocationType::STANDARD || request.getLocation()->type == LocationType::ALIAS)
         {
@@ -74,8 +68,6 @@ std::string Response::generate(const Request &request)
         throw;
     }
 }
-
-
 
 const std::string &Response::getResponse() const
 {

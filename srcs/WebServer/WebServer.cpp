@@ -257,68 +257,86 @@ void WebServer::handleOutgoingData(int clientSocket)
 {
     try
     {
-        auto it = _requestMap.find(clientSocket);
-        if (it != _requestMap.end())
+        auto cgiIt = std::find_if(_cgiProcessInfos.begin(), _cgiProcessInfos.end(),
+                                  [clientSocket](const CgiInfo &cgiInfo) { return cgiInfo.clientSocket == clientSocket; });
+        
+        if (cgiIt != _cgiProcessInfos.end() && cgiIt->isDone)
         {
-            const Request &request = it->second;
-            Response res(request, *this);
-            
-
-            const int bytesSent = send(clientSocket, res.getResponse().c_str(), res.getResponse().length(), 0);
-
+            const int bytesSent = send(clientSocket, cgiIt->responseBuffer.c_str(), cgiIt->responseBuffer.length(), 0);
             if (bytesSent == -1)
             {
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
-                throw std::runtime_error("Error sending response to client");
+                throw std::runtime_error("Error sending CGI response to client");
             }
             else
+            {
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
+                _cgiProcessInfos.erase(cgiIt);
+            }
         }
-        _requestMap.erase(it);
+        else
+        {
+            auto it = _requestMap.find(clientSocket);
+            if (it != _requestMap.end())
+            {
+                const Request &request = it->second;
+                Response res(request, *this);
+
+                const int bytesSent = send(clientSocket, res.getResponse().c_str(), res.getResponse().length(), 0);
+
+                if (bytesSent == -1)
+                {
+                    epollController(clientSocket, EPOLL_CTL_DEL, 0);
+                    throw std::runtime_error("Error sending response to client");
+                }
+                else
+                    epollController(clientSocket, EPOLL_CTL_DEL, 0);
+            }
+            _requestMap.erase(it);
+        }
     }
     catch (const std::exception &e)
     {
-        try {
+        try
+        {
             epollController(clientSocket, EPOLL_CTL_DEL, 0);
-        } catch (const std::exception &inner_e) {
+        }
+        catch (const std::exception &inner_e)
+        {
             WebErrors::combineExceptions(e, inner_e);
         }
         throw;
     }
 }
 
+void WebServer::handleCgiResponse(CgiInfo &cgiInfo)
+{
+    try
+    {
+        char buffer[1024];
+        ssize_t bytesRead = read(cgiInfo.readEndFd, buffer, sizeof(buffer));
+        if (bytesRead > 0)
+        {
+            cgiInfo.responseBuffer.append(buffer, bytesRead);
+        }
+        else if (bytesRead == 0)
+        {
+            cgiInfo.isDone = true;
+            epollController(cgiInfo.clientSocket, EPOLL_CTL_MOD, EPOLLOUT);
+        }
+        else if (bytesRead == -1)
+        {
+            std::cerr << "Error reading from CGI process." << std::endl;
+            throw std::runtime_error("Error reading from CGI process.");
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error in handleCgiResponse: " << e.what() << std::endl;
+    }
+}
 
 
-//void WebServer::checkCgiStatuses(epoll_event event)
-//{
-//    try {
-//        auto it = std::find_if(_cgiProcessInfos.begin(), _cgiProcessInfos.end(),
-//                               [&](const CgiInfo &cgiInfo) { return cgiInfo.readEndFd == event.data.fd; });
-//        if (it != _cgiProcessInfos.end()) {
-//            if (it->isDone) {
-//                finalizeCgiResponse(it);
-//                sendResponseToClient(it->clientSocket, it->responseBuffer);
-//
-//                close(it->readEndFd);   // Close the file descriptor
-//                _cgiProcessInfos.erase(it);  // Remove from the list
-//            } else {
-//                // Otherwise, read more data from the CGI process
-//                if (event.events & EPOLLIN) {
-//                    readCgiData(*it);
-//                } else if (event.events & EPOLLERR) {
-//                    // Handle any error that occurred in the CGI process
-//                    std::cerr << "Error with CGI process: " << it->pid << std::endl;
-//                    finalizeCgiResponse(it);
-//                    _cgiProcessInfos.erase(it);
-//                }
-//            }
-//        }
-//    } catch (const std::exception &e) {
-//        std::cerr << "Exception in checkCgiProcess: " << e.what() << std::endl;
-//    }
-//}
-//
-//
 void WebServer::handleEvents(int eventCount)
 {
     try
@@ -338,19 +356,31 @@ void WebServer::handleEvents(int eventCount)
             }
             else
             {
-                if (_events[i].events & EPOLLIN)
-                    handleIncomingData(_currentEventFd);
-                else if (_events[i].events & EPOLLOUT)
-                    handleOutgoingData(_currentEventFd);
+                // Check if the current FD is related to a CGI process
+                auto cgiIt = std::find_if(_cgiProcessInfos.begin(), _cgiProcessInfos.end(),
+                                          [this](const CgiInfo &cgiInfo) { return cgiInfo.readEndFd == _currentEventFd; });
+                
+                if (cgiIt != _cgiProcessInfos.end())
+                {
+                    // Handle CGI response data
+                    handleCgiResponse(*cgiIt);
+                }
+                else
+                {
+                    if (_events[i].events & EPOLLIN)
+                        handleIncomingData(_currentEventFd);
+                    else if (_events[i].events & EPOLLOUT)
+                        handleOutgoingData(_currentEventFd);
+                }
             }
-            checkCgiStatuses(_events[i]);
         }
     }
     catch (const std::exception &e)
     {
-        throw;  
+        throw;
     }
 }
+
 
 void WebServer::start()
 {
@@ -377,7 +407,7 @@ void WebServer::start()
     std::cout << "Server stopped.\n";
 }
 
-std::vector<CgiInfo>  WebServer::getCgiFdMap() { return _cgiProcessInfos; }
+std::vector<CgiInfo>  WebServer::getCgiInfos() { return _cgiProcessInfos; }
 
 
 int WebServer::getCurrentEventFd() const { return _currentEventFd; }

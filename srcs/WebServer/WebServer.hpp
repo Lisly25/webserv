@@ -12,17 +12,11 @@
 #include <unordered_map>
 #include <vector>
 #include "Request.hpp"
+#include "CGIHandler.hpp"
 
 #define MAX_EVENTS 100
 
-struct CgiInfo
-{
-    pid_t       pid;
-    int         readEndFd;
-    int         clientSocket;
-    bool        isDone;
-    std::string responseBuffer;
-};
+
 
 class WebServer
 {
@@ -34,7 +28,7 @@ public:
 
     void                    start();
     void                    epollController(int clientSocket, int operation, uint32_t events);
-    std::vector<CgiInfo>    getCgiFdMap();
+    std::vector<CgiInfo>    getCgiInfos();
     int                     getCurrentEventFd() const;
 private:
     int                                         _currentEventFd = -1;
@@ -56,6 +50,7 @@ private:
     void                        addClientSocket(int clientSocket);
     void                        handleEvents(int eventCount);
     void                        acceptAddClientToEpoll(int serverSocketFd);
+    void                        handleCgiResponse(CgiInfo &cgiInfo);
 
     void                        handleOutgoingData(int clientSocket); // send()
     void                        handleIncomingData(int clientSocket); // recv()
