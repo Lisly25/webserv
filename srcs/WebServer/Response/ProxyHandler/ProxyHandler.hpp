@@ -13,8 +13,8 @@ public:
 
 private:
     const Request&  _request;
-    addrinfo*       proxyInfo;
-    std::string     proxyHost;
+    addrinfo*       _proxyInfo;
+    std::string     _proxyHost;
     void            sendRequestToProxy(ScopedSocket& proxySocket, const std::string& modifiedRequest);
     bool            isDataAvailable(int fd, int timeout_usec);
     std::string     modifyRequestForProxy();

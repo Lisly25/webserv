@@ -9,14 +9,6 @@ services:
     environment:
       - INIT_ASSETS=1
 
-  heimdall:
-    container_name: heimdall-webserv
-    image: linuxserver/heimdall
-    ports:
-      - "4545:80"
-    volumes:
-      - ./heimdall:/config
-
   netdata:
     container_name: netdata-webserv
     image: netdata/netdata
