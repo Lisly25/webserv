@@ -6,6 +6,47 @@
 Request::RequestValidator::RequestValidator(Request& request, const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap)
     : _request(request), _servers(servers), _proxyInfoMap(proxyInfoMap) {}
 
+bool Request::RequestValidator::isReadOk() const
+{
+    if (access(_request._requestData.uri.c_str(), R_OK) == -1)
+    {
+        return false;
+    }
+    return true;
+}
+
+bool   Request::RequestValidator::isServerFull() const
+{
+    //the info returned is in bytes, same as our client max body size
+    if (_request._requestData.method != "POST")
+        return true;
+    try
+    {
+        std::filesystem::space_info space = std::filesystem::space(_request._requestData.uri);
+        if (space.available < 1048576)//an arbitrary number
+            return false;
+        if (_request._requestData.body.length() >= static_cast<size_t>(space.available))
+            return false;
+        return true;
+    }
+    catch(const std::exception& e)
+    {
+        throw std::runtime_error(std::string("Error checking server's disk space: ") + e.what());
+    }
+}
+
+bool   Request::RequestValidator::isExistingMethod() const
+{
+    std::string validMethods[] = {"GET", "POST", "DELETE"};
+
+    for (size_t i = 0; i < 3; i++)
+    {
+        if (_request._requestData.method.compare(validMethods[i]) == 0)
+            return true;
+    }
+    return false;
+}
+
 bool Request::RequestValidator::validate() const
 {
     try
@@ -20,29 +61,46 @@ bool Request::RequestValidator::validate() const
 
                     if (_request._location->type != PROXY)
                     {
-                        /*if (!isValidMethod())*/
-                        /*{*/
-                        /*    std::cout << "here1\n";*/
-                        /*    _request._errorCode = INVALID_METHOD;*/
-                        /*}*/
+                        if (!isExistingMethod())
+                        {
+                            _request._errorCode = NOT_IMPLEMENTED;
+                            return true;
+                        }
+                        if (!isAllowedMethod())
+                        {
+                            _request._errorCode = INVALID_METHOD;
+                            return true;
+                        }
                         if (_request.getServer()->client_max_body_size < static_cast<long>(_request._requestData.body.size()))
                         {
                             _request._errorCode = REQUEST_BODY_TOO_LARGE;
+                            return true;
                         }
                         if (!isPathValid())
                         {
                             _request._errorCode = NOT_FOUND;
+                            return true;
                         }
                         if (!isProtocolValid())
                         {
                             _request._errorCode = HTTP_VERSION_NOT_SUPPORTED;
+                            return true;
                         }
-
+                        if (!isReadOk())
+                        {
+                            _request._errorCode = FORBIDDEN;
+                            return true;
+                        }
                         if (!areHeadersValid())
                         {
                             _request._errorCode = BAD_REQUEST;
+                            return true;
                         }
-
+                        if (!isServerFull())
+                        {
+                            _request._errorCode = INSUFFICIENT_STORAGE;
+                            return true;
+                        }
                     }
                     std::cout << "ERROR CODE VALIDATION: " << _request._errorCode << std::endl;
                     return true;
@@ -57,7 +115,7 @@ bool Request::RequestValidator::validate() const
     }
 }
 
-bool Request::RequestValidator::isValidMethod() const
+bool Request::RequestValidator::isAllowedMethod() const
 {
     try
     {

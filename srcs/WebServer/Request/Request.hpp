@@ -40,7 +40,8 @@ inline std::ostream& operator<<(std::ostream& os, const RequestData& requestData
     return os;
 }
 
-enum ErrorCodes { INVALID_METHOD = 405, NOT_FOUND = 404, HTTP_VERSION_NOT_SUPPORTED = 505, BAD_REQUEST = 400, REQUEST_BODY_TOO_LARGE = 413 };
+enum ErrorCodes { INVALID_METHOD = 405, NOT_FOUND = 404, HTTP_VERSION_NOT_SUPPORTED = 505,\
+    BAD_REQUEST = 400, REQUEST_BODY_TOO_LARGE = 413, FORBIDDEN = 403, INSUFFICIENT_STORAGE = 507, NOT_IMPLEMENTED = 501};
 
 class Request
 {
@@ -89,12 +90,14 @@ public:
 
         bool checkForIndexing(std::string& fullPath) const;
         bool isPathValid()      const;
-        bool isValidMethod()    const;
+        bool isReadOk()      const;
+        bool isExistingMethod() const;
+        bool isAllowedMethod()    const;
         bool isProtocolValid()  const;
-        bool isMethodValid()    const;
         bool areHeadersValid()  const;
         bool isServerMatch(const Server& server) const;
         bool matchLocationSetData(const Server& server) const;
+        bool isServerFull() const;
     };
 };
 
