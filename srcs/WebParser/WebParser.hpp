@@ -22,6 +22,7 @@ struct Location {
     std::string                 target;
     bool                        allowedGET;
     bool                        allowedPOST;
+    bool                        allowedHEAD;
     bool                        allowedDELETE;
     bool                        autoIndexOn;
     std::vector<std::string>    index;

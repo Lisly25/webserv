@@ -226,6 +226,7 @@ void    WebParser::extractLocationInfo(size_t contextStart, size_t contextEnd)
 
     currentLocation.allowedDELETE = false;
     currentLocation.allowedGET = false;
+    currentLocation.allowedHEAD = false;
     currentLocation.allowedPOST = false;
     currentLocation.autoIndexOn = false;
     currentLocation.uri = extractLocationUri(contextStart);
@@ -542,6 +543,12 @@ void    WebParser::extractAllowedMethods(size_t contextStart, size_t contextEnd)
             if (_servers.back().locations.back().allowedGET == true)
                 throw WebErrors::ConfigFormatException("Error: GET is listed twice in the same allowed_methods directive");
             _servers.back().locations.back().allowedGET = true;
+        }
+        else if (subLine.compare("HEAD") == 0)
+        {
+            if (_servers.back().locations.back().allowedHEAD == true)
+                throw WebErrors::ConfigFormatException("Error: DELETE is listed twice in the same allowed_methods directive");
+            _servers.back().locations.back().allowedHEAD = true;
         }
         else if (subLine.compare("POST") == 0)
         {

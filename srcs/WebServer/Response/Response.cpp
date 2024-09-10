@@ -32,6 +32,7 @@ std::string Response::generate(const Request &request)
         {
             std::cout << "Error code: " << request.getErrorCode() << std::endl;
             ErrorHandler(request).handleError(response);
+            return response;
         }
         else if (request.getLocation()->type == LocationType::PROXY)
         {
@@ -55,6 +56,14 @@ std::string Response::generate(const Request &request)
         else if (request.getLocation()->type == LocationType::STANDARD || request.getLocation()->type == LocationType::ALIAS)
         {
             StaticFileHandler(request).serveFile(response);
+        }
+        if (request.getRequestData().method == "HEAD" && request.getErrorCode() == 0)
+        {
+            std::cout << "Response before HEAD: " << response << std::endl;
+            size_t headerEndPos = response.find("\r\n\r\n");
+            if (headerEndPos != std::string::npos)
+                response = response.substr(0, headerEndPos + 4);
+            std::cout << "HEAD response: " << response << std::endl;
         }
 
         return response;

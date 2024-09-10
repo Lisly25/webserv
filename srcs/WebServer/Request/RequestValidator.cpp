@@ -37,9 +37,9 @@ bool   Request::RequestValidator::isServerFull() const
 
 bool   Request::RequestValidator::isExistingMethod() const
 {
-    std::string validMethods[] = {"GET", "POST", "DELETE"};
+    std::string validMethods[] = {"GET", "POST", "DELETE", "HEAD"};
 
-    for (size_t i = 0; i < 3; i++)
+    for (size_t i = 0; i < 4; i++)
     {
         if (_request._requestData.method.compare(validMethods[i]) == 0)
             return true;
@@ -123,7 +123,8 @@ bool Request::RequestValidator::isAllowedMethod() const
 
         return  ((method == "GET" && _request._location->allowedGET)
             || (method == "POST" && _request._location->allowedPOST)
-            || (method == "DELETE" && _request._location->allowedDELETE));
+            || (method == "DELETE" && _request._location->allowedDELETE)
+            || (method == "HEAD" && _request._location->allowedHEAD));
     }
     catch (const std::exception& e)
     {

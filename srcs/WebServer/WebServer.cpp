@@ -266,12 +266,6 @@ void WebServer::handleOutgoingData(int clientSocket)
 
             const int bytesSent = send(clientSocket, res.getResponse().c_str(), res.getResponse().length(), 0);
 
-            std::cout << "BYTES SENT: " << bytesSent << std::endl;
-            std::cout << "BYTES SENT: " << bytesSent << std::endl;
-            std::cout << "BYTES SENT: " << bytesSent << std::endl;
-            std::cout << "BYTES SENT: " << bytesSent << std::endl;
-
-            std::cout << "RESPONSE: " << res.getResponse() << std::endl;
             if (bytesSent == -1)
             {
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
