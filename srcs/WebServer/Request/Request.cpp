@@ -115,6 +115,7 @@ void Request::parseHeaderLine(const std::string& line)
             throw std::runtime_error("Invalid header line: missing ':'");
         std::string key = line.substr(0, pos);
         std::string value = line.substr(pos + 1);
+
         key.erase(key.find_last_not_of(" \t") + 1);
         value.erase(0, value.find_first_not_of(" \t"));
         _requestData.headers[key] = value;
@@ -132,9 +133,9 @@ void Request::parseCookies()
         auto it = _requestData.headers.find("Cookie");
         if (it != _requestData.headers.end())
         {
-            std::string cookieHeader = it->second;
-            std::istringstream cookieStream(cookieHeader);
-            std::string cookiePair;
+            std::string         cookieHeader = it->second;
+            std::istringstream  cookieStream(cookieHeader);
+            std::string         cookiePair;
 
             while (std::getline(cookieStream, cookiePair, ';'))
             {
@@ -145,10 +146,6 @@ void Request::parseCookies()
                     std::string value = WebParser::trimSpaces(cookiePair.substr(eqPos + 1));
                     _requestData.cookies[key] = value;
                 }
-            }
-            for (const auto& cookie : _requestData.cookies)
-            {
-                std::cout << cookie.first << "=" << cookie.second << std::endl;
             }
         }
     }

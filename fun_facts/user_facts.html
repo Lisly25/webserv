@@ -55,7 +55,7 @@
         <a id="refreshLink" href="/list/">here</a>
         <p>Link doesn't work? Make sure autoindex is set to "on" in the configuration file</p>
     </div>
-
+    <button id="timeoutButton" onclick="handleTimeoutRequest()">Test Timeout</button>
     <script>
         
         document.getElementById('refreshLink').addEventListener('click', function(event) {
@@ -222,6 +222,30 @@
                 .catch(error => {
                     document.getElementById('message').style.color = 'red';
                     document.getElementById('message').textContent = 'Error fetching file list: ' + error.message;
+                });
+        }
+
+
+        function handleTimeoutRequest() {
+            let hasError = false;
+
+            fetch('/timeout/', { method: 'GET' })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            hasError = true;
+                            throw new Error(text);
+                        });
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    document.getElementById('message').style.color = 'green';
+                    document.getElementById('message').textContent = 'Timeout request successful.';
+                })
+                .catch(error => {
+                    hasError = true;
+                    showModal('Timeout request failed: ' + error.message);
                 });
         }
 
