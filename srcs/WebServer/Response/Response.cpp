@@ -44,7 +44,29 @@ std::string Response::generate(const Request &request)
             if (cgiInfo.error)
                 return (WebParser::getErrorPage(500, request.getServer()));
             cgiInfo.clientSocket = _webServer.getCurrentEventFd();
+
+
+            std::cout << "READ END FD IN RESPONSE: " << cgiInfo.readEndFd << std::endl;
+             std::cout << "READ END FD IN RESPONSE: " << cgiInfo.readEndFd << std::endl;
+              std::cout << "READ END FD IN RESPONSE: " << cgiInfo.readEndFd << std::endl;
+               std::cout << "READ END FD IN RESPONSE: " << cgiInfo.readEndFd << std::endl;
+                std::cout << "READ END FD IN RESPONSE: " << cgiInfo.readEndFd << std::endl;
+                 std::cout << "READ END FD IN RESPONSE: " << cgiInfo.readEndFd << std::endl;
+
+
+            std::cout << "BEFORE EPOLL CONTROLLER\n";
+            std::cout << "BEFORE EPOLL CONTROLLER\n";
+            std::cout << "BEFORE EPOLL CONTROLLER\n";
+            std::cout << "BEFORE EPOLL CONTROLLER\n";
+            std::cout << "BEFORE EPOLL CONTROLLER\n";
+
             _webServer.epollController(cgiInfo.readEndFd, EPOLL_CTL_ADD, EPOLLIN);
+
+
+            std::cout << "CGI: Adding CGI process to _cgiProcessInfos\n";
+            std::cout << "CGI: Adding CGI process to _cgiProcessInfos\n";
+            std::cout << "CGI: Adding CGI process to _cgiProcessInfos\n";
+
             _webServer.getCgiInfos().push_back(cgiInfo);
         }
         else if (request.getLocation()->type == LocationType::STANDARD || request.getLocation()->type == LocationType::ALIAS)

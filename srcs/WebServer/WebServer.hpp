@@ -16,8 +16,6 @@
 
 #define MAX_EVENTS 100
 
-
-
 class WebServer
 {
 public:

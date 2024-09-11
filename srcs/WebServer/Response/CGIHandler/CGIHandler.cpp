@@ -1,4 +1,3 @@
-
 #include "CGIHandler.hpp"
 #include "WebParser.hpp"
 #include <fcntl.h>
@@ -9,7 +8,7 @@ CGIHandler::CGIHandler(const Request& request) : _request(request), _cgiInfo(), 
     std::cout << "\033[37mWITH: " << _path << "\033[0m\n";
     std::cout << "\033[37mWITH METHOD: " << _request.getRequestData().method << "\033[0m\n";
     std::cout << "\033[37mWITH CONTENT_LENGTH: " << _request.getRequestData().content_length << "\033[0m\n";
-};
+}
 
 CgiInfo CGIHandler::executeScript(void)
 {
@@ -21,14 +20,18 @@ CgiInfo CGIHandler::executeScript(void)
 
         if (access(_path.c_str(), R_OK) != 0)
         {
-            std::cerr << "CGI: Script not found or not readable: " << strerror(errno) << "\n";
+            std::fstream logfile("log.txt", std::ios::out | std::ios::app);
+            logfile << "CGI: Script not found or not readable: " << strerror(errno) << "\n";
+            logfile.close();
             _cgiInfo.error = true;
             return _cgiInfo;
         }
 
         if (pipe(_output_pipe) == -1 || pipe(_input_pipe) == -1)
         {
-            std::cerr << "CGI: Failed to create pipes: " << strerror(errno) << "\n";
+            std::fstream logfile("log.txt", std::ios::out | std::ios::app);
+            logfile << "CGI: Failed to create pipes: " << strerror(errno) << "\n";
+            logfile.close();
             _cgiInfo.error = true;
             return _cgiInfo;
         }
@@ -41,7 +44,9 @@ CgiInfo CGIHandler::executeScript(void)
         pid = fork();
         if (pid < 0)
         {
-            std::cerr << "CGI: Fork failed: " << strerror(errno) << "\n";
+            std::fstream logfile("log.txt", std::ios::out | std::ios::app);
+            logfile << "CGI: Fork failed: " << strerror(errno) << "\n";
+            logfile.close();
             _cgiInfo.error = true;
             return _cgiInfo;
         }
@@ -50,15 +55,22 @@ CgiInfo CGIHandler::executeScript(void)
             child();
             std::terminate();
         }
-        else 
+        else
         {
             parent(pid);
+            std::cout << "SUCCESS CGI \n";
+             std::cout << "SUCCESS CGI \n";
+              std::cout << "SUCCESS CGI \n";
+               std::cout << "SUCCESS CGI \n";
+                std::cout << "SUCCESS CGI \n";
             return _cgiInfo;
         }
     }
     catch (const std::exception &e)
     {
-        std::cerr << "CGI: Exception during script execution: " << e.what() << "\n";
+        std::fstream logfile("log.txt", std::ios::out | std::ios::app);
+        logfile << "CGI: Exception during script execution: " << e.what() << "\n";
+        logfile.close();
         _cgiInfo.error = true;
         return _cgiInfo;
     }
@@ -68,27 +80,39 @@ void CGIHandler::child(void)
 {
     try
     {
+        std::fstream logfile("log.txt", std::ios::out | std::ios::app);
         char const *argv[] = {PYTHON3, _path.c_str(), NULL};
         char const *envp[9];
 
-        close(_input_pipe[1]);
-        dup2(_input_pipe[0], STDIN_FILENO);
-        close(_input_pipe[0]);
+        close(_input_pipe[WRITEND]);
+        dup2(_input_pipe[READEND], STDIN_FILENO);
+        close(_input_pipe[READEND]);
 
-        close(_output_pipe[0]);
-        dup2(_output_pipe[1], STDOUT_FILENO);
-        dup2(_output_pipe[1], STDERR_FILENO);
-        close(_output_pipe[1]);
+        close(_output_pipe[READEND]);
+        dup2(_output_pipe[WRITEND], STDOUT_FILENO);
+        dup2(_output_pipe[WRITEND], STDERR_FILENO);  // Redirect STDERR to log
+        close(_output_pipe[WRITEND]);
+
+        logfile << "CGI: Child process running script " << _path << "\n";
+        logfile.close();
 
         childSetEnvp(envp);
         execve(PYTHON3, (char *const *)argv, (char *const *)envp);
 
-        std::cout <<  WebParser::getErrorPage(500, _request.getServer());
+        logfile.open("log.txt", std::ios::out | std::ios::app);
+        logfile << "CGI: Failed to exec script: " << strerror(errno) << "\n";
+        logfile.close();
+
+        std::cout << WebParser::getErrorPage(500, _request.getServer());
         std::terminate();
     }
     catch (const std::exception &e)
     {
-        std::cout <<  WebParser::getErrorPage(500, _request.getServer());
+        std::fstream logfile("log.txt", std::ios::out | std::ios::app);
+        logfile << "CGI: Exception in child process: " << e.what() << "\n";
+        logfile.close();
+
+        std::cout << WebParser::getErrorPage(500, _request.getServer());
         exit(EXIT_FAILURE);
     }
 }
@@ -97,23 +121,47 @@ void CGIHandler::parent(pid_t pid)
 {
     try
     {
+        std::fstream logfile("log.txt", std::ios::out | std::ios::app);
+        logfile << "CGI: Parent process handling PID: " << pid << "\n";
+
         close(_input_pipe[READEND]);
         size_t bodySize = _request.getRequestData().body.size();
         ssize_t written = write(_input_pipe[WRITEND], _request.getRequestData().body.c_str(), bodySize);
         if (written == -1 || static_cast<size_t>(written) != bodySize)
         {
+            logfile << "CGI: Failed to write complete CGI input pipe data. Error: " << strerror(errno) << "\n";
+            logfile.close();
             throw std::runtime_error("Failed to write complete CGI input pipe data.");
         }
+
         close(_input_pipe[WRITEND]);
         close(_output_pipe[WRITEND]);
+
         _cgiInfo.startTime = std::time(nullptr);
         _cgiInfo.pid = pid;
         _cgiInfo.readEndFd = _output_pipe[READEND];
+        int new_fd = dup(_cgiInfo.readEndFd);
+if (new_fd == -1) {
+    std::cerr << "Failed to duplicate file descriptor: " << strerror(errno) << std::endl;
+} else {
+    _cgiInfo.readEndFd = new_fd;
+}
+
+        logfile << "READ END FD IN PARENT: " << _cgiInfo.readEndFd << "\n";
+        logfile << "READ END FD IN PARENT: " << _cgiInfo.readEndFd << "\n";
+        logfile << "READ END FD IN PARENT: " << _cgiInfo.readEndFd << "\n";
+        logfile << "READ END FD IN PARENT: " << _cgiInfo.readEndFd << "\n";
+        logfile << "READ END FD IN PARENT: " << _cgiInfo.readEndFd << "\n";
+        logfile.close();
     }
     catch (const std::exception &e)
     {
-        std::cout <<  WebParser::getErrorPage(500, _request.getServer());
-        throw ;
+        std::fstream logfile("log.txt", std::ios::out | std::ios::app);
+        logfile << "Error in parent: " << e.what() << std::endl;
+        logfile.close();
+
+        std::cout << WebParser::getErrorPage(500, _request.getServer());
+        throw;
     }
 }
 
@@ -155,7 +203,7 @@ void CGIHandler::nonBlockFd(int fd)
     int flags = fcntl(fd, F_GETFL);
     if (flags == -1)
         throw std::system_error();
-    flags |= O_NONBLOCK;
+    flags |= O_NONBLOCK | O_CLOEXEC;
     int res = fcntl(fd, F_SETFL, flags);
     if (res == -1)
         throw std::system_error();

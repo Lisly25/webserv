@@ -132,8 +132,34 @@ void WebServer::epollController(int clientSocket, int operation, uint32_t events
         std::memset(&event, 0, sizeof(event));
         event.data.fd = clientSocket;
         event.events = events;
+
+        std::cout << "Client socket: " << clientSocket << std::endl;
+         std::cout << "Client socket: " << clientSocket << std::endl;
+          std::cout << "Client socket: " << clientSocket << std::endl;
+
+
+                std::cout << "EPOLL FD " << _epollFd << std::endl;
+        std::cout << "EPOLL FD " << _epollFd << std::endl;
+        std::cout << "EPOLL FD " << _epollFd << std::endl;
+        std::cout << "EPOLL FD " << _epollFd << std::endl;
+        std::cout << "EPOLL FD " << _epollFd << std::endl;
+        if (fcntl(clientSocket, F_GETFD) == -1) {
+            std::cerr << "Invalid file descriptor before epoll_ctl: " << strerror(errno) << std::endl;
+             std::cerr << "Invalid file descriptor before epoll_ctl: " << strerror(errno) << std::endl;
+              std::cerr << "Invalid file descriptor before epoll_ctl: " << strerror(errno) << std::endl;
+            throw std::runtime_error("Invalid file descriptor");
+        }
+
+
+
+
         if (epoll_ctl(_epollFd, operation, clientSocket, &event) == -1)
         {
+            std::cout << "Error changing epoll state" <<  std::string(strerror(errno)) << std::endl;
+             std::cout << "Error changing epoll state" <<  std::string(strerror(errno)) << std::endl;
+              std::cout << "Error changing epoll state" <<  std::string(strerror(errno)) << std::endl;
+               std::cout << "Error changing epoll state" <<  std::string(strerror(errno)) << std::endl;
+                std::cout << "Error changing epoll state" <<  std::string(strerror(errno)) << std::endl;
             close(clientSocket);
             throw std::runtime_error("Error changing epoll state" + std::string(strerror(errno)));
         }
@@ -303,6 +329,10 @@ void WebServer::handleOutgoingData(int clientSocket)
         }
         catch (const std::exception &inner_e)
         {
+            std::cout << "CATCHED INNER EXCEPTION" << std::endl;
+            std::cout << "CATCHED INNER EXCEPTION OUT" << std::endl;
+             std::cout << "CATCHED INNER EXCEPTION OUT" << std::endl;
+              std::cout << "CATCHED INNER EXCEPTION OUT" << std::endl;
             WebErrors::combineExceptions(e, inner_e);
         }
         throw;
