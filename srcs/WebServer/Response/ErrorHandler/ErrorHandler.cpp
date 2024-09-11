@@ -5,9 +5,8 @@ ErrorHandler::ErrorHandler(const Request& request)
 {
 }
 
-void ErrorHandler::handleError(std::string& response) const
+void ErrorHandler::handleError(std::string& response, int errorCode) const
 {
-    int errorCode = _request.getErrorCode();
     std::string errorMessage = getErrorMessage(errorCode);
     std::string errorPagePath = WebParser::getErrorPage(errorCode, _request.getServer());
     std::string errorPage;
@@ -21,7 +20,6 @@ void ErrorHandler::handleError(std::string& response) const
         }
         catch(const std::exception& e)
         {
-            //response = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
             errorCode = 500;
             errorMessage = getErrorMessage(errorCode);
             errorPagePath =  WebParser::getErrorPage(errorCode, _request.getServer());
