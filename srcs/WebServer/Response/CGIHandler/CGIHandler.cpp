@@ -1,8 +1,10 @@
 #include "CGIHandler.hpp"
 #include "WebParser.hpp"
 #include <fcntl.h>
+#include "WebServer.hpp"
+#include "ErrorHandler.hpp"
 
-CGIHandler::CGIHandler(const Request& request) : _request(request), _cgiInfo(), _path(_request.getRequestData().uri)
+CGIHandler::CGIHandler(const Request& request, WebServer &webServer) : _webServer(webServer), _request(request), _cgiInfo(), _path(_request.getRequestData().uri)
 {
     std::cout << "\033[31mIN CGI: going to RUN IT\033[0m\n";
     std::cout << "\033[37mWITH: " << _path << "\033[0m\n";
@@ -121,49 +123,28 @@ void CGIHandler::parent(pid_t pid)
 {
     try
     {
-        std::fstream logfile("log.txt", std::ios::out | std::ios::app);
-        logfile << "CGI: Parent process handling PID: " << pid << "\n";
-
+        // Close unused pipe ends
         close(_input_pipe[READEND]);
-        size_t bodySize = _request.getRequestData().body.size();
-        ssize_t written = write(_input_pipe[WRITEND], _request.getRequestData().body.c_str(), bodySize);
-        if (written == -1 || static_cast<size_t>(written) != bodySize)
-        {
-            logfile << "CGI: Failed to write complete CGI input pipe data. Error: " << strerror(errno) << "\n";
-            logfile.close();
-            throw std::runtime_error("Failed to write complete CGI input pipe data.");
-        }
-
         close(_input_pipe[WRITEND]);
-        close(_output_pipe[WRITEND]);
-
-        _cgiInfo.startTime = std::time(nullptr);
-        _cgiInfo.pid = pid;
+        
+        // Add output pipe (READEND) to the main event loop (e.g., epoll)
         _cgiInfo.readEndFd = _output_pipe[READEND];
-        int new_fd = dup(_cgiInfo.readEndFd);
-if (new_fd == -1) {
-    std::cerr << "Failed to duplicate file descriptor: " << strerror(errno) << std::endl;
-} else {
-    _cgiInfo.readEndFd = new_fd;
-}
+        _cgiInfo.pid = pid;
+        _cgiInfo.startTime = std::time(nullptr);
+        _cgiInfo.clientSocket = _webServer.getCurrentEventFd();
 
-        logfile << "READ END FD IN PARENT: " << _cgiInfo.readEndFd << "\n";
-        logfile << "READ END FD IN PARENT: " << _cgiInfo.readEndFd << "\n";
-        logfile << "READ END FD IN PARENT: " << _cgiInfo.readEndFd << "\n";
-        logfile << "READ END FD IN PARENT: " << _cgiInfo.readEndFd << "\n";
-        logfile << "READ END FD IN PARENT: " << _cgiInfo.readEndFd << "\n";
-        logfile.close();
+        // Add the read end of the pipe to the epoll loop (non-blocking)
+        _webServer.epollController(_cgiInfo.readEndFd, EPOLL_CTL_ADD, EPOLLIN);
+
+        // Store CGI process information in the server for future monitoring
+        _webServer.getCgiInfos().push_back(_cgiInfo);
     }
     catch (const std::exception &e)
     {
-        std::fstream logfile("log.txt", std::ios::out | std::ios::app);
-        logfile << "Error in parent: " << e.what() << std::endl;
-        logfile.close();
-
-        std::cout << WebParser::getErrorPage(500, _request.getServer());
-        throw;
+        std::cerr << "CGI: Exception in parent process: " << e.what() << "\n";
     }
 }
+
 
 void CGIHandler::childSetEnvp(char const *envp[])
 {

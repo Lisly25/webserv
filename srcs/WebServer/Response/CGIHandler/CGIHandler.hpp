@@ -29,6 +29,8 @@
 #define PYTHON3 "/bin/python3"
 #define ERROR "\033[31ERROR: \033[0"
 
+class WebServer;
+
 struct CgiInfo
 {
     pid_t       pid = -1;
@@ -49,11 +51,12 @@ struct CgiInfo
 class   CGIHandler
 {
     public:
-        CGIHandler(const Request& request);
+        CGIHandler(const Request& request , WebServer &webServer);
         ~CGIHandler() = default;
         CgiInfo                executeScript( void );
 
     private:
+        WebServer        &_webServer;
         const Request&   _request;
         CgiInfo          _cgiInfo;
         std::string      _path;

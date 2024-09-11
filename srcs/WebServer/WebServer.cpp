@@ -133,16 +133,6 @@ void WebServer::epollController(int clientSocket, int operation, uint32_t events
         event.data.fd = clientSocket;
         event.events = events;
 
-        std::cout << "Client socket: " << clientSocket << std::endl;
-         std::cout << "Client socket: " << clientSocket << std::endl;
-          std::cout << "Client socket: " << clientSocket << std::endl;
-
-
-                std::cout << "EPOLL FD " << _epollFd << std::endl;
-        std::cout << "EPOLL FD " << _epollFd << std::endl;
-        std::cout << "EPOLL FD " << _epollFd << std::endl;
-        std::cout << "EPOLL FD " << _epollFd << std::endl;
-        std::cout << "EPOLL FD " << _epollFd << std::endl;
         if (fcntl(clientSocket, F_GETFD) == -1) {
             std::cerr << "Invalid file descriptor before epoll_ctl: " << strerror(errno) << std::endl;
              std::cerr << "Invalid file descriptor before epoll_ctl: " << strerror(errno) << std::endl;
@@ -261,7 +251,6 @@ void WebServer::handleIncomingData(int clientSocket)
             else if (bytesRead == -1)
                 throw std::runtime_error("Error reading from client");
         }
-
         if (!totalRequest.empty())
         {
             _requestMap[clientSocket] = Request(totalRequest, _parser.getServers(), _proxyInfoMap);
