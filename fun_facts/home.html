@@ -61,20 +61,23 @@
         function timeLeftForCookie() {
             const expiryTime = getCookie('visit_expiry');
             if (!expiryTime) return "N/A";
+        
+            const expiryTimeMs = parseInt(expiryTime, 10);
+        
             const now = new Date().getTime();
-            const timeLeft = expiryTime - now;
-    
+            const timeLeft = expiryTimeMs - now;
+        
             if (timeLeft <= 0) {
                 return "Cookie has expired.";
             }
-    
+        
             const hours = Math.floor(timeLeft / (1000 * 60 * 60));
             const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-    
+        
             return `Cookie is valid for: ${hours}h ${minutes}m ${seconds}s`;
         }
-    
+        
         function updateCookieTime() {
             const expiryInfo = document.getElementById('expiryInfo');
             expiryInfo.innerText = timeLeftForCookie();
