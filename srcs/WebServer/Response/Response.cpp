@@ -30,7 +30,6 @@ std::string Response::generate(const Request &request)
 
         if (request.getErrorCode() != 0)
         {
-            std::cout << "Error code: " << request.getErrorCode() << std::endl;
             ErrorHandler(request).handleError(response, request.getErrorCode());
             return response;
         }
@@ -50,13 +49,10 @@ std::string Response::generate(const Request &request)
         }
         if (request.getRequestData().method == "HEAD" && request.getErrorCode() == 0)
         {
-            std::cout << "Response before HEAD: " << response << std::endl;
             size_t headerEndPos = response.find("\r\n\r\n");
             if (headerEndPos != std::string::npos)
                 response = response.substr(0, headerEndPos + 4);
-            std::cout << "HEAD response: " << response << std::endl;
         }
-
         return response;
     }
     catch (const std::exception &e)

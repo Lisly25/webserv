@@ -1,5 +1,6 @@
 
 #include "CGIHandler.hpp"
+#include "ErrorHandler.hpp"
 #include "WebParser.hpp"
 
 CGIHandler::CGIHandler(const Request& request) : _request(request), _response(""), _path(_request.getRequestData().uri)
@@ -19,18 +20,18 @@ void CGIHandler::executeScript(void)
 
         if (access(_path.c_str(), R_OK) != 0)
         {
-            _response = WebParser::getErrorPage(403, _request.getServer());
+            ErrorHandler(_request).handleError(_response, 500);
             return std::cerr << "CGI: Script is not readable.\n", void();
         }
         if (pipe(_output_pipe) == -1 || pipe(_input_pipe) == -1)
         {
-            _response = WebParser::getErrorPage(500, _request.getServer());
+            ErrorHandler(_request).handleError(_response, 500);
             return std::cerr << "CGI: Failed to create pipes.\n", void();
         }
         pid = fork();
         if (pid < 0)
         {
-            _response = WebParser::getErrorPage(500, _request.getServer());
+            ErrorHandler(_request).handleError(_response, 500);
             return std::cerr << "CGI: Fork failed.\n", void();
         }
         else if (pid == 0)
@@ -40,8 +41,8 @@ void CGIHandler::executeScript(void)
     }
     catch (const std::exception &e)
     {
+        ErrorHandler(_request).handleError(_response, 500);
         std::cerr << "CGI: Exception caught during script execution: " << e.what() << std::endl;
-        _response = WebParser::getErrorPage(500, _request.getServer());
     }
 }
 
@@ -52,14 +53,14 @@ void CGIHandler::child(void)
         char const *argv[] = {PYTHON3, _path.c_str(), NULL};
         char const *envp[9];
 
-        close(_input_pipe[1]);
-        dup2(_input_pipe[0], STDIN_FILENO);
-        close(_input_pipe[0]);
+        close(_input_pipe[WRITEND]);
+        dup2(_input_pipe[READEND], STDIN_FILENO);
+        close(_input_pipe[READEND]);
 
-        close(_output_pipe[0]);
-        dup2(_output_pipe[1], STDOUT_FILENO);
-        dup2(_output_pipe[1], STDERR_FILENO);
-        close(_output_pipe[1]);
+        close(_output_pipe[READEND]);
+        dup2(_output_pipe[WRITEND], STDOUT_FILENO);
+        dup2(_output_pipe[WRITEND], STDERR_FILENO);
+        close(_output_pipe[WRITEND]);
 
         childSetEnvp(envp);
         execve(PYTHON3, (char *const *)argv, (char *const *)envp);
@@ -70,7 +71,8 @@ void CGIHandler::child(void)
     }
     catch (const std::exception &e)
     {
-        std::cout <<  WebParser::getErrorPage(500, _request.getServer());
+        ErrorHandler(_request).handleError(_response, 500);
+        std::cout << _response << std::endl;
         exit(EXIT_FAILURE);
     }
 }
@@ -93,7 +95,10 @@ void CGIHandler::parent(pid_t pid)
         close(_output_pipe[WRITEND]);
         if (!parentWaitForChild(pid))
         {
-            throw std::runtime_error("CGI process timed out.");
+            ErrorHandler(_request).handleError(_response, 408);
+            if (kill(pid, SIGKILL) == -1)
+                std::cerr << "CGI: Failed to kill child process.\n";
+            return std::cerr << "CGI: Child process timed out.\n", void();
         }
         while ((bytes = read(_output_pipe[READEND], buffer, sizeof(buffer))) > 0)
             _response.append(buffer, bytes);
@@ -105,7 +110,7 @@ void CGIHandler::parent(pid_t pid)
     }
     catch (const std::exception &e)
     {
-        _response = WebParser::getErrorPage(500, _request.getServer());
+        ErrorHandler(_request).handleError(_response, 500);
     }
 }
 
@@ -137,7 +142,8 @@ void CGIHandler::childSetEnvp(char const *envp[])
     }
     catch (const std::exception &e)
     {
-        std::cout <<  WebParser::getErrorPage(500, _request.getServer());
+        ErrorHandler(_request).handleError(_response, 500);
+        std::cout <<  _response << std::endl;
         exit(EXIT_FAILURE);
     }
 }
