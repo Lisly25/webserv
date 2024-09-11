@@ -4,7 +4,7 @@ import os
 import sys
 import urllib.parse
 
-uploads_dir = os.path.join(os.getcwd(), "uploads")
+uploads_dir = "/home/skorbai/webserv/gh_repo/uploads/"
 
 def http_response(status_code, content_type, body, additional_headers=None):
     """Generate an HTTP response with the proper status line, headers, and body."""
