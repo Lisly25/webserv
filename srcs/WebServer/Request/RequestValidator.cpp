@@ -148,7 +148,8 @@ bool Request::RequestValidator::checkForIndexing(std::string& fullPath) const
                 bool indexFound = false;
                 for (const auto& indexFile : _request._location->index)
                 {
-                    std::string indexPath = fullPath + "/" + indexFile;
+                    //std::string indexPath = fullPath + "/" + indexFile;
+                    std::string indexPath = indexFile;
                     std::cout << "Checking index file: " << indexPath << std::endl;
 
                     if (std::filesystem::exists(indexPath))
