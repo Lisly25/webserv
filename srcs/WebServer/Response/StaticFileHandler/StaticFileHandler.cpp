@@ -29,16 +29,6 @@ void StaticFileHandler::serveFile(std::string& response)
         return;
     }
 
-    if (std::filesystem::exists(fullPath) && fullPath == "/fun_facts/index.html")
-    {
-        response += "HTTP/1.1 302 Found\r\n";
-        response += "Location: /home.html\r\n";
-        response += "Cache-Control: max-age=3600\r\n";
-        handleCookies(_request, response);
-        response += "\r\n";
-        return;
-    }
-
     if (!std::filesystem::exists(fullPath))
     {
         response = "HTTP/1.1 404 Not Found\r\n\r\n";
