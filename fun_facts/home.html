@@ -23,6 +23,40 @@
             font-weight: bold;
             color: #f4d03f;
         }
+        #nameEntryBox {
+            position: fixed;
+            top: 200px;
+            right: 10px;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            width: auto;
+            font-family: Arial, sans-serif;
+        }
+
+        #nameEntryBox input {
+            padding: 8px;
+            font-size: 14px;
+            width: 180px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-right: 8px;
+        }
+
+        #nameEntryBox button {
+            padding: 8px 12px;
+            font-size: 14px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #nameEntryBox button:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
@@ -30,11 +64,18 @@
         <p id="expiryInfo"></p>
     </div>
 
+    <div id="nameEntryBox">
+        <label for="name">Enter your name:</label>
+        <input type="text" id="name" placeholder="Enter your name">
+        <button onclick="setNameCookie()">Set Name Cookie</button>
+    </div>
+
     <div>
-        <h1>Welcome to webserv!</h1>
+        <h1 id="greeting">Welcome to webserv!</h1>
         <img src="cat_typing.gif" alt="Computer_cat" style="width:300px;height:240px;">
         <p>Please choose a category:</p>
     </div>
+
     <div id="links">
         <li><a href="animals.html">Animals</a></li>
         <li><a href="plants.html">Plants</a></li>
@@ -47,23 +88,50 @@
     </div>
 
     <script>
+
         function getCookie(name) {
             const nameEQ = name + "=";
             const ca = document.cookie.split(';');
             for (let i = 0; i < ca.length; i++) {
-                let c = ca[i];
-                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                let c = ca[i].trim();
                 if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
             }
             return null;
         }
-    
+
+        function setCookie(name, value, maxAgeSeconds) {
+            const expiryTime = new Date().getTime() + (maxAgeSeconds * 1000);
+            document.cookie = `${name}=${value}; max-age=${maxAgeSeconds}; path=/`;
+            document.cookie = `visit_expiry=${expiryTime}; max-age=${maxAgeSeconds}; path=/`;
+        }
+
+        function setNameCookie() {
+            const userName = document.getElementById('name').value;
+            if (userName) {
+                setCookie('user_name', userName, 18000);
+                alert('Cookie set! Welcome, ' + userName);
+                updateGreeting();
+                updateCookieTime();
+            } else {
+                alert('Please enter a name.');
+            }
+        }
+
+        function updateGreeting() {
+            const userName = getCookie('user_name');
+            const greetingElement = document.getElementById('greeting');
+            if (userName) {
+                greetingElement.innerText = `Welcome back, ${userName}!`;
+            } else {
+                greetingElement.innerText = "Welcome to webserv!";
+            }
+        }
+
         function timeLeftForCookie() {
             const expiryTime = getCookie('visit_expiry');
             if (!expiryTime) return "N/A";
         
             const expiryTimeMs = parseInt(expiryTime, 10);
-        
             const now = new Date().getTime();
             const timeLeft = expiryTimeMs - now;
         
@@ -77,13 +145,14 @@
         
             return `Cookie is valid for: ${hours}h ${minutes}m ${seconds}s`;
         }
-        
+
         function updateCookieTime() {
             const expiryInfo = document.getElementById('expiryInfo');
             expiryInfo.innerText = timeLeftForCookie();
         }
-    
+
         window.onload = function() {
+            updateGreeting();
             updateCookieTime();
             setInterval(updateCookieTime, 1000);
         };
