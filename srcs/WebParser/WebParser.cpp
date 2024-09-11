@@ -547,7 +547,7 @@ void    WebParser::extractAllowedMethods(size_t contextStart, size_t contextEnd)
         else if (subLine.compare("HEAD") == 0)
         {
             if (_servers.back().locations.back().allowedHEAD == true)
-                throw WebErrors::ConfigFormatException("Error: DELETE is listed twice in the same allowed_methods directive");
+                throw WebErrors::ConfigFormatException("Error: HEAD is listed twice in the same allowed_methods directive");
             _servers.back().locations.back().allowedHEAD = true;
         }
         else if (subLine.compare("POST") == 0)
@@ -563,7 +563,7 @@ void    WebParser::extractAllowedMethods(size_t contextStart, size_t contextEnd)
             _servers.back().locations.back().allowedDELETE = true;
         }
         else
-            throw WebErrors::ConfigFormatException("Error: allowed_methods directive accepts only 3 values: GET, POST, DELETE");
+            throw WebErrors::ConfigFormatException("Error: allowed_methods directive accepts only 4 values: GET, POST, DELETE, HEAD");
     }   
 }
 
