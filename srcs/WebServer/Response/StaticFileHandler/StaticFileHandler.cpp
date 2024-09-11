@@ -31,7 +31,8 @@ void StaticFileHandler::serveFile(std::string& response)
 
     if (!std::filesystem::exists(fullPath))
     {
-        response = "HTTP/1.1 404 Not Found\r\n\r\n";
+        ErrorHandler    errorHandler(_request);
+        errorHandler.handleError(response, NOT_FOUND);
         return;
     }
 
@@ -40,7 +41,8 @@ void StaticFileHandler::serveFile(std::string& response)
         readFileContent(fullPath, fileContent);
         std::cout << "size: " << fileContent.size() << std::endl;
     } catch (const std::exception& e) {
-        response = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
+        ErrorHandler    errorHandlerServer(_request);
+        errorHandlerServer.handleError(response, SERVER_ERROR);
         return;
     }
 

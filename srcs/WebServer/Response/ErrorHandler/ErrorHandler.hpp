@@ -6,7 +6,7 @@ class ErrorHandler
 {
 public:
     ErrorHandler(const Request& request);
-    void handleError(std::string& response) const;
+    void handleError(std::string& response, int errorCode) const;
 
 private:
     const Request& _request;
