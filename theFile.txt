@@ -1,3 +1,0 @@
-This File is to TEST the POST request (UPLOAD) for CGI part of the webserv
-if you find this file and the content of this file in you ~/uploads DIR
-that means the CGI part of the webserv is successfully handling this specific POST REQUEST

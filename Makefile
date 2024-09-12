@@ -7,9 +7,9 @@ NAME = webserv
 
 DOCKER_COMPOSE_FILE := ./docker-services/docker-compose.yml
 
-CGI_TESTS_DIR = ~/HIVE/webserv/tests/cgi-tests
+CGI_TESTS_DIR = ./tests/cgi-tests
 
-all: $(NAME)
+all: createfolder $(NAME)
 
 $(NAME): $(OBJS)
 	$(CXX) $(CPPFLAGS) $(OBJS) -o $(NAME)
@@ -26,21 +26,10 @@ fclean: clean
 
 re: fclean $(NAME)
 
-run-cgi-tests:
-	cat  $(CGI_TESTS_DIR)/POST-EXAMPLES.tar.gz.part-* > $(CGI_TESTS_DIR)/POST-EXAMPLES.tar.gz
-	tar -xzvf $(CGI_TESTS_DIR)/POST-EXAMPLES.tar.gz -C $(CGI_TESTS_DIR)
-	./tests/CGI-POST-DELETE-TEST.sh
-
 # TESTS ----
-
-proxy-cgi-test: up unpack-test $(NAME)
-	./webserv ./tests/proxy-cgi-test.conf
 
 real-deal-test: up unpack-test $(NAME)
 	./webserv ./tests/real-deal.conf
-
-sample-website-test: up
-	./webserv ./tests/sample-websites/sample-sites.conf
 
 up:
 	mkdir -p ./docker-services/homer
@@ -56,4 +45,4 @@ conf-parse-test:
 	c++ -Wall -Wextra -Werror -std=c++17 -ggdb3 srcs/WebErrors/WebErrors.cpp srcs/WebParser/WebParser.cpp srcs/config_parse_test_main.cpp -I srcs/WebErrors -lstdc++fs -o parseTest
 
 
-.PHONY: all clean fclean re proxy-pass-test up down unpack-test conf-parse-test
+.PHONY: all clean fclean re up down unpack-test real-deal-test

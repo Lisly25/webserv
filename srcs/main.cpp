@@ -17,7 +17,7 @@ int main(int ac, char **av)
         }
         catch (std::exception &e)
         {
-            return (WebErrors::printerror("main()", ""));
+            return (WebErrors::printerror("main()", e.what()));
         }
     }
     else
