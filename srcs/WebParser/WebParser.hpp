@@ -25,6 +25,7 @@ struct Location {
     bool                        allowedHEAD;
     bool                        allowedDELETE;
     bool                        autoIndexOn;
+    std::string                 upload_folder;
     std::vector<std::string>    index;
 };
 
@@ -90,6 +91,7 @@ private:
     void                        extractAutoinex(size_t contextStart, size_t contextEnd);
     void                        extractRedirectionAndTarget(size_t contextStart, size_t contextEnd);
     void                        extractIndex(size_t contextStart, size_t contextEnd);
+    std::string                 extractUploadFolder(size_t contextStart, size_t contextEnd);
 
     //in WebParserUtils
 

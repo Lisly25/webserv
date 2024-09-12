@@ -231,6 +231,7 @@ void    WebParser::extractLocationInfo(size_t contextStart, size_t contextEnd)
     currentLocation.autoIndexOn = false;
     currentLocation.uri = extractLocationUri(contextStart);
     currentLocation.root = extractRoot(contextStart, contextEnd);
+    currentLocation.upload_folder = extractUploadFolder(contextStart, contextEnd);
     _servers.back().locations.push_back(currentLocation);
     extractAllowedMethods(contextStart, contextEnd);
     extractAutoinex(contextStart, contextEnd);
@@ -502,6 +503,7 @@ void WebParser::printParsedInfo(void)
             {
                 std::cout << ">>>   " << servers[i].locations[h].index[s] << std::endl;
             }
+            std::cout << "Upload folder: " << servers[i].locations[h].upload_folder << std::endl;
         }
         std::cout << std::endl;
         i++;
@@ -565,6 +567,18 @@ void    WebParser::extractAllowedMethods(size_t contextStart, size_t contextEnd)
         else
             throw WebErrors::ConfigFormatException("Error: allowed_methods directive accepts only 4 values: GET, POST, DELETE, HEAD");
     }   
+}
+
+std::string             WebParser::extractUploadFolder(size_t contextStart, size_t contextEnd)
+{
+    std::string key = "upload_folder";
+    ssize_t     directiveLocation = locateDirective(contextStart, contextEnd, key);
+
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: only one 'upload_folder' directive per location context is allowed");
+        
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+    return (line);
 }
 
 //location context should always contain this, whether cgi-type or not
