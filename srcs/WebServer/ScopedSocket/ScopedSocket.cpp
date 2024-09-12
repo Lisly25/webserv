@@ -21,7 +21,7 @@ ScopedSocket::~ScopedSocket()
     if (_fd != -1)
     {
         if (close(_fd) == -1)
-           WebErrors::printerror("Failed to close socket ScopedSocket");
+           WebErrors::printerror("ScopedSocket::~ScopedSocket", "Failed to close socket");
     }
 }
 

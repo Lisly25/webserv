@@ -21,19 +21,20 @@ namespace WebErrors
     ProxyException::ProxyException(const std::string &message)
         : BaseException(message) { }
 
-    int printerror(const std::string &e)
+    int printerror(const std::string &location, const std::string &e)
     {
+        std::cout << COLOR_RED_ERROR << "Error:" << location << ": ";
         if (errno != 0)
-            std::cerr << e << ": " << strerror(errno) << std::endl;
+            std::cerr << e << ": " << strerror(errno) << COLOR_RESET << std::endl;
         else
-            std::cerr << e << std::endl;
+            std::cerr << e << COLOR_RESET << std::endl;
         return (EXIT_FAILURE);
     }
 
     void combineExceptions(const std::exception &original, const std::exception &inner)
     {
-        std::string combined_error = "Recovery error: " + std::string(inner.what()) + 
-                                    "; Initial error: " + std::string(original.what());
+        std::string combined_error = COLOR_RED_ERROR  "Recovery error: " + std::string(inner.what()) + 
+                                    "; Initial error: " + std::string(original.what()) + COLOR_RESET;
         throw ServerException(combined_error);
     }
 
@@ -43,4 +44,5 @@ namespace WebErrors
 
     SocketException::SocketException(const std::string &message)
         : BaseException(message) { }
+
 }

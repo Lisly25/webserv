@@ -258,12 +258,12 @@ std::string   WebParser::getErrorPage(int errorCode, const Server *server)
     }
     catch(const std::out_of_range& e)
     {
-        std::cerr << "No error page for code " << errorCode << '\n';
+        WebErrors::printerror("WebParser::getErrorPage", "Error: no error page found for error code");
         return ("");
     }
     if (access(errorPage.c_str(), R_OK) == -1)
     {
-        std::cerr << "Error: error_page has no read permission" << std::endl;
+        WebErrors::printerror("WebParser::getErrorPage", "Error: could not access error page");
         return ("");
     }
     return (errorPage);

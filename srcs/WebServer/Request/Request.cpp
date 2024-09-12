@@ -1,4 +1,5 @@
 #include "Request.hpp"
+#include "WebServer.hpp"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -16,7 +17,7 @@ Request::Request(const std::string& rawRequest, const std::vector<Server>& serve
         parseRequest();
         RequestValidator(*this, servers, proxyInfoMap).validate();
         if (!_server || !_location)
-            throw std::runtime_error("Error validating request: No matching Server or location found for request");
+            throw std::runtime_error( "Error validating request" );
     }
     catch (const std::exception& e)
     {
@@ -49,11 +50,11 @@ void Request::parseRequestLine(const std::string& requestLine)
     {
         std::string::size_type methodEnd = requestLine.find(' ');
         if (methodEnd == std::string::npos)
-            throw std::runtime_error("Invalid request line: missing method");
+            throw std::runtime_error( "Invalid request line: missing method" );
 
         std::string::size_type uriEnd = requestLine.find(' ', methodEnd + 1);
         if (uriEnd == std::string::npos)
-            throw std::runtime_error("Invalid request line: missing URI");
+            throw std::runtime_error( "Invalid request line: missing URI" );
 
         _requestData.method = requestLine.substr(0, methodEnd);
         _requestData.uri = requestLine.substr(methodEnd + 1, uriEnd - methodEnd - 1);
@@ -65,13 +66,10 @@ void Request::parseRequestLine(const std::string& requestLine)
             _requestData.query_string = _requestData.uri.substr(queryPos + 1);
             _requestData.uri = _requestData.uri.substr(0, queryPos);
         }
-        std::cout << _requestData.query_string << std::endl;
-        std::cout << _requestData.query_string << std::endl;
-        std::cout << _requestData.query_string << std::endl;
     }
     catch (const std::exception& e)
     {
-        throw std::runtime_error(std::string("Error parsing request line: ") + e.what());
+        throw std::runtime_error(std::string( "Error parsing request line: ") + e.what() );
     }
 }
 
@@ -102,7 +100,7 @@ void Request::parseHeadersAndBody(std::istringstream& stream)
     }
     catch (const std::exception& e)
     {
-        throw std::runtime_error(std::string("Error parsing headers and body: ") + e.what());
+        throw std::runtime_error(std::string( "Error parsing headers and body: ") + e.what() );
     }
 }
 
@@ -112,7 +110,7 @@ void Request::parseHeaderLine(const std::string& line)
     {
         size_t pos = line.find(':');
         if (pos == std::string::npos)
-            throw std::runtime_error("Invalid header line: missing ':'");
+            throw std::runtime_error( "Invalid header line: missing ':'" );
         std::string key = line.substr(0, pos);
         std::string value = line.substr(pos + 1);
 
@@ -122,7 +120,7 @@ void Request::parseHeaderLine(const std::string& line)
     }
     catch (const std::exception& e)
     {
-        throw std::runtime_error(std::string("Error parsing header line: ") + e.what());
+        throw std::runtime_error(std::string( "Error parsing header line: ") + e.what() );
     }
 }
 
@@ -151,7 +149,7 @@ void Request::parseCookies()
     }
     catch (const std::exception& e)
     {
-        throw std::runtime_error(std::string("Error parsing cookies: ") + e.what());
+        throw std::runtime_error(std::string( "Error parsing cookies: ") + e.what() );
     }
 }
 
@@ -167,7 +165,7 @@ void Request::setContentTypeAndLength()
     }
     catch (const std::exception& e)
     {
-        throw std::runtime_error(std::string("Error setting content type and length: ") + e.what());
+        throw std::runtime_error(std::string( "Error setting content type and length: ") + e.what() );
     }
 }
 

@@ -15,6 +15,13 @@
 
 #define MAX_EVENTS 100
 
+#define COLOR_RED_ERROR "\033[31m"
+#define COLOR_CYAN_COOKIE "\033[36m"
+#define COLOR_GREEN_SERVER "\033[32m"
+#define COLOR_MAGENTA_SERVER "\033[35m"
+#define COLOR_YELLOW_CGI "\033[33m"
+#define COLOR_RESET "\033[0m"
+
 class WebServer
 {
 public:

@@ -2,6 +2,8 @@
 #include <filesystem>
 #include <numeric>
 #include "ErrorHandler.hpp"
+#include "WebErrors.hpp"
+#include "WebServer.hpp"
 
 StaticFileHandler::StaticFileHandler(const Request& request) 
     : _request(request) {}
@@ -12,7 +14,6 @@ void StaticFileHandler::serveFile(std::string& response)
     {
         const std::string& fullPath = _request.getRequestData().uri;
         const bool isAutoIndex = std::filesystem::is_directory(fullPath) && _request.getLocation()->autoIndexOn;
-        std::cout << "Serving file at path: " << fullPath << std::endl;
 
         auto appendHeaders = [&](const std::string& status, const std::string& mimeType, size_t contentLength) {
             response += "HTTP/1.1 " + status + "\r\n";
@@ -41,7 +42,6 @@ void StaticFileHandler::serveFile(std::string& response)
         std::string fileContent;
         try {
             readFileContent(fullPath, fileContent);
-            std::cout << "size: " << fileContent.size() << std::endl;
         } catch (const std::exception& e) {
             ErrorHandler    errorHandlerServer(_request);
             errorHandlerServer.handleError(response, SERVER_ERROR);
@@ -55,7 +55,7 @@ void StaticFileHandler::serveFile(std::string& response)
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Error serving file: " << e.what() << std::endl;
+        WebErrors::printerror("StaticFileHandler::serveFile", e.what());
         throw;
     }
 }
@@ -67,14 +67,14 @@ void StaticFileHandler::handleCookies(const Request &request, std::string &respo
     };
 
     auto handleFirstTime = [&]() {
-        std::cout << "First-time visitor. Setting visit_status to 'first_visit'.\n";
+        std::cout << COLOR_CYAN_COOKIE << "Cookie: [ first_visit ] \n" << COLOR_RESET;
         auto expiryTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() + std::chrono::hours(5));
         addCookie("visit_status", "first_visit", 18000);
         addCookie("visit_expiry", std::to_string(expiryTime * 1000), 18000);
     };
 
     auto setReturning = [&]() {
-        std::cout << "Returning visitor with 'return_visit'.\n";
+        std::cout << COLOR_CYAN_COOKIE << "Cookie: [ return_visit ] \n" << COLOR_RESET;
         addCookie("visit_status", "return_visit", 18000);
     };
 
@@ -92,12 +92,12 @@ void StaticFileHandler::handleCookies(const Request &request, std::string &respo
         } 
         else
         {
-            std::cout << "Returning visitor with 'return_visit'.\n";
+            std::cout << COLOR_CYAN_COOKIE << "Cookie: [ return_visit ] \n" << COLOR_RESET;
         }
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Error handling cookies: " << e.what() << std::endl;
+        WebErrors::printerror("StaticFileHandler::handleCookies", e.what());
         throw ;
     }
 
@@ -123,7 +123,7 @@ std::string StaticFileHandler::getMimeType(const std::string& path) const
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Error getting mime type: " << e.what() << std::endl;
+        WebErrors::printerror("StaticFileHandler::getMimeType", e.what());
         throw;
     }
 }
@@ -135,7 +135,7 @@ void StaticFileHandler::readFileContent(const std::string& path, std::string& co
         std::ifstream fileStream(path, std::ios::in | std::ios::binary);
         if (!fileStream)
         {
-            throw std::runtime_error("Failed to read file: " + path);
+            throw std::runtime_error(  "Error: {StaticFileHandler::readFileContent}: " );
         }
 
         std::ostringstream ss;
@@ -144,7 +144,7 @@ void StaticFileHandler::readFileContent(const std::string& path, std::string& co
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Error reading file content: " << e.what() << std::endl;
+        WebErrors::printerror("StaticFileHandler::readFileContent", e.what());
         throw;
     }
 }

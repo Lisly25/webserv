@@ -17,10 +17,10 @@ int main(int ac, char **av)
         }
         catch (std::exception &e)
         {
-            return (WebErrors::printerror(e.what()));
+            return (WebErrors::printerror("main()", ""));
         }
     }
     else
-        return (WebErrors::printerror(ARG_ERROR));
+        return (WebErrors::printerror("main()", ARG_ERROR));
     return (EXIT_SUCCESS);
 }

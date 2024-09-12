@@ -34,7 +34,7 @@ bool ProxyHandler::isDataAvailable(int fd, int timeout_usec)
     }
     catch (const std::exception &e)
     {
-        std::cerr << "Exception in isDataAvailable: " << e.what() << std::endl;
+        WebErrors::printerror("ProxyHandler::isDataAvailable", e.what());
         throw;
     }
 }

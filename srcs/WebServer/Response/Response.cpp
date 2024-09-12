@@ -11,6 +11,7 @@
 #include <iostream>
 #include <string>
 #include "StaticFileHandler.hpp"
+#include "WebServer.hpp"
 
 Response::Response(const Request &request)
 {
@@ -28,6 +29,7 @@ std::string Response::generate(const Request &request)
     try {
         std::string response;
 
+        std::cout << COLOR_MAGENTA_SERVER << "Response: " << request.getRequestData().uri << COLOR_RESET << std::endl;
         if (request.getErrorCode() != 0)
         {
             ErrorHandler(request).handleError(response, request.getErrorCode());
@@ -57,7 +59,7 @@ std::string Response::generate(const Request &request)
     }
     catch (const std::exception &e)
     {
-        std::cout << "Error in Response::generate\n";
+        WebErrors::printerror("Response::generate", e.what());
         throw;
     }
 }

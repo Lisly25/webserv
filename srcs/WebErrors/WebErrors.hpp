@@ -53,6 +53,6 @@ namespace WebErrors
     public:
         explicit SocketException(const std::string &message);
     };
-    int printerror(const std::string &e);
+    int printerror(const std::string &location, const std::string &e);
     void combineExceptions(const std::exception &original, const std::exception &inner);
 }

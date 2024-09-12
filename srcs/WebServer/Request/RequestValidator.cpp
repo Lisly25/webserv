@@ -1,4 +1,6 @@
 #include "Request.hpp"
+#include "WebErrors.hpp"
+#include "WebServer.hpp"
 #include <iostream>
 #include <sys/stat.h> 
 #include <filesystem>
@@ -102,7 +104,6 @@ bool Request::RequestValidator::validate() const
                             return true;
                         }
                     }
-                    std::cout << "ERROR CODE VALIDATION: " << _request._errorCode << std::endl;
                     return true;
                 }
             }
@@ -140,7 +141,6 @@ bool Request::RequestValidator::checkForIndexing(std::string& fullPath) const
         {
             if (_request._location->autoIndexOn)
             {
-                std::cout << "Autoindex enabled, serving directory listing" << std::endl;
                 return true;
             }
             else
@@ -149,7 +149,6 @@ bool Request::RequestValidator::checkForIndexing(std::string& fullPath) const
                 for (const auto& indexFile : _request._location->index)
                 {
                     std::string indexPath = fullPath + "/" + indexFile;
-                    std::cout << "Checking index file: " << indexPath << std::endl;
 
                     if (std::filesystem::exists(indexPath))
                     {
@@ -160,7 +159,7 @@ bool Request::RequestValidator::checkForIndexing(std::string& fullPath) const
                 }
                 if (!indexFound)
                 {
-                    std::cout << "No index file found and autoindex is off. Path is invalid." << std::endl;
+                    WebErrors::printerror("Request::RequestValidator::checkForIndexing", "No index file found");
                     return false;
                 }
             }
@@ -185,12 +184,9 @@ bool Request::RequestValidator::isPathValid() const
                 relativeUri = "/" + relativeUri;
             std::string fullPath = _request._location->target + relativeUri;
             fullPath = std::filesystem::absolute(fullPath).generic_string();
-            std::cout << "Alias fullPath: " << fullPath << std::endl;
             if (!checkForIndexing(fullPath))
                 return false;
-
             _request._requestData.uri = fullPath;
-            std::cout << "Checking fullPath: ALIAS " << fullPath << std::endl;
             return std::filesystem::exists(fullPath);
         };
 
@@ -203,7 +199,6 @@ bool Request::RequestValidator::isPathValid() const
             if (!checkForIndexing(fullPath))
                 return false;
             fullPath = std::filesystem::absolute(fullPath).generic_string();
-            std::cout << "Checking fullPath: " << fullPath << std::endl;
             _request._requestData.uri = fullPath;
             return std::filesystem::exists(fullPath);
         };
@@ -279,6 +274,7 @@ bool Request::RequestValidator::isServerMatch(const Server& server) const
             std::string fullServerName = serverName + ":" + std::to_string(server.port);
             if (hostHeader == fullServerName)
             {
+                std::cout << COLOR_MAGENTA_SERVER << "Request: " << fullServerName << COLOR_RESET << std::endl;
                 _request._server = &server;
                 return true;
             }

@@ -31,7 +31,7 @@ bool WebParser::parse()
         }
         catch(const std::exception& e)
         {
-            std::cerr << e.what() << std::endl;
+            WebErrors::printerror("WebParser::parse", e.what());
             throw WebErrors::BaseException("Failed to read config file into vector");//Not sure if this is necessary
         }
         if (line.find("proxy_pass") != std::string::npos)
@@ -311,7 +311,7 @@ std::vector<std::string> WebParser::extractServerName(size_t contextStart, size_
         }
         catch(const std::exception& e)
         {
-            std::cerr << e.what() << std::endl;
+            WebErrors::printerror("WebParser::extractServerName", e.what());
             throw WebErrors::BaseException("Vector operaation failed");
         }
     }   
@@ -702,7 +702,7 @@ void    WebParser::extractIndex(size_t contextStart, size_t contextEnd)
         }
         catch(const std::exception& e)
         {
-            std::cerr << e.what() << std::endl;
+            WebErrors::printerror("WebParser::extractIndex", e.what());
             throw WebErrors::BaseException("Vector operation failed");
         }
     }

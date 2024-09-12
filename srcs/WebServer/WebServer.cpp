@@ -22,11 +22,12 @@ WebServer::WebServer(WebParser &parser)
 {
     try
     {
+        std::cout << COLOR_GREEN_SERVER << "[ SERVER STARTED ] press Ctrl+C to stop\n\n" << COLOR_RESET;
         _serverSockets = createServerSockets(parser.getServers());
         resolveProxyAddresses(parser.getServers());
         _epollFd = epoll_create(1);
         if (_epollFd == -1)
-            throw WebErrors::ServerException("Error creating epoll instance");
+            throw WebErrors::ServerException("Error creating epoll");
         for (const auto& serverSocket : _serverSockets)
             epollController(serverSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN);
     }
@@ -89,8 +90,7 @@ void WebServer::resolveProxyAddresses(const std::vector<Server>& server_confs)
                         int status = getaddrinfo(proxyHost.c_str(), proxyPort.c_str(), &hints, &proxyInfo);
                         if (status != 0)
                         {
-                            throw WebErrors::ProxyException("Error resolving proxy address: " 
-                                + std::string(gai_strerror(status)));
+                            throw WebErrors::ProxyException( "Error resolving proxy address" );
                         }
                         _proxyInfoMap[key] = proxyInfo;
                     }
@@ -127,15 +127,24 @@ void WebServer::epollController(int clientSocket, int operation, uint32_t events
 {
     try
     {
-        struct epoll_event  event;
+        struct epoll_event event;
 
         std::memset(&event, 0, sizeof(event));
         event.data.fd = clientSocket;
         event.events = events;
+
         if (epoll_ctl(_epollFd, operation, clientSocket, &event) == -1)
         {
             close(clientSocket);
-            throw std::runtime_error("Error changing epoll state" + std::string(strerror(errno)));
+            throw std::runtime_error("Error changing epoll state: " + std::string(strerror(errno)));
+        }
+        if (events & EPOLLIN)
+        {
+            std::cout << COLOR_GREEN_SERVER << "Socket: added to epoll EPOLLIN: " << COLOR_RESET << std::endl;
+        }
+        if (events & EPOLL_CTL_DEL)
+        {
+            std::cout << COLOR_YELLOW_CGI << "Socket: removed from epoll EPOLL_CTL_DEL: " << COLOR_RESET << std::endl;
         }
         if (operation == EPOLL_CTL_DEL)
         {
@@ -158,7 +167,7 @@ void WebServer::acceptAddClientToEpoll(int clientSocketFd)
         ScopedSocket        clientSocket(accept(clientSocketFd, (struct sockaddr *)&clientAddr, &clientLen), 0);
 
         if (clientSocket.getFd() < 0)
-            throw std::runtime_error("Error accepting client connection");
+            throw std::runtime_error( "Error accepting client" );
 
         epollController(clientSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN);
         clientSocket.release();
@@ -182,7 +191,7 @@ std::string WebServer::getBoundary(const std::string &request)
     }
     catch (const std::exception &e)
     {
-        throw std::runtime_error("Error parsing request boundary");
+        throw std::runtime_error( "Error parsing request boundary" );
     }
 }
 
@@ -208,7 +217,7 @@ int WebServer::getRequestTotalLength(const std::string &request)
     }
     catch (const std::exception &e)
     {
-        throw std::runtime_error("Error parsing request content length");
+        throw std::runtime_error( "Error parsing request total length" );
     }
 }
 
@@ -231,9 +240,9 @@ void WebServer::handleIncomingData(int clientSocket)
                     totalBytes = getRequestTotalLength(totalRequest);
             }
             else if (bytesRead == 0)
-                throw std::runtime_error("Client closed connection");
+                throw std::runtime_error( "Client closed connection" );
             else if (bytesRead == -1)
-                throw std::runtime_error("Error reading from client");
+                throw std::runtime_error( "Error receiving data from client" );
         }
 
         if (!totalRequest.empty())
@@ -320,7 +329,6 @@ void WebServer::handleEvents(int eventCount)
 
 void WebServer::start()
 {
-    std::cout << "Server is running. Press Ctrl+C to stop.\n";
     std::signal(SIGINT, [](int signum) { (void)signum; WebServer::_running = false; });
 
     while (_running)
@@ -337,8 +345,8 @@ void WebServer::start()
         }
         catch (const std::exception &e)
         {
-            WebErrors::printerror(e.what());
+            WebErrors::printerror("WebServer::start", e.what());
         }
     }
-    std::cout << "Server stopped.\n";
+    std::cout << COLOR_GREEN_SERVER << "[ SERVER STOPPED ] \n" << COLOR_RESET;
 }
