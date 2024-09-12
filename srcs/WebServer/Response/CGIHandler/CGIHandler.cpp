@@ -117,7 +117,7 @@ void CGIHandler::childSetEnvp(char const *envp[])
 {
     try
     {
-        static std::vector<std::string> env(8);
+        static std::vector<std::string> env(9);
         const RequestData *reqData =    &_request.getRequestData();
 
         env[0] = "REQUEST_METHOD=" + reqData->method;
@@ -128,6 +128,7 @@ void CGIHandler::childSetEnvp(char const *envp[])
         env[5] = "SCRIPT_FILENAME=" + _path;
         env[6] = "SCRIPT_NAME=" + _path;
         env[7] = "REDIRECT_STATUS=200";
+        env[8] = "UPLOAD_FOLDER="  + _request.getLocation()->upload_folder;
 
         envp[0] = env[0].c_str();
         envp[1] = env[1].c_str();
@@ -137,7 +138,8 @@ void CGIHandler::childSetEnvp(char const *envp[])
         envp[5] = env[5].c_str();
         envp[6] = env[6].c_str();
         envp[7] = env[7].c_str();
-        envp[8] = NULL;
+        envp[8] = env[8].c_str();
+        envp[9] = NULL;
     }
     catch (const std::exception &e)
     {

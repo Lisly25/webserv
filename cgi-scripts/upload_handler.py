@@ -57,7 +57,7 @@ def http_response(status_code, content_type, body, additional_headers=None):
 
 def handle_upload():
     """Handle the file upload process, from reading input to saving the file."""
-    upload_dir = os.path.join(os.getcwd(), "uploads")
+    upload_dir = os.path.join(os.getcwd(), os.environ.get('UPLOAD_FOLDER', 0))
     create_upload_dir(upload_dir)
 
     content_length = int(os.environ.get('CONTENT_LENGTH', 0))
