@@ -279,8 +279,12 @@ void WebServer::handleOutgoingData(int clientSocket)
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
                 throw std::runtime_error("Error sending response to client");
             }
-            else
+            else if (bytesSent == 0)
+            {
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
+                throw std::runtime_error("Connection could not keep up with the server");
+            }
+            epollController(clientSocket, EPOLL_CTL_DEL, 0);
         }
         _requestMap.erase(it);
     }
@@ -294,6 +298,7 @@ void WebServer::handleOutgoingData(int clientSocket)
         throw;
     }
 }
+
 
 void WebServer::handleEvents(int eventCount)
 {
