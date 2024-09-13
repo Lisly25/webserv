@@ -279,6 +279,11 @@ void WebServer::handleOutgoingData(int clientSocket)
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
                 throw std::runtime_error("Error sending response to client");
             }
+            else if (bytesSent == 0)
+            {
+                epollController(clientSocket, EPOLL_CTL_DEL, 0);
+                throw std::runtime_error("Connection closed by the client");
+            }
             else
                 epollController(clientSocket, EPOLL_CTL_DEL, 0);
         }
