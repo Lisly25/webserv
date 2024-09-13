@@ -22,6 +22,8 @@
 #define COLOR_YELLOW_CGI "\033[33m"
 #define COLOR_RESET "\033[0m"
 
+class  ProxyHandler;
+
 struct CGIProcessInfo
 {
     pid_t       pid;
@@ -29,8 +31,9 @@ struct CGIProcessInfo
     std::string response;
 };
 using cgiInfoMap = std::unordered_map<int, CGIProcessInfo>;
+using proxyHandlerMap = std::unordered_map<int, std::unique_ptr<ProxyHandler>> ;
 
-enum FdType  {SERVER, CLIENT, CGI_PIPE };
+enum FdType  {SERVER_FD, CLIENT_FD, CGI_PIPE_FD, PROXY_FD };
 
 class WebServer
 {
@@ -43,10 +46,10 @@ public:
     void                 start();
     void                 epollController(int clientSocket, int operation, uint32_t events, FdType fdType);
     int                  getEpollFd() const;
-    cgiInfoMap          &getCgiInfoMap();
+    cgiInfoMap           &getCgiInfoMap();
     int                  getCurrentEventFd() const;
-
-    static void         setFdNonBlocking(int fd);
+    proxyHandlerMap      &getProxyHandlerMap(); 
+    static void          setFdNonBlocking(int fd);
 private:
     std::vector<ServerSocket>                   _serverSockets = {};
     static bool                                 _running;
@@ -57,7 +60,8 @@ private:
 
     std::unordered_map<int, std::string>        _partialRequests;
     cgiInfoMap                                  _cgiInfoMap;
-    std::unordered_map<std::string, addrinfo*>  _proxyInfoMap = {};
+    proxyHandlerMap                             _proxyHandlers;
+    std::unordered_map<std::string, addrinfo*>  _proxyAddrInfoMap = {};
     std::unordered_map<int, Request>            _requestMap;
 
     std::vector<ServerSocket>   createServerSockets(const std::vector<Server> &server_confs);

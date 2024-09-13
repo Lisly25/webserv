@@ -6,37 +6,75 @@
 #include <unistd.h>
 #include <iostream>
 
-ProxyHandler::ProxyHandler(const Request& req) : _request(req), _proxyInfo(req.getProxyInfo()), _proxyHost(req.getLocation()->target)
+ProxyHandler::ProxyHandler(const Request& req, WebServer &webServer) 
+    : _webServer(webServer), 
+      _request(req), 
+      _proxyInfo(req.getProxyInfo()), 
+      _proxyHost(req.getLocation()->target)
 {
-    if (!_proxyInfo) throw WebErrors::ProxyException("No proxy information available");
-}
-
-bool ProxyHandler::isDataAvailable(int fd, int timeout_usec)
-{
-    if (fd < 0)
-        throw WebErrors::ProxyException("Invalid file descriptor.");
+    if (!_proxyInfo)
+        throw WebErrors::ProxyException("No proxy information available");
     try
     {
-        struct timeval timeout;
-        timeout.tv_sec = timeout_usec / 1000000;
-        timeout.tv_usec = timeout_usec % 1000000;
+        ProxySocket proxySocket(_proxyInfo, _proxyHost);
 
-        fd_set readfds;
-        FD_ZERO(&readfds);
-        FD_SET(fd, &readfds);
-
-        int ret = select(fd + 1, &readfds, nullptr, nullptr, &timeout);
-
-        if (ret < 0) {
-            throw WebErrors::ProxyException("Error with select on proxy server socket");
-        }
-        return ret > 0 && FD_ISSET(fd, &readfds);
-    }
+        _proxySocketFd = proxySocket.getFd();
+        proxySocket.release(false);
+        _pendingProxyRequest = modifyRequestForProxy();
+        _webServer.epollController(_proxySocketFd, EPOLL_CTL_ADD, EPOLLOUT, FdType::PROXY_FD);
+    } 
     catch (const std::exception &e)
     {
-        WebErrors::printerror("ProxyHandler::isDataAvailable", e.what());
         throw;
     }
+}
+
+ProxyHandler::~ProxyHandler()
+{
+}
+
+
+void ProxyHandler::closeProxyConnection(int proxySocketFd)
+{
+    _webServer.epollController(proxySocketFd, EPOLL_CTL_DEL, 0, FdType::PROXY_FD);
+    _webServer.getProxyHandlerMap().erase(proxySocketFd);
+}
+
+void ProxyHandler::handleProxyWrite(int proxySocketFd)
+{
+    ssize_t bytesSent = send(proxySocketFd, _pendingProxyRequest.c_str(), _pendingProxyRequest.length(), 0);
+
+    if (bytesSent > 0)
+    {
+        _pendingProxyRequest.erase(0, bytesSent);
+        if (_pendingProxyRequest.empty())
+            _webServer.epollController(proxySocketFd, EPOLL_CTL_MOD, EPOLLIN, FdType::PROXY_FD);
+    }
+    else if (bytesSent == -1)
+    {
+        closeProxyConnection(proxySocketFd);
+    }
+}
+
+void ProxyHandler::handleProxyRead(int proxySocketFd)
+{
+    char    buffer[4096];
+    ssize_t bytesReceived = recv(proxySocketFd, buffer, sizeof(buffer), 0);
+    ssize_t bytesSent = 0;
+
+    if (bytesReceived > 0)
+    {
+        _pendingProxyResponse.append(buffer, bytesReceived);
+        bytesSent = send(_clientSocketFd, _pendingProxyResponse.c_str(), _pendingProxyResponse.size(), 0);
+        if (bytesSent > 0)
+            _pendingProxyResponse.erase(0, bytesSent);
+        if (bytesReceived == 0 || _pendingProxyResponse.empty())
+            closeProxyConnection(proxySocketFd);
+    }
+    else if (bytesReceived == 0)
+        closeProxyConnection(proxySocketFd);
+    else if (bytesReceived == -1)
+        closeProxyConnection(proxySocketFd);
 }
 
 std::string ProxyHandler::modifyRequestForProxy()
@@ -78,32 +116,4 @@ std::string ProxyHandler::modifyRequestForProxy()
     }
 }
 
-void ProxyHandler::passRequest(std::string &response)
-{
-    try {
-        ProxySocket proxySocket(_proxyInfo, _proxyHost);
-        std::string modifiedRequest = modifyRequestForProxy();
-        char        buffer[8192];
-        ssize_t     bytesRead = 0;
-
-        if (send(proxySocket.getFd(), modifiedRequest.c_str(), modifiedRequest.length(), 0) < 0)
-            throw WebErrors::ProxyException("Error sending to proxy server");
-
-        while (isDataAvailable(proxySocket.getFd(), 20000)) // 2ms timeout
-        {
-            bytesRead = recv(proxySocket.getFd(), buffer, sizeof(buffer), 0);
-            if (bytesRead > 0)
-            {
-                response.append(buffer, bytesRead);
-            }
-            else if (bytesRead == 0)
-                break;
-            else if (bytesRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
-                throw WebErrors::ProxyException("Error reading from proxy server");
-        }
-    }
-    catch (const std::exception &e)
-    {
-        throw ;
-    }
-}
+int ProxyHandler::getProxySocketFd() const { return _proxySocketFd; }

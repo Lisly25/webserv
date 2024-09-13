@@ -16,6 +16,7 @@
 #include <sys/epoll.h>
 #include "Response.hpp"
 #include "Request.hpp"
+#include "ProxyHandler.hpp"
 
 bool WebServer::_running = true;
 
@@ -31,7 +32,7 @@ WebServer::WebServer(WebParser &parser)
         if (_epollFd == -1)
             throw WebErrors::ServerException("Error creating epoll");
         for (const auto& serverSocket : _serverSockets)
-            epollController(serverSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN, FdType::SERVER);
+            epollController(serverSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN, FdType::SERVER_FD);
     }
     catch (const std::exception& e)
     {
@@ -41,7 +42,7 @@ WebServer::WebServer(WebParser &parser)
 
 WebServer::~WebServer()
 {
-    for (auto& entry : _proxyInfoMap)
+    for (auto& entry : _proxyAddrInfoMap)
     {
         if (entry.second)
         {
@@ -82,7 +83,7 @@ void WebServer::resolveProxyAddresses(const std::vector<Server>& server_confs)
                     }
 
                     std::string key = proxyHost + ":" + proxyPort;
-                    if (_proxyInfoMap.find(key) == _proxyInfoMap.end())
+                    if (_proxyAddrInfoMap.find(key) == _proxyAddrInfoMap.end())
                     {
                         addrinfo hints{};
                         hints.ai_family = AF_UNSPEC;
@@ -94,7 +95,7 @@ void WebServer::resolveProxyAddresses(const std::vector<Server>& server_confs)
                         {
                             throw WebErrors::ProxyException( "Error resolving proxy address" );
                         }
-                        _proxyInfoMap[key] = proxyInfo;
+                        _proxyAddrInfoMap[key] = proxyInfo;
                     }
                 }
             }
@@ -139,14 +140,17 @@ void WebServer::epollController(int clientSocket, int operation, uint32_t events
         {
             switch (fdType)
             {
-                case FdType::SERVER:
+                case FdType::SERVER_FD:
                     std::cout << COLOR_GREEN_SERVER << " { Server socket added to epoll 🏊 }\n\n" << COLOR_RESET;
                     break;
-                case FdType::CLIENT:
+                case FdType::CLIENT_FD:
                     std::cout << COLOR_GREEN_SERVER << " { Client socket added to epoll 🏊 }\n\n" << COLOR_RESET;
                     break;
-                case FdType::CGI_PIPE:
+                case FdType::CGI_PIPE_FD:
                     std::cout << COLOR_GREEN_SERVER << " { CGI pipe added to epoll 🏊 }\n\n" << COLOR_RESET;
+                    break;
+                case FdType::PROXY_FD:
+                    std::cout << COLOR_GREEN_SERVER << " { Proxy socket added to epoll 🏊 }\n\n" << COLOR_RESET;
                     break;
             }
             setFdNonBlocking(clientSocket);
@@ -179,7 +183,7 @@ void WebServer::acceptAddClientToEpoll(int clientSocketFd)
         if (clientSocket.getFd() < 0)
             throw std::runtime_error( "Error accepting client" );
 
-        epollController(clientSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN, FdType::CLIENT);
+        epollController(clientSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN, FdType::CLIENT_FD);
         clientSocket.release();
     }
     catch (const std::exception &e)
@@ -246,7 +250,7 @@ void WebServer::handleIncomingData(int clientSocket)
 
     auto processRequest = [this, &cleanupClient](int clientSocket, const std::string &requestStr)
     {
-        Request request(requestStr, _parser.getServers(), _proxyInfoMap);
+        Request request(requestStr, _parser.getServers(), _proxyAddrInfoMap);
 
         _requestMap[clientSocket] = request;
         std::cout << COLOR_MAGENTA_SERVER << "  Request to: " << request.getServer()->server_name[0] << \
@@ -263,8 +267,24 @@ void WebServer::handleIncomingData(int clientSocket)
             else
                 CGIHandler cgiHandler(request, *this);
         }
+        else if (request.getLocation()->type == LocationType::PROXY)
+        {
+            if (request.getErrorCode() != 0)
+            {
+                std::string response;
+                ErrorHandler(request).handleError(response, request.getErrorCode());
+                send(clientSocket, response.c_str(), response.length(), 0);
+                cleanupClient(clientSocket);
+            }
+            else
+            {
+                auto proxyHandler = std::make_unique<ProxyHandler>(request, *this);
+                _proxyHandlers[proxyHandler->getProxySocketFd()] = std::move(proxyHandler);
+                _proxyHandlers[proxyHandler->getProxySocketFd()]->handleProxyWrite(proxyHandler->getProxySocketFd());
+            }
+        }
         else
-            epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT, FdType::CLIENT);
+            epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT, FdType::CLIENT_FD);
     };
 
     try
@@ -314,23 +334,23 @@ void WebServer::handleOutgoingData(int clientSocket)
 
             if (bytesSent == -1)
             {
-                epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
+                epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT_FD);
                 throw std::runtime_error("Error sending response to client");
             }
             else if (bytesSent == 0)
             {
-                epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
+                epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT_FD);
                 throw std::runtime_error("Connection closed by the client");
             }
             else
-                epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
+                epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT_FD);
         }
         _requestMap.erase(it);
     }
     catch (const std::exception &e)
     {
         try {
-            epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
+            epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT_FD);
         } catch (const std::exception &inner_e) {
             WebErrors::combineExceptions(e, inner_e);
         }
@@ -351,7 +371,7 @@ void WebServer::handleCGIinteraction(int pipeFd)
             cgiInfo.response.append(buffer, bytes);
         else if (bytes == 0)
         {
-            epollController(pipeFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+            epollController(pipeFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE_FD);
             send(cgiInfo.clientSocket, cgiInfo.response.c_str(), cgiInfo.response.length(), 0);
             close(cgiInfo.clientSocket);
             _cgiInfoMap.erase(it);
@@ -363,32 +383,43 @@ void WebServer::handleCGIinteraction(int pipeFd)
 
 void WebServer::handleEvents(int eventCount)
 {
-    try
-    {
-        auto getCorrectServerSocket = [this](int fd) -> bool {
+      auto getCorrectServerSocket = [this](int fd) -> bool {
             return std::any_of(_serverSockets.begin(), _serverSockets.end(),
                                [fd](const ScopedSocket& socket) { return socket.getFd() == fd; });
         };
 
+    try {
         for (int i = 0; i < eventCount; ++i)
         {
-           _currentEventFd = _events[i].data.fd;
+            _currentEventFd = _events[i].data.fd;
 
             if (getCorrectServerSocket(_currentEventFd))
             {
                 acceptAddClientToEpoll(_currentEventFd);
             }
-            else if (_cgiInfoMap.find(_currentEventFd) != _cgiInfoMap.end())
+            else if (_events[i].events & EPOLLIN)
             {
-                handleCGIinteraction(_currentEventFd);
-            }
-            else
-            {
-                if (_events[i].events & EPOLLIN)
+                if (_cgiInfoMap.find(_currentEventFd) != _cgiInfoMap.end())
+                {
+                    handleCGIinteraction(_currentEventFd);
+                }
+                else if (_proxyHandlers.find(_currentEventFd) != _proxyHandlers.end())
+                {
+                    _proxyHandlers[_currentEventFd]->handleProxyRead(_currentEventFd);
+                }
+                else
                 {
                     handleIncomingData(_currentEventFd);
                 }
-                else if (_events[i].events & EPOLLOUT)
+            }
+
+            else if (_events[i].events & EPOLLOUT)
+            {
+                if (_proxyHandlers.find(_currentEventFd) != _proxyHandlers.end())
+                {
+                    _proxyHandlers[_currentEventFd]->handleProxyWrite(_currentEventFd);
+                }
+                else
                 {
                     handleOutgoingData(_currentEventFd);
                 }
@@ -397,7 +428,7 @@ void WebServer::handleEvents(int eventCount)
     }
     catch (const std::exception &e)
     {
-        throw;
+       throw ;
     }
 }
 
@@ -431,9 +462,13 @@ void WebServer::start()
 
 int WebServer::getEpollFd() const { return _epollFd; }
 
-std::unordered_map<int, CGIProcessInfo>& WebServer::getCgiInfoMap() { return _cgiInfoMap; }
+cgiInfoMap& WebServer::getCgiInfoMap() { return _cgiInfoMap; }
+
+proxyHandlerMap &WebServer::getProxyHandlerMap() { return _proxyHandlers; }
 
 int WebServer::getCurrentEventFd() const { return _currentEventFd; }
+
+
 
 void WebServer::setFdNonBlocking(int fd)
 {

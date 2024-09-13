@@ -4,7 +4,7 @@
 #include <utility>
 
 ScopedSocket::ScopedSocket(int fd, int socket_flags)
-    : _fd(fd)
+    : _fd(fd),  _ownsSocket(true) 
 {
     if (_fd != -1)
     {
@@ -18,10 +18,9 @@ ScopedSocket::ScopedSocket(int fd, int socket_flags)
 
 ScopedSocket::~ScopedSocket()
 {
-    if (_fd != -1)
+    if (_fd != -1 && _ownsSocket)
     {
-        if (close(_fd) == -1)
-           WebErrors::printerror("ScopedSocket::~ScopedSocket", "Failed to close socket");
+        close(_fd);
     }
 }
 
@@ -49,8 +48,10 @@ void ScopedSocket::reset(int fd)
     _fd = fd;
 }
 
-int ScopedSocket::release(void)
+int ScopedSocket::release(bool closeSocket)
 {
+    if (!closeSocket)
+        _ownsSocket = false;
     int fd = _fd;
     _fd = -1;
     return fd;

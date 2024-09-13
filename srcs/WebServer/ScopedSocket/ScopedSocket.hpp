@@ -8,7 +8,7 @@ class ScopedSocket
 {
 public:
     ScopedSocket(int fd = -1, int socket_flags = 0);
-    ~ScopedSocket();
+    virtual ~ScopedSocket();
 
     ScopedSocket(const ScopedSocket&) = delete;           
     ScopedSocket& operator=(const ScopedSocket&) = delete;
@@ -18,9 +18,11 @@ public:
 
     int     getFd(void) const;
     void    reset(int fd = -1);
-    int     release(void);
+    int     release(bool closeSocket = true);
+    void    setOwnership(bool ownsSocket);
 
 protected:
     int     _fd;
     void    setSocketFlags(int flags);
+     bool    _ownsSocket;
 };

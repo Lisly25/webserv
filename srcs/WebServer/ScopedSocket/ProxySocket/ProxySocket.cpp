@@ -1,7 +1,8 @@
 #include "ProxySocket.hpp"
+#include <fcntl.h>
 
 ProxySocket::ProxySocket(addrinfo* proxyInfo, const std::string& proxyHost)
-    : ScopedSocket(socket(proxyInfo->ai_family, proxyInfo->ai_socktype, proxyInfo->ai_protocol)),
+    : ScopedSocket(socket(proxyInfo->ai_family, proxyInfo->ai_socktype, proxyInfo->ai_protocol), O_NONBLOCK | FD_CLOEXEC),
       _proxyHost(proxyHost)
 {
     try
@@ -16,6 +17,10 @@ ProxySocket::ProxySocket(addrinfo* proxyInfo, const std::string& proxyHost)
     {
         throw ;
     }
+}
+
+ProxySocket::~ProxySocket()
+{
 }
 
 ProxySocket::ProxySocket(ProxySocket&& other) noexcept

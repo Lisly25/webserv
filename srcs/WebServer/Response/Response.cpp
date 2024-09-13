@@ -34,10 +34,6 @@ std::string Response::generate(const Request &request)
             ErrorHandler(request).handleError(response, request.getErrorCode());
             return response;
         }
-        else if (request.getLocation()->type == LocationType::PROXY)
-        {
-            ProxyHandler(request).passRequest(response);
-        }
         else if (request.getLocation()->type == LocationType::STANDARD
             || request.getLocation()->type == LocationType::ALIAS)
         {

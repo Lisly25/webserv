@@ -91,7 +91,7 @@ void CGIHandler::parent(pid_t pid)
         cgiInfo.response = "";
 
         _webServer.getCgiInfoMap()[_output_pipe[READEND]] = cgiInfo;
-        _webServer.epollController(_output_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN, FdType::CGI_PIPE);
+        _webServer.epollController(_output_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN, FdType::CGI_PIPE_FD);
 
         if (!_request.getRequestData().body.empty())
         {
