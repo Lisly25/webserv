@@ -22,6 +22,13 @@
 #define COLOR_YELLOW_CGI "\033[33m"
 #define COLOR_RESET "\033[0m"
 
+struct CGIProcessInfo
+{
+    pid_t pid;
+    int clientSocket;
+    std::string response;
+};
+
 class WebServer
 {
 public:
@@ -30,15 +37,21 @@ public:
     WebServer(const WebServer &) = delete;
     WebServer &operator=(const WebServer &) = delete;
 
-    void start();
-    void epollController(int clientSocket, int operation, uint32_t events);
-
+    void                 start();
+    void                 epollController(int clientSocket, int operation, uint32_t events);
+    int                  getEpollFd() const;
+    std::unordered_map<int, CGIProcessInfo>& getCgiInfoMap();
+    int                  getCurrentEventFd() const;
 private:
     std::vector<ServerSocket>                   _serverSockets = {};
     static bool                                 _running;
     int                                         _epollFd = -1;
+    int                                         _currentEventFd = -1;
     WebParser                                   &_parser;
     std::vector<struct epoll_event>             _events = {};
+
+    std::unordered_map<int, std::string>        _partialRequests;
+    std::unordered_map<int, CGIProcessInfo>     _cgiInfoMap;
 
     std::unordered_map<std::string, addrinfo*>  _proxyInfoMap = {};
 
@@ -53,9 +66,25 @@ private:
 
     void                        handleOutgoingData(int clientSocket); // send()
     void                        handleIncomingData(int clientSocket); // recv()
+    void                        handleCGIOutput(int pipeFd);
 
     void                        resolveProxyAddresses(const std::vector<Server>& server_confs);
 
     int                         getRequestTotalLength(const std::string &request);
     std::string                 getBoundary(const std::string &request);
+
+
+
+
+
+
+
+
+    void                        cleanupClient(int clientSocket);
+    void                        processRequest(int clientSocket, const std::string &requestStr);
+    bool                        isRequestComplete(const std::string &request);
+    std::string                 extractCompleteRequest(const std::string &buffer);
+
+
+
 };

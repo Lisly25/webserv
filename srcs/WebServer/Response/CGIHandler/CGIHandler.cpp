@@ -4,12 +4,23 @@
 #include "WebErrors.hpp"
 #include "WebParser.hpp"
 #include "WebServer.hpp"
+#include <fcntl.h>
 
-CGIHandler::CGIHandler(const Request& request) : _request(request), _response(""), _path(_request.getRequestData().uri)
+CGIHandler::CGIHandler(const Request& request, WebServer &webServer) : _webServer(webServer), _request(request), _response(""), _path(_request.getRequestData().uri)
 {
     std::cout << COLOR_YELLOW_CGI << "CGIHandler: " << _path << COLOR_RESET << std::endl;
     executeScript();
 };
+
+void setNonBlocking(int fd)
+{
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1)
+        throw std::runtime_error("Failed to get pipe flags");
+
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+        throw std::runtime_error("Failed to set non-blocking mode");
+}
 
 void CGIHandler::executeScript(void)
 {
@@ -27,6 +38,10 @@ void CGIHandler::executeScript(void)
             ErrorHandler(_request).handleError(_response, 500);
             return WebErrors::printerror("CGIHandler::executeScript", "Error creating pipes") , void();
         }
+        setNonBlocking(_output_pipe[READEND]);
+        setNonBlocking(_input_pipe[WRITEND]);
+        setNonBlocking(_input_pipe[READEND]);
+        setNonBlocking(_output_pipe[WRITEND]);
         pid = fork();
         if (pid < 0)
         {
@@ -66,7 +81,7 @@ void CGIHandler::child(void)
 
         WebErrors::printerror("CGIHandler::child", "Error executing script");
         std::cout <<  WebParser::getErrorPage(500, _request.getServer());
-        exit(EXIT_FAILURE);
+        std::terminate();
     }
     catch (const std::exception &e)
     {
@@ -80,32 +95,30 @@ void CGIHandler::parent(pid_t pid)
 {
     try
     {
-        char    buffer[4096];
-        int     bytes;
+        CGIProcessInfo cgiInfo;
+        cgiInfo.pid = pid;
+        cgiInfo.clientSocket = _webServer.getCurrentEventFd();
+        cgiInfo.response = "";
 
-        close(_input_pipe[READEND]);
-        size_t bodySize = _request.getRequestData().body.size();
-        ssize_t written = write(_input_pipe[WRITEND], _request.getRequestData().body.c_str(), bodySize);
-        if (written == -1 || static_cast<size_t>(written) != bodySize)
+        // First, store the cgiInfo in _cgiInfoMap
+        _webServer.getCgiInfoMap()[_output_pipe[READEND]] = cgiInfo;
+        std::cout << "CGI parent: Stored cgiInfo with fd " << _output_pipe[READEND] << " in _justcgiInfoMap" << std::endl;
+
+        // Then add the fd to epoll
+        std::cout << "CGI parent: Adding output pipe fd " << _output_pipe[READEND] << " to epoll" << std::endl;
+        _webServer.epollController(_output_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN);
+
+        if (!_request.getRequestData().body.empty())
         {
-            throw std::runtime_error( "Failed to write to CGI script" );
+            size_t bodySize = _request.getRequestData().body.size();
+            ssize_t written = write(_input_pipe[WRITEND], _request.getRequestData().body.c_str(), bodySize);
+            if (written == -1)
+            {
+                throw std::runtime_error("Failed to write to CGI script");
+            }
         }
         close(_input_pipe[WRITEND]);
         close(_output_pipe[WRITEND]);
-        if (!parentWaitForChild(pid))
-        {
-            ErrorHandler(_request).handleError(_response, 408);
-            if (kill(pid, SIGKILL) == -1)
-                WebErrors::printerror("CGIHandler::parent", "Error killing child process");
-            return WebErrors::printerror("CGIHandler::parent", "Error waiting for child process") , void();
-        }
-        while ((bytes = read(_output_pipe[READEND], buffer, sizeof(buffer))) > 0)
-            _response.append(buffer, bytes);
-        if (bytes == -1)
-        {
-            throw std::runtime_error("Failed to read CGI output.");
-        }
-        close(_output_pipe[READEND]);
     }
     catch (const std::exception &e)
     {
@@ -147,33 +160,4 @@ void CGIHandler::childSetEnvp(char const *envp[])
         std::cout <<  _response << std::endl;
         exit(EXIT_FAILURE);
     }
-}
-
-bool CGIHandler::parentWaitForChild(pid_t pid)
-{
-    int         status;
-    const int   timeout = 10;
-    double      elapsed;
-    pid_t       retPid;
-    clock_t     start = std::clock();
-    clock_t     current;
-
-    while (true)
-    {
-        current = std::clock();
-        elapsed = static_cast<double>(current - start) / CLOCKS_PER_SEC;
-        retPid = waitpid(pid, &status, WNOHANG);
-        if (retPid == -1)
-            return false;
-        if (retPid > 0)
-            break;
-        if (elapsed > timeout)
-            return false;
-    }
-    return true;
-}
-
-std::string CGIHandler::getCGIResponse(void) const
-{
-    return _response;
 }

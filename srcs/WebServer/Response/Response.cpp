@@ -39,11 +39,6 @@ std::string Response::generate(const Request &request)
         {
             ProxyHandler(request).passRequest(response);
         }
-        else if (request.getLocation()->type == LocationType::CGI)
-        {
-            CGIHandler cgi = CGIHandler(request);
-            response += cgi.getCGIResponse();
-        }
         else if (request.getLocation()->type == LocationType::STANDARD
             || request.getLocation()->type == LocationType::ALIAS)
         {

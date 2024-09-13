@@ -1,4 +1,6 @@
 #include "WebServer.hpp"
+#include "CGIHandler.hpp"
+#include "ErrorHandler.hpp"
 #include "ScopedSocket.hpp"
 #include "WebErrors.hpp"
 #include <algorithm>
@@ -178,89 +180,124 @@ void WebServer::acceptAddClientToEpoll(int clientSocketFd)
     }
 }
 
-std::string WebServer::getBoundary(const std::string &request)
+std::string WebServer::extractCompleteRequest(const std::string &buffer)
 {
-    try
+    size_t headerEnd = buffer.find("\r\n\r\n");
+    if (headerEnd == std::string::npos)
+        return ""; // Should not happen if isRequestComplete returned true
+
+    size_t contentLength = 0;
+    std::istringstream stream(buffer.substr(0, headerEnd + 4));
+    std::string line;
+    while (std::getline(stream, line) && line != "\r")
     {
-        size_t start = request.find("boundary=");
-        if (start == std::string::npos) return "";
-
-        start += 9; // Length of "boundary="
-        size_t end = request.find("\r\n", start);
-        return (end == std::string::npos) ? request.substr(start) : request.substr(start, end - start);
-    }
-    catch (const std::exception &e)
-    {
-        throw std::runtime_error( "Error parsing request boundary" );
-    }
-}
-
-int WebServer::getRequestTotalLength(const std::string &request)
-{
-    try
-    {
-        size_t contentLengthPos = request.find("Content-Length: ");
-        if (contentLengthPos == std::string::npos) return request.length();
-
-        contentLengthPos += 16; // Length of "Content-Length: "
-        size_t end = request.find("\r\n", contentLengthPos);
-        const int contentLength = std::stoi(request.substr(contentLengthPos, end - contentLengthPos));
-
-        std::string boundary = getBoundary(request);
-        if (!boundary.empty())
+        if (line.find("Content-Length:") != std::string::npos)
         {
-            size_t boundaryPos = request.rfind("--" + boundary);
-            if (boundaryPos != std::string::npos)
-                return boundaryPos + boundary.length() + 4; // +4 for "--\r\n"
+            contentLength = std::stoul(line.substr(15));
+            break;
         }
-        return contentLength;
     }
-    catch (const std::exception &e)
+    size_t totalLength = headerEnd + 4 + contentLength;
+    return buffer.substr(0, totalLength);
+}
+
+bool WebServer::isRequestComplete(const std::string &request)
+{
+    size_t headerEnd = request.find("\r\n\r\n");
+    if (headerEnd == std::string::npos)
+        return false;
+
+    size_t contentLength = 0;
+    std::istringstream stream(request.substr(0, headerEnd + 4));
+    std::string line;
+    while (std::getline(stream, line) && line != "\r")
     {
-        throw std::runtime_error( "Error parsing request total length" );
+        if (line.find("Content-Length:") != std::string::npos)
+        {
+            contentLength = std::stoul(line.substr(15));
+            break;
+        }
+    }
+
+    size_t totalLength = headerEnd + 4 + contentLength;
+    return request.length() >= totalLength;
+}
+
+void WebServer::cleanupClient(int clientSocket)
+{
+    epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
+    _partialRequests.erase(clientSocket);
+    _requestMap.erase(clientSocket);
+    close(clientSocket);
+}
+
+
+void WebServer::processRequest(int clientSocket, const std::string &requestStr)
+{
+    std::cout << COLOR_CYAN_COOKIE << "Request: " << requestStr << COLOR_RESET << std::endl;
+    Request request(requestStr, _parser.getServers(), _proxyInfoMap);
+    _requestMap[clientSocket] = request;
+
+    if (request.getLocation()->type == LocationType::CGI)
+    {
+        if (request.getErrorCode() != 0)
+        {
+            std::string response;
+            ErrorHandler(request).handleError(response, request.getErrorCode());
+            send(clientSocket, response.c_str(), response.length(), 0);
+            cleanupClient(clientSocket);
+        }
+        else
+        {
+            std::cout << COLOR_YELLOW_CGI << "CGI request: " << request.getRequestData().uri << COLOR_RESET << std::endl;
+            CGIHandler cgiHandler(request, *this);
+        }
+    }
+    else
+    {
+        epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT);
     }
 }
+
 
 void WebServer::handleIncomingData(int clientSocket)
 {
     try
     {
-        char        buffer[1024];
-        std::string totalRequest;
-        int         totalBytes = -1;
-        int         bytesRead = 0;
+        char buffer[1024];
+        ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
 
-        while (totalBytes == -1 || totalRequest.length() < static_cast<size_t>(totalBytes))
+        if (bytesRead > 0)
         {
-            bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
-            if (bytesRead > 0)
+            _partialRequests[clientSocket].append(buffer, bytesRead);
+
+            while (isRequestComplete(_partialRequests[clientSocket]))
             {
-                totalRequest.append(buffer, bytesRead);
-                if (totalBytes == -1)
-                    totalBytes = getRequestTotalLength(totalRequest);
-            }
-            else if (bytesRead == 0)
-                throw std::runtime_error( "Client closed connection" );
-            else if (bytesRead == -1)
-                throw std::runtime_error( "Error receiving data from client" );
-        }
+                std::string completeRequest = extractCompleteRequest(_partialRequests[clientSocket]);
 
-        if (!totalRequest.empty())
+                _partialRequests[clientSocket].erase(0, completeRequest.length());
+
+                processRequest(clientSocket, completeRequest);
+            }
+        }
+        else if (bytesRead == 0)
         {
-            _requestMap[clientSocket] = Request(totalRequest, _parser.getServers(), _proxyInfoMap);
-            epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT);
+            cleanupClient(clientSocket);
+        }
+        else if (bytesRead == -1)
+        {
+            cleanupClient(clientSocket);
+            throw std::runtime_error("Error receiving data from client");
         }
     }
     catch (const std::exception &e)
     {
-        try {
-            epollController(clientSocket, EPOLL_CTL_DEL, 0);
-        } catch (const std::exception &inner_e) {
-            WebErrors::combineExceptions(e, inner_e);
-        }
+        cleanupClient(clientSocket);
         throw;
     }
 }
+
+
 
 void WebServer::handleOutgoingData(int clientSocket)
 {
@@ -300,6 +337,35 @@ void WebServer::handleOutgoingData(int clientSocket)
     }
 }
 
+void WebServer::handleCGIOutput(int pipeFd)
+{
+    auto it = _cgiInfoMap.find(pipeFd);
+    if (it != _cgiInfoMap.end())
+    {
+        CGIProcessInfo &cgiInfo = it->second;
+
+        char buffer[4096];
+        ssize_t bytes = read(pipeFd, buffer, sizeof(buffer));
+
+        if (bytes > 0)
+        {
+            std::cout << COLOR_YELLOW_CGI << "CGI output: " << std::string(buffer, bytes) << COLOR_RESET << std::endl;
+            cgiInfo.response.append(buffer, bytes);
+        }
+        else if (bytes == 0)
+        {
+            epollController(pipeFd, EPOLL_CTL_DEL, 0);
+            send(cgiInfo.clientSocket, cgiInfo.response.c_str(), cgiInfo.response.length(), 0);
+            close(cgiInfo.clientSocket);
+            _cgiInfoMap.erase(it);
+        }
+        else if (bytes == -1 && errno != EAGAIN && errno != EWOULDBLOCK)
+        {
+            throw std::runtime_error("Error reading from CGI output pipe");
+        }
+    }
+}
+
 void WebServer::handleEvents(int eventCount)
 {
     try
@@ -312,23 +378,37 @@ void WebServer::handleEvents(int eventCount)
         for (int i = 0; i < eventCount; ++i)
         {
             const int fd = _events[i].data.fd;
-
+            uint32_t events = _events[i].events;
+            _currentEventFd = fd;
+            std::cout << "handleEvents: fd=" << fd << ", events=" << events << std::endl;
+            for (const auto& entry : _cgiInfoMap)
+            {
+                std::cout << entry.first << " ";
+            }
             if (getCorrectServerSocket(fd))
             {
                 acceptAddClientToEpoll(fd);
             }
+            else if (_cgiInfoMap.find(fd) != _cgiInfoMap.end())
+            {
+                handleCGIOutput(fd);
+            }
             else
             {
                 if (_events[i].events & EPOLLIN)
+                {
                     handleIncomingData(fd);
+                }
                 else if (_events[i].events & EPOLLOUT)
+                {
                     handleOutgoingData(fd);
+                }
             }
         }
     }
     catch (const std::exception &e)
     {
-        throw;  
+        throw;
     }
 }
 
@@ -354,4 +434,19 @@ void WebServer::start()
         }
     }
     std::cout << COLOR_GREEN_SERVER << "[ SERVER STOPPED ] \n" << COLOR_RESET;
+}
+
+int WebServer::getEpollFd() const
+{
+    return _epollFd;
+}
+
+std::unordered_map<int, CGIProcessInfo>& WebServer::getCgiInfoMap()
+{
+    return _cgiInfoMap;
+}
+
+int WebServer::getCurrentEventFd() const
+{
+    return _currentEventFd;
 }

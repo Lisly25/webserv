@@ -20,6 +20,7 @@
 #include <ctime>
 #include <sys/wait.h>
 #include "Request.hpp"
+#include "WebServer.hpp"
 
 #define PIPES 2
 #define WRITEND 1
@@ -32,11 +33,12 @@
 class   CGIHandler
 {
     public:
-        CGIHandler(const Request& request);
+        CGIHandler(const Request& request, WebServer &webServer);
         ~CGIHandler() = default;
 
         std::string      getCGIResponse( void ) const;
     private:
+        WebServer       &_webServer;
         const Request&   _request;
         std::string      _response;
         std::string      _path;
