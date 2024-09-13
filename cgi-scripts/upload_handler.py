@@ -11,17 +11,21 @@ def create_upload_dir(directory):
 
 def stream_to_file(filepath, initial_data, content_length):
     """Stream the file data to disk, handling large files by reading in chunks."""
-    with open(filepath, 'wb') as output_file:
-        output_file.write(initial_data)
-        remaining = content_length - len(initial_data)
-        
-        while remaining > 0:
-            chunk_size = min(4096, remaining)
-            chunk = sys.stdin.buffer.read(chunk_size)
-            if not chunk:
-                break
-            output_file.write(chunk)
-            remaining -= len(chunk)
+    try:
+        with open(filepath, 'wb') as output_file:
+            output_file.write(initial_data)
+            remaining = content_length - len(initial_data)
+            while remaining > 0:
+                chunk_size = min(4096, remaining)
+                chunk = sys.stdin.buffer.read(chunk_size)
+                if not chunk:
+                    break
+                output_file.write(chunk)
+                remaining -= len(chunk)
+    
+    except IOError as e:
+        print(f"Error writing file: {e}", file=sys.stderr)
+        raise
 
 
 def parse_headers(raw_data):
@@ -57,13 +61,16 @@ def http_response(status_code, content_type, body, additional_headers=None):
 
 def handle_upload():
     """Handle the file upload process, from reading input to saving the file."""
-    upload_dir = os.path.join(os.getcwd(), os.environ.get('UPLOAD_FOLDER', 0))
+    upload_dir = os.path.join(os.getcwd(), os.environ.get('UPLOAD_FOLDER', 'uploads'))
     create_upload_dir(upload_dir)
 
     content_length = int(os.environ.get('CONTENT_LENGTH', 0))
-    raw_headers = sys.stdin.buffer.read(4096)
+    raw_headers = b""
+    while b"\r\n\r\n" not in raw_headers:
+        raw_headers += sys.stdin.buffer.read(1024)
     
     filename, file_content_start = parse_headers(raw_headers)
+    
     if not filename:
         http_response(
             "400 Bad Request", 
@@ -72,11 +79,10 @@ def handle_upload():
         )
         exit(1)
 
+    filename = os.path.basename(filename)
     file_path = os.path.join(upload_dir, filename)
     initial_data = raw_headers[file_content_start:]
-    
-    stream_to_file(file_path, initial_data, content_length)
-
+    stream_to_file(file_path, initial_data, content_length - len(initial_data))
     http_response(
         "200 OK", 
         "text/html", 
