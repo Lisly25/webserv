@@ -180,91 +180,87 @@ void WebServer::acceptAddClientToEpoll(int clientSocketFd)
     }
 }
 
-std::string WebServer::extractCompleteRequest(const std::string &buffer)
-{
-    size_t headerEnd = buffer.find("\r\n\r\n");
-    if (headerEnd == std::string::npos)
-        return ""; // Should not happen if isRequestComplete returned true
-
-    size_t contentLength = 0;
-    std::istringstream stream(buffer.substr(0, headerEnd + 4));
-    std::string line;
-    while (std::getline(stream, line) && line != "\r")
-    {
-        if (line.find("Content-Length:") != std::string::npos)
-        {
-            contentLength = std::stoul(line.substr(15));
-            break;
-        }
-    }
-    size_t totalLength = headerEnd + 4 + contentLength;
-    return buffer.substr(0, totalLength);
-}
-
-bool WebServer::isRequestComplete(const std::string &request)
-{
-    size_t headerEnd = request.find("\r\n\r\n");
-    if (headerEnd == std::string::npos)
-        return false;
-
-    size_t contentLength = 0;
-    std::istringstream stream(request.substr(0, headerEnd + 4));
-    std::string line;
-    while (std::getline(stream, line) && line != "\r")
-    {
-        if (line.find("Content-Length:") != std::string::npos)
-        {
-            contentLength = std::stoul(line.substr(15));
-            break;
-        }
-    }
-
-    size_t totalLength = headerEnd + 4 + contentLength;
-    return request.length() >= totalLength;
-}
-
-void WebServer::cleanupClient(int clientSocket)
-{
-    epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
-    _partialRequests.erase(clientSocket);
-    _requestMap.erase(clientSocket);
-    close(clientSocket);
-}
-
-
-void WebServer::processRequest(int clientSocket, const std::string &requestStr)
-{
-    std::cout << COLOR_CYAN_COOKIE << "Request: " << requestStr << COLOR_RESET << std::endl;
-    Request request(requestStr, _parser.getServers(), _proxyInfoMap);
-    _requestMap[clientSocket] = request;
-
-    if (request.getLocation()->type == LocationType::CGI)
-    {
-        if (request.getErrorCode() != 0)
-        {
-            std::string response;
-            ErrorHandler(request).handleError(response, request.getErrorCode());
-            send(clientSocket, response.c_str(), response.length(), 0);
-            cleanupClient(clientSocket);
-        }
-        else
-        {
-            std::cout << COLOR_YELLOW_CGI << "CGI request: " << request.getRequestData().uri << COLOR_RESET << std::endl;
-            CGIHandler cgiHandler(request, *this);
-        }
-    }
-    else
-    {
-        epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT);
-    }
-}
-
-
 void WebServer::handleIncomingData(int clientSocket)
 {
+    auto cleanupClient = [this](int clientSocket)
+    {
+        epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
+        _partialRequests.erase(clientSocket);
+        _requestMap.erase(clientSocket);
+        close(clientSocket);
+    };
+
+    auto isRequestComplete = [](const std::string &request) -> bool
+    {
+        size_t              headerEnd = request.find("\r\n\r\n");
+
+        if (headerEnd == std::string::npos)
+            return false;
+
+        size_t              contentLength = 0;
+        std::istringstream  stream(request.substr(0, headerEnd + 4));
+        std::string         line;
+
+        while (std::getline(stream, line) && line != "\r")
+        {
+            if (line.find("Content-Length:") != std::string::npos)
+            {
+                contentLength = std::stoul(line.substr(15));
+                break;
+            }
+        }
+
+        const size_t totalLength = headerEnd + 4 + contentLength;
+        return request.length() >= totalLength;
+    };
+
+    auto extractCompleteRequest = [](const std::string &buffer) -> std::string
+    {
+        size_t              headerEnd = buffer.find("\r\n\r\n");
+
+        if (headerEnd == std::string::npos)
+            return "";
+        size_t              contentLength = 0;
+        std::istringstream  stream(buffer.substr(0, headerEnd + 4));
+        std::string         line;
+
+        while (std::getline(stream, line) && line != "\r")
+        {
+            if (line.find("Content-Length:") != std::string::npos)
+            {
+                contentLength = std::stoul(line.substr(15));
+                break;
+            }
+        }
+        const size_t        totalLength = headerEnd + 4 + contentLength;
+        return buffer.substr(0, totalLength);
+    };
+
+    auto processRequest = [this, &cleanupClient](int clientSocket, const std::string &requestStr)
+    {
+        std::cout << COLOR_CYAN_COOKIE << "Request: " << requestStr << COLOR_RESET << std::endl;
+        Request request(requestStr, _parser.getServers(), _proxyInfoMap);
+
+        _requestMap[clientSocket] = request;
+        if (request.getLocation()->type == LocationType::CGI)
+        {
+            if (request.getErrorCode() != 0)
+            {
+                std::string response;
+                ErrorHandler(request).handleError(response, request.getErrorCode());
+                send(clientSocket, response.c_str(), response.length(), 0);
+                cleanupClient(clientSocket);
+            }
+            else
+                CGIHandler cgiHandler(request, *this);
+        }
+        else
+            epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT);
+    };
+
     try
     {
-        char buffer[1024];
+        char    buffer[1024];
         ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
 
         if (bytesRead > 0)
@@ -274,9 +270,7 @@ void WebServer::handleIncomingData(int clientSocket)
             while (isRequestComplete(_partialRequests[clientSocket]))
             {
                 std::string completeRequest = extractCompleteRequest(_partialRequests[clientSocket]);
-
                 _partialRequests[clientSocket].erase(0, completeRequest.length());
-
                 processRequest(clientSocket, completeRequest);
             }
         }
@@ -296,8 +290,6 @@ void WebServer::handleIncomingData(int clientSocket)
         throw;
     }
 }
-
-
 
 void WebServer::handleOutgoingData(int clientSocket)
 {
