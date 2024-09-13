@@ -578,9 +578,11 @@ std::string             WebParser::extractUploadFolder(size_t contextStart, size
         throw WebErrors::ConfigFormatException("Error: only one 'upload_folder' directive per location context is allowed");
     
     if (directiveLocation == 0)
-        return ("");
+        return ("uploads");
 
     std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+    if (line.length() == 0)
+        throw WebErrors::ConfigFormatException("Error: upload_folder directive must have a value");        
     return (line);
 }
 

@@ -9,7 +9,7 @@ DOCKER_COMPOSE_FILE := ./docker-services/docker-compose.yml
 
 CGI_TESTS_DIR = ./tests/cgi-tests
 
-all: createfolder $(NAME)
+all: $(NAME)
 
 $(NAME): $(OBJS)
 	$(CXX) $(CPPFLAGS) $(OBJS) -o $(NAME)
