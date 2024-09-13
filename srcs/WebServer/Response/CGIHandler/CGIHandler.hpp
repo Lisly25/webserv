@@ -29,6 +29,7 @@
 #define CODE500 "500"
 #define PYTHON3 "/bin/python3"
 #define ERROR "\033[31ERROR: \033[0"
+#define CGI_TIMEOUT_LIMIT 20
 
 class   CGIHandler
 {

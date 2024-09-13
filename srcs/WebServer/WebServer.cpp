@@ -304,7 +304,7 @@ void WebServer::handleOutgoingData(int clientSocket)
 {
     try
     {
-        auto it = _requestMap.find(clientSocket);
+        auto          it = _requestMap.find(clientSocket);
         if (it != _requestMap.end())
         {
             const Request &request = it->second;
@@ -340,7 +340,7 @@ void WebServer::handleOutgoingData(int clientSocket)
 
 void WebServer::handleCGIinteraction(int pipeFd)
 {
-    auto it = _cgiInfoMap.find(pipeFd);
+    auto                it = _cgiInfoMap.find(pipeFd);
     if (it != _cgiInfoMap.end())
     {
         CGIProcessInfo  &cgiInfo = it->second;
@@ -355,9 +355,50 @@ void WebServer::handleCGIinteraction(int pipeFd)
             send(cgiInfo.clientSocket, cgiInfo.response.c_str(), cgiInfo.response.length(), 0);
             close(cgiInfo.clientSocket);
             _cgiInfoMap.erase(it);
+            _requestMap.erase(cgiInfo.clientSocket);
         }
         else if (bytes == -1)
             throw std::runtime_error("Error reading from CGI output pipe");
+    }
+}
+
+void WebServer::CGITimeoutChecker(void)
+{
+    auto              now = std::chrono::steady_clock::now();
+
+    for (auto it = _cgiInfoMap.begin(); it != _cgiInfoMap.end();)
+    {
+        Request      *request = nullptr;
+        const int     cgiFd = it->first;
+        auto&         cgiInfo = it->second;
+        auto          elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - cgiInfo.startTime).count();
+        if (_requestMap.find(cgiInfo.clientSocket) != _requestMap.end())
+            request = &_requestMap[cgiInfo.clientSocket];
+
+        if (elapsed > CGI_TIMEOUT_LIMIT)
+        {
+            std::cout << COLOR_YELLOW_CGI << "  CGI Script Timed Out ⏰\n\n" << COLOR_RESET;
+
+            if (kill(cgiInfo.pid, SIGKILL) == -1)
+                std::cerr << COLOR_RED_ERROR << "Failed to kill CGI process: " << strerror(errno) << "\n\n" << COLOR_RESET;
+            
+            if (cgiInfo.clientSocket >= 0 && fcntl(cgiInfo.clientSocket, F_GETFD) != -1)
+            {
+                if (request)
+                    ErrorHandler(*request).handleError(cgiInfo.response, 504);
+                else
+                    cgiInfo.response = ErrorHandler::generateDefaultErrorPage(504);
+                if (send(cgiInfo.clientSocket, cgiInfo.response.c_str(), cgiInfo.response.length(), 0) == -1)
+                     std::cerr << COLOR_RED_ERROR << "Failed to send error response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                close(cgiInfo.clientSocket);
+            }
+            else
+                std::cerr << COLOR_RED_ERROR << "Invalid or closed client socket, unable to send response" << "\n\n" << COLOR_RESET;
+            epollController(cgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+            it = _cgiInfoMap.erase(it);
+        }
+        else
+            ++it;
     }
 }
 
@@ -409,13 +450,15 @@ void WebServer::start()
     {
         try
         {
-            int eventCount = epoll_wait(_epollFd, _events.data(), MAX_EVENTS, -1);
+            int eventCount = epoll_wait(_epollFd, _events.data(), MAX_EVENTS, 500);
             if (eventCount == -1)
             {
                 if (errno == EINTR) continue;
                 throw std::runtime_error("Epoll wait error");
             }
-            handleEvents(eventCount);
+            if (eventCount > 0)
+                handleEvents(eventCount);
+            CGITimeoutChecker();
         }
         catch (const std::exception &e)
         {
