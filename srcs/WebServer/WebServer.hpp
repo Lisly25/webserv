@@ -27,6 +27,7 @@ struct CGIProcessInfo
     pid_t       pid;
     int         clientSocket;
     std::string response;
+    std::chrono::steady_clock::time_point startTime;
 };
 using cgiInfoMap = std::unordered_map<int, CGIProcessInfo>;
 
@@ -69,6 +70,7 @@ private:
     void                        handleCGIinteraction(int pipeFd); // read() && send() for CGI
     void                        handleIncomingData(int clientSocket); // recv()
     void                        handleOutgoingData(int clientSocket); // send()
+    void                        CGITimeoutChecker(void);
     void                        cleanupClient(int clientSocket);
     void                        processRequest(int clientSocket, const std::string &requestStr);
     bool                        isRequestComplete(const std::string &request);

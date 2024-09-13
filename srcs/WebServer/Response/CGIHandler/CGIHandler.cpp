@@ -86,9 +86,11 @@ void CGIHandler::parent(pid_t pid)
     try
     {
         CGIProcessInfo cgiInfo;
+
         cgiInfo.pid = pid;
         cgiInfo.clientSocket = _webServer.getCurrentEventFd();
         cgiInfo.response = "";
+        cgiInfo.startTime = std::chrono::steady_clock::now();
 
         _webServer.getCgiInfoMap()[_output_pipe[READEND]] = cgiInfo;
         _webServer.epollController(_output_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN, FdType::CGI_PIPE);
@@ -108,6 +110,7 @@ void CGIHandler::parent(pid_t pid)
         ErrorHandler(_request).handleError(_response, 500);
     }
 }
+
 
 void CGIHandler::childSetEnvp(char const *envp[])
 {
