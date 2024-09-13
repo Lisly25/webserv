@@ -140,14 +140,11 @@ void WebServer::epollController(int clientSocket, int operation, uint32_t events
             close(clientSocket);
             throw std::runtime_error("Error changing epoll state: " + std::string(strerror(errno)));
         }
-        if (events & EPOLLIN)
+        if (operation == EPOLL_CTL_ADD)
         {
-            std::cout << COLOR_GREEN_SERVER << "Socket: added to epoll EPOLLIN: " << COLOR_RESET << std::endl;
+            
         }
-        if (events & EPOLL_CTL_DEL)
-        {
-            std::cout << COLOR_YELLOW_CGI << "Socket: removed from epoll EPOLL_CTL_DEL: " << COLOR_RESET << std::endl;
-        }
+        else
         if (operation == EPOLL_CTL_DEL)
         {
             close(clientSocket);
@@ -238,10 +235,10 @@ void WebServer::handleIncomingData(int clientSocket)
 
     auto processRequest = [this, &cleanupClient](int clientSocket, const std::string &requestStr)
     {
-        std::cout << COLOR_CYAN_COOKIE << "Request: " << requestStr << COLOR_RESET << std::endl;
         Request request(requestStr, _parser.getServers(), _proxyInfoMap);
 
         _requestMap[clientSocket] = request;
+        std::cout << COLOR_MAGENTA_SERVER << "Request to: " << request.getRequestData().uri << COLOR_RESET << std::endl; 
         if (request.getLocation()->type == LocationType::CGI)
         {
             if (request.getErrorCode() != 0)
@@ -329,21 +326,17 @@ void WebServer::handleOutgoingData(int clientSocket)
     }
 }
 
-void WebServer::handleCGIOutput(int pipeFd)
+void WebServer::handleCGIinteraction(int pipeFd)
 {
     auto it = _cgiInfoMap.find(pipeFd);
     if (it != _cgiInfoMap.end())
     {
-        CGIProcessInfo &cgiInfo = it->second;
-
-        char buffer[4096];
-        ssize_t bytes = read(pipeFd, buffer, sizeof(buffer));
+        CGIProcessInfo  &cgiInfo = it->second;
+        char            buffer[4096];
+        ssize_t         bytes = read(pipeFd, buffer, sizeof(buffer));
 
         if (bytes > 0)
-        {
-            std::cout << COLOR_YELLOW_CGI << "CGI output: " << std::string(buffer, bytes) << COLOR_RESET << std::endl;
             cgiInfo.response.append(buffer, bytes);
-        }
         else if (bytes == 0)
         {
             epollController(pipeFd, EPOLL_CTL_DEL, 0);
@@ -351,10 +344,8 @@ void WebServer::handleCGIOutput(int pipeFd)
             close(cgiInfo.clientSocket);
             _cgiInfoMap.erase(it);
         }
-        else if (bytes == -1 && errno != EAGAIN && errno != EWOULDBLOCK)
-        {
+        else if (bytes == -1)
             throw std::runtime_error("Error reading from CGI output pipe");
-        }
     }
 }
 
@@ -369,31 +360,25 @@ void WebServer::handleEvents(int eventCount)
 
         for (int i = 0; i < eventCount; ++i)
         {
-            const int fd = _events[i].data.fd;
-            uint32_t events = _events[i].events;
-            _currentEventFd = fd;
-            std::cout << "handleEvents: fd=" << fd << ", events=" << events << std::endl;
-            for (const auto& entry : _cgiInfoMap)
+           _currentEventFd = _events[i].data.fd;
+
+            if (getCorrectServerSocket(_currentEventFd))
             {
-                std::cout << entry.first << " ";
+                acceptAddClientToEpoll(_currentEventFd);
             }
-            if (getCorrectServerSocket(fd))
+            else if (_cgiInfoMap.find(_currentEventFd) != _cgiInfoMap.end())
             {
-                acceptAddClientToEpoll(fd);
-            }
-            else if (_cgiInfoMap.find(fd) != _cgiInfoMap.end())
-            {
-                handleCGIOutput(fd);
+                handleCGIinteraction(_currentEventFd);
             }
             else
             {
                 if (_events[i].events & EPOLLIN)
                 {
-                    handleIncomingData(fd);
+                    handleIncomingData(_currentEventFd);
                 }
                 else if (_events[i].events & EPOLLOUT)
                 {
-                    handleOutgoingData(fd);
+                    handleOutgoingData(_currentEventFd);
                 }
             }
         }

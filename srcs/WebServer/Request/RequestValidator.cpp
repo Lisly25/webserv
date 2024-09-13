@@ -274,7 +274,6 @@ bool Request::RequestValidator::isServerMatch(const Server& server) const
             std::string fullServerName = serverName + ":" + std::to_string(server.port);
             if (hostHeader == fullServerName)
             {
-                std::cout << COLOR_MAGENTA_SERVER << "Request: " << fullServerName << COLOR_RESET << std::endl;
                 _request._server = &server;
                 return true;
             }

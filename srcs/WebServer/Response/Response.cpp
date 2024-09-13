@@ -29,7 +29,6 @@ std::string Response::generate(const Request &request)
     try {
         std::string response;
 
-        std::cout << COLOR_MAGENTA_SERVER << "Response: " << request.getRequestData().uri << COLOR_RESET << std::endl;
         if (request.getErrorCode() != 0)
         {
             ErrorHandler(request).handleError(response, request.getErrorCode());

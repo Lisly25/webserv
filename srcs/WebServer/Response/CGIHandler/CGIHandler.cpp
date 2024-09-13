@@ -100,12 +100,7 @@ void CGIHandler::parent(pid_t pid)
         cgiInfo.clientSocket = _webServer.getCurrentEventFd();
         cgiInfo.response = "";
 
-        // First, store the cgiInfo in _cgiInfoMap
         _webServer.getCgiInfoMap()[_output_pipe[READEND]] = cgiInfo;
-        std::cout << "CGI parent: Stored cgiInfo with fd " << _output_pipe[READEND] << " in _justcgiInfoMap" << std::endl;
-
-        // Then add the fd to epoll
-        std::cout << "CGI parent: Adding output pipe fd " << _output_pipe[READEND] << " to epoll" << std::endl;
         _webServer.epollController(_output_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN);
 
         if (!_request.getRequestData().body.empty())
@@ -113,9 +108,7 @@ void CGIHandler::parent(pid_t pid)
             size_t bodySize = _request.getRequestData().body.size();
             ssize_t written = write(_input_pipe[WRITEND], _request.getRequestData().body.c_str(), bodySize);
             if (written == -1)
-            {
                 throw std::runtime_error("Failed to write to CGI script");
-            }
         }
         close(_input_pipe[WRITEND]);
         close(_output_pipe[WRITEND]);

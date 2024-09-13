@@ -52,34 +52,18 @@ private:
 
     std::unordered_map<int, std::string>        _partialRequests;
     std::unordered_map<int, CGIProcessInfo>     _cgiInfoMap;
-
     std::unordered_map<std::string, addrinfo*>  _proxyInfoMap = {};
-
-    std::unordered_map<int, Request> _requestMap;
+    std::unordered_map<int, Request>            _requestMap;
 
     std::vector<ServerSocket>   createServerSockets(const std::vector<Server> &server_confs);
     void                        handleClient(int clientSocket);
-    void                        setSocketFlags(int socket);
-    void                        addClientSocket(int clientSocket);
     void                        handleEvents(int eventCount);
     void                        acceptAddClientToEpoll(int serverSocketFd);
-
-    void                        handleOutgoingData(int clientSocket); // send()
-    void                        handleIncomingData(int clientSocket); // recv()
-    void                        handleCGIOutput(int pipeFd);
-
     void                        resolveProxyAddresses(const std::vector<Server>& server_confs);
 
-    int                         getRequestTotalLength(const std::string &request);
-    std::string                 getBoundary(const std::string &request);
-
-
-
-
-
-
-
-
+    void                        handleCGIinteraction(int pipeFd); // read() && send() for CGI
+    void                        handleIncomingData(int clientSocket); // recv()
+    void                        handleOutgoingData(int clientSocket); // send()
     void                        cleanupClient(int clientSocket);
     void                        processRequest(int clientSocket, const std::string &requestStr);
     bool                        isRequestComplete(const std::string &request);
