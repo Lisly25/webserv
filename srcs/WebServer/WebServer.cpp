@@ -24,14 +24,14 @@ WebServer::WebServer(WebParser &parser)
 {
     try
     {
-        std::cout << COLOR_GREEN_SERVER << "[ SERVER STARTED ] press Ctrl+C to stop\n\n" << COLOR_RESET;
+        std::cout << COLOR_GREEN_SERVER << "[ SERVER STARTED ] press Ctrl+C to stop 🏭 \n\n" << COLOR_RESET;
         _serverSockets = createServerSockets(parser.getServers());
         resolveProxyAddresses(parser.getServers());
         _epollFd = epoll_create(1);
         if (_epollFd == -1)
             throw WebErrors::ServerException("Error creating epoll");
         for (const auto& serverSocket : _serverSockets)
-            epollController(serverSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN);
+            epollController(serverSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN, FdType::SERVER);
     }
     catch (const std::exception& e)
     {
@@ -125,7 +125,7 @@ std::vector<ServerSocket> WebServer::createServerSockets(const std::vector<Serve
     }
 }
 
-void WebServer::epollController(int clientSocket, int operation, uint32_t events)
+void WebServer::epollController(int clientSocket, int operation, uint32_t events, FdType fdType)
 {
     try
     {
@@ -135,16 +135,27 @@ void WebServer::epollController(int clientSocket, int operation, uint32_t events
         event.data.fd = clientSocket;
         event.events = events;
 
+        if (EPOLL_CTL_ADD)
+        {
+            switch (fdType)
+            {
+                case FdType::SERVER:
+                    std::cout << COLOR_GREEN_SERVER << " { Server socket added to epoll 🏊 }\n\n" << COLOR_RESET;
+                    break;
+                case FdType::CLIENT:
+                    std::cout << COLOR_GREEN_SERVER << " { Client socket added to epoll 🏊 }\n\n" << COLOR_RESET;
+                    break;
+                case FdType::CGI_PIPE:
+                    std::cout << COLOR_GREEN_SERVER << " { CGI pipe added to epoll 🏊 }\n\n" << COLOR_RESET;
+                    break;
+            }
+            setFdNonBlocking(clientSocket);
+        }
         if (epoll_ctl(_epollFd, operation, clientSocket, &event) == -1)
         {
             close(clientSocket);
             throw std::runtime_error("Error changing epoll state: " + std::string(strerror(errno)));
         }
-        if (operation == EPOLL_CTL_ADD)
-        {
-            
-        }
-        else
         if (operation == EPOLL_CTL_DEL)
         {
             close(clientSocket);
@@ -168,7 +179,7 @@ void WebServer::acceptAddClientToEpoll(int clientSocketFd)
         if (clientSocket.getFd() < 0)
             throw std::runtime_error( "Error accepting client" );
 
-        epollController(clientSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN);
+        epollController(clientSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN, FdType::CLIENT);
         clientSocket.release();
     }
     catch (const std::exception &e)
@@ -238,7 +249,8 @@ void WebServer::handleIncomingData(int clientSocket)
         Request request(requestStr, _parser.getServers(), _proxyInfoMap);
 
         _requestMap[clientSocket] = request;
-        std::cout << COLOR_MAGENTA_SERVER << "Request to: " << request.getRequestData().uri << COLOR_RESET << std::endl; 
+        std::cout << COLOR_MAGENTA_SERVER << "  Request to: " << request.getServer()->server_name[0] << \
+            ":" << request.getServer()->port <<  request.getRequestData().originalUri << " ✉️\n\n" << COLOR_RESET;
         if (request.getLocation()->type == LocationType::CGI)
         {
             if (request.getErrorCode() != 0)
@@ -252,7 +264,7 @@ void WebServer::handleIncomingData(int clientSocket)
                 CGIHandler cgiHandler(request, *this);
         }
         else
-            epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT);
+            epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT, FdType::CLIENT);
     };
 
     try
@@ -302,23 +314,23 @@ void WebServer::handleOutgoingData(int clientSocket)
 
             if (bytesSent == -1)
             {
-                epollController(clientSocket, EPOLL_CTL_DEL, 0);
+                epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
                 throw std::runtime_error("Error sending response to client");
             }
             else if (bytesSent == 0)
             {
-                epollController(clientSocket, EPOLL_CTL_DEL, 0);
+                epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
                 throw std::runtime_error("Connection closed by the client");
             }
             else
-                epollController(clientSocket, EPOLL_CTL_DEL, 0);
+                epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
         }
         _requestMap.erase(it);
     }
     catch (const std::exception &e)
     {
         try {
-            epollController(clientSocket, EPOLL_CTL_DEL, 0);
+            epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
         } catch (const std::exception &inner_e) {
             WebErrors::combineExceptions(e, inner_e);
         }
@@ -339,7 +351,7 @@ void WebServer::handleCGIinteraction(int pipeFd)
             cgiInfo.response.append(buffer, bytes);
         else if (bytes == 0)
         {
-            epollController(pipeFd, EPOLL_CTL_DEL, 0);
+            epollController(pipeFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
             send(cgiInfo.clientSocket, cgiInfo.response.c_str(), cgiInfo.response.length(), 0);
             close(cgiInfo.clientSocket);
             _cgiInfoMap.erase(it);
@@ -410,20 +422,25 @@ void WebServer::start()
             WebErrors::printerror("WebServer::start", e.what());
         }
     }
-    std::cout << COLOR_GREEN_SERVER << "[ SERVER STOPPED ] \n" << COLOR_RESET;
+    std::cout << COLOR_GREEN_SERVER << "[ SERVER STOPPED ] 🔌\n" << COLOR_RESET;
 }
 
-int WebServer::getEpollFd() const
-{
-    return _epollFd;
-}
 
-std::unordered_map<int, CGIProcessInfo>& WebServer::getCgiInfoMap()
-{
-    return _cgiInfoMap;
-}
 
-int WebServer::getCurrentEventFd() const
+
+
+int WebServer::getEpollFd() const { return _epollFd; }
+
+std::unordered_map<int, CGIProcessInfo>& WebServer::getCgiInfoMap() { return _cgiInfoMap; }
+
+int WebServer::getCurrentEventFd() const { return _currentEventFd; }
+
+void WebServer::setFdNonBlocking(int fd)
 {
-    return _currentEventFd;
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1)
+        throw std::runtime_error("Failed to get pipe flags");
+    flags |= O_NONBLOCK | FD_CLOEXEC;
+    if (fcntl(fd, F_SETFL, flags) == -1)
+        throw std::runtime_error("Failed to set non-blocking mode");
 }

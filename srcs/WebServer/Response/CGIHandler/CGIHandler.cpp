@@ -8,19 +8,9 @@
 
 CGIHandler::CGIHandler(const Request& request, WebServer &webServer) : _webServer(webServer), _request(request), _response(""), _path(_request.getRequestData().uri)
 {
-    std::cout << COLOR_YELLOW_CGI << "CGIHandler: " << _path << COLOR_RESET << std::endl;
+    std::cout << COLOR_YELLOW_CGI << "  CGIHandler: " << _request.getRequestData().method << " " <<  " 🐍\n\n" << COLOR_RESET;
     executeScript();
 };
-
-void setNonBlocking(int fd)
-{
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1)
-        throw std::runtime_error("Failed to get pipe flags");
-
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
-        throw std::runtime_error("Failed to set non-blocking mode");
-}
 
 void CGIHandler::executeScript(void)
 {
@@ -38,10 +28,10 @@ void CGIHandler::executeScript(void)
             ErrorHandler(_request).handleError(_response, 500);
             return WebErrors::printerror("CGIHandler::executeScript", "Error creating pipes") , void();
         }
-        setNonBlocking(_output_pipe[READEND]);
-        setNonBlocking(_input_pipe[WRITEND]);
-        setNonBlocking(_input_pipe[READEND]);
-        setNonBlocking(_output_pipe[WRITEND]);
+        WebServer::setFdNonBlocking(_output_pipe[READEND]);
+        WebServer::setFdNonBlocking(_input_pipe[WRITEND]);
+        WebServer::setFdNonBlocking(_input_pipe[READEND]);
+        WebServer::setFdNonBlocking(_output_pipe[WRITEND]);
         pid = fork();
         if (pid < 0)
         {
@@ -101,7 +91,7 @@ void CGIHandler::parent(pid_t pid)
         cgiInfo.response = "";
 
         _webServer.getCgiInfoMap()[_output_pipe[READEND]] = cgiInfo;
-        _webServer.epollController(_output_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN);
+        _webServer.epollController(_output_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN, FdType::CGI_PIPE);
 
         if (!_request.getRequestData().body.empty())
         {

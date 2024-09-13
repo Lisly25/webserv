@@ -25,9 +25,10 @@ namespace WebErrors
     {
         std::cout << COLOR_RED_ERROR << "Error:" << location << ": ";
         if (errno != 0)
-            std::cerr << e << ": " << strerror(errno) << COLOR_RESET << std::endl;
+            std::cerr << e << ": " << strerror(errno) << COLOR_RESET;
         else
-            std::cerr << e << COLOR_RESET << std::endl;
+            std::cerr << e << COLOR_RESET;
+        std::cerr << "❗❗" << std::endl << std::endl;
         return (EXIT_FAILURE);
     }
 

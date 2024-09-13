@@ -67,14 +67,14 @@ void StaticFileHandler::handleCookies(const Request &request, std::string &respo
     };
 
     auto handleFirstTime = [&]() {
-        std::cout << COLOR_CYAN_COOKIE << "Cookie: [ first_visit ] \n" << COLOR_RESET;
+        std::cout << COLOR_CYAN_COOKIE << "  Cookie: Update Age and visit status [ first_visit ] 🍪\n\n" << COLOR_RESET;
         auto expiryTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() + std::chrono::hours(5));
         addCookie("visit_status", "first_visit", 18000);
         addCookie("visit_expiry", std::to_string(expiryTime * 1000), 18000);
     };
 
     auto setReturning = [&]() {
-        std::cout << COLOR_CYAN_COOKIE << "Cookie: [ return_visit ] \n" << COLOR_RESET;
+        std::cout << COLOR_CYAN_COOKIE << "  Cookie: Update Age and visit status [ return_visit ] 🍪\n\n" << COLOR_RESET;
         addCookie("visit_status", "return_visit", 18000);
     };
 
@@ -92,7 +92,7 @@ void StaticFileHandler::handleCookies(const Request &request, std::string &respo
         } 
         else
         {
-            std::cout << COLOR_CYAN_COOKIE << "Cookie: [ return_visit ] \n" << COLOR_RESET;
+            std::cout << COLOR_CYAN_COOKIE << "  Cookie: Update Age and visit status [ return_visit ] 🍪\n\n" << COLOR_RESET;
         }
     }
     catch (const std::exception& e)

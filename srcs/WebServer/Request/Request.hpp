@@ -21,6 +21,7 @@ struct RequestData
     std::string resolvedPath;
     std::string absoluteRootPath;
     bool        shouldAutoIndex;
+    std::string originalUri;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const RequestData& requestData)

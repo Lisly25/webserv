@@ -24,10 +24,13 @@
 
 struct CGIProcessInfo
 {
-    pid_t pid;
-    int clientSocket;
+    pid_t       pid;
+    int         clientSocket;
     std::string response;
 };
+using cgiInfoMap = std::unordered_map<int, CGIProcessInfo>;
+
+enum FdType  {SERVER, CLIENT, CGI_PIPE };
 
 class WebServer
 {
@@ -38,10 +41,12 @@ public:
     WebServer &operator=(const WebServer &) = delete;
 
     void                 start();
-    void                 epollController(int clientSocket, int operation, uint32_t events);
+    void                 epollController(int clientSocket, int operation, uint32_t events, FdType fdType);
     int                  getEpollFd() const;
-    std::unordered_map<int, CGIProcessInfo>& getCgiInfoMap();
+    cgiInfoMap          &getCgiInfoMap();
     int                  getCurrentEventFd() const;
+
+    static void         setFdNonBlocking(int fd);
 private:
     std::vector<ServerSocket>                   _serverSockets = {};
     static bool                                 _running;
@@ -51,7 +56,7 @@ private:
     std::vector<struct epoll_event>             _events = {};
 
     std::unordered_map<int, std::string>        _partialRequests;
-    std::unordered_map<int, CGIProcessInfo>     _cgiInfoMap;
+    cgiInfoMap                                  _cgiInfoMap;
     std::unordered_map<std::string, addrinfo*>  _proxyInfoMap = {};
     std::unordered_map<int, Request>            _requestMap;
 

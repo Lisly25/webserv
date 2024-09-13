@@ -176,7 +176,9 @@ bool Request::RequestValidator::isPathValid() const
 {
     try
     {
+        _request._requestData.originalUri = _request._requestData.uri;
         std::string relativeUri = _request._requestData.uri;
+
         auto handleAlias = [&]() -> bool {
             if (relativeUri.find(_request._location->uri) == 0)
                 relativeUri = relativeUri.substr(_request._location->uri.length());
