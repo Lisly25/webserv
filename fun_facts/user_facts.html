@@ -251,9 +251,54 @@
 
         function showPreview(fileName) {
             const filePreview = document.getElementById('filePreview');
-            const imagePath = `/list/${fileName}`;
-            filePreview.innerHTML = `<img src="${imagePath}" alt="Image preview" style="max-width: 100%; max-height: 100%;">`;
+            const filePath = `/list/${fileName}`;
+            const extension = fileName.split('.').pop().toLowerCase();
+        
+            // Arrays of supported extensions
+            const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'ico'];
+            const videoExtensions = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv', 'flv'];
+            const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'flac'];
+            const pdfExtensions = ['pdf'];
+            const textExtensions = ['txt', 'log', 'md', 'csv', 'json', 'xml'];
+            const iframeExtensions = ['html', 'htm'];
+        
+            if (imageExtensions.includes(extension)) {
+                filePreview.innerHTML = `<img src="${filePath}" alt="Image preview" style="max-width: 100%; max-height: 100%;">`;
+            } else if (videoExtensions.includes(extension)) {
+                filePreview.innerHTML = `
+                    <video controls style="max-width: 100%; max-height: 100%;">
+                        <source src="${filePath}" type="video/${extension === 'ogv' ? 'ogg' : extension}">
+                        Your browser does not support the video tag.
+                    </video>`;
+            } else if (audioExtensions.includes(extension)) {
+                filePreview.innerHTML = `
+                    <audio controls style="width: 100%;">
+                        <source src="${filePath}" type="audio/${extension === 'oga' ? 'ogg' : extension}">
+                        Your browser does not support the audio tag.
+                    </audio>`;
+            } else if (pdfExtensions.includes(extension)) {
+                filePreview.innerHTML = `
+                    <embed src="${filePath}" type="application/pdf" width="100%" height="600px" />
+                `;
+            } else if (textExtensions.includes(extension)) {
+                fetch(filePath)
+                    .then(response => response.text())
+                    .then(text => {
+                        filePreview.innerHTML = `<pre style="white-space: pre-wrap; word-wrap: break-word;">${text}</pre>`;
+                    })
+                    .catch(error => {
+                        filePreview.innerHTML = '<p>Unable to load text file.</p>';
+                    });
+            } else if (iframeExtensions.includes(extension)) {
+                filePreview.innerHTML = `
+                    <iframe src="${filePath}" width="100%" height="600px" frameborder="0"></iframe>
+                `;
+            } else {
+                filePreview.innerHTML = '<p>Cannot preview this file type.</p>';
+            }
         }
+        
+        
 
         function showModal(content) {
             document.getElementById('modalContent').innerHTML = content;
