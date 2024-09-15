@@ -192,10 +192,9 @@ void WebServer::handleIncomingData(int clientSocket)
 {
     auto cleanupClient = [this](int clientSocket)
     {
-        epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
+        epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
         _partialRequests.erase(clientSocket);
         _requestMap.erase(clientSocket);
-        close(clientSocket);
     };
 
     auto isRequestComplete = [](const std::string &request) -> bool

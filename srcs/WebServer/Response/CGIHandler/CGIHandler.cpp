@@ -29,8 +29,6 @@ void CGIHandler::executeScript(void)
             return WebErrors::printerror("CGIHandler::executeScript", "Error creating pipes") , void();
         }
         WebServer::setFdNonBlocking(_output_pipe[READEND]);
-        WebServer::setFdNonBlocking(_input_pipe[WRITEND]);
-        WebServer::setFdNonBlocking(_input_pipe[READEND]);
         WebServer::setFdNonBlocking(_output_pipe[WRITEND]);
         pid = fork();
         if (pid < 0)
@@ -42,6 +40,7 @@ void CGIHandler::executeScript(void)
             child();
         else
             parent(pid);
+        std::cout << COLOR_YELLOW_CGI << "  CGI Script Started 🐍\n\n" << COLOR_RESET;
     }
     catch (const std::exception &e)
     {
