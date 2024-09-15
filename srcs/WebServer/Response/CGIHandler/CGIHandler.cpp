@@ -94,7 +94,7 @@ void CGIHandler::parent(pid_t pid)
         _webServer.getCgiInfoMap()[_output_pipe[READEND]] = cgiInfo;
         _webServer.epollController(_output_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN, FdType::CGI_PIPE);
 
-        if (!_request.getRequestData().body.empty())
+        if (_request.getRequestData().method == "POST" && !_request.getRequestData().body.empty())
         {
             size_t bodySize = _request.getRequestData().body.size();
             ssize_t written = write(_input_pipe[WRITEND], _request.getRequestData().body.c_str(), bodySize);
