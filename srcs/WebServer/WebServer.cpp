@@ -17,7 +17,7 @@
 #include "Response.hpp"
 #include "Request.hpp"
 
-bool WebServer::_running = true;
+volatile sig_atomic_t WebServer::s_serverRunning = 1;
 
 WebServer::WebServer(WebParser &parser)
     : _epollFd(-1), _parser(parser), _events(MAX_EVENTS)
@@ -342,22 +342,28 @@ void WebServer::handleCGIinteraction(int pipeFd)
     auto                it = _cgiInfoMap.find(pipeFd);
     if (it != _cgiInfoMap.end())
     {
-        CGIProcessInfo  &cgiInfo = it->second;
+        CGIProcessInfo& cgiInfo = it->second;
         char            buffer[4096];
         ssize_t         bytes = read(pipeFd, buffer, sizeof(buffer));
 
         if (bytes > 0)
+        {
             cgiInfo.response.append(buffer, bytes);
+        }
         else if (bytes == 0)
         {
+            const int clientSocket = cgiInfo.clientSocket;
             epollController(pipeFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
-            send(cgiInfo.clientSocket, cgiInfo.response.c_str(), cgiInfo.response.length(), 0);
-            close(cgiInfo.clientSocket);
+            send(clientSocket, cgiInfo.response.c_str(), cgiInfo.response.length(), 0);
+            close(clientSocket);
+
             _cgiInfoMap.erase(it);
-            _requestMap.erase(cgiInfo.clientSocket);
+            _requestMap.erase(clientSocket);
         }
         else if (bytes == -1)
+        {
             throw std::runtime_error("Error reading from CGI output pipe");
+        }
     }
 }
 
@@ -443,9 +449,13 @@ void WebServer::handleEvents(int eventCount)
 
 void WebServer::start()
 {
-    std::signal(SIGINT, [](int signum) { (void)signum; WebServer::_running = false; });
+    std::signal(SIGINT, signalHandler);  
+    std::signal(SIGTERM, signalHandler);
+    std::signal(SIGQUIT, signalHandler);
+    std::signal(SIGTSTP, signalHandler); 
+    std::signal(SIGPIPE, SIG_IGN);
 
-    while (_running)
+    while (s_serverRunning)
     {
         try
         {
@@ -467,9 +477,7 @@ void WebServer::start()
     std::cout << COLOR_GREEN_SERVER << "[ SERVER STOPPED ] 🔌\n" << COLOR_RESET;
 }
 
-
-
-
+void  WebServer::signalHandler(int signal) { (void) signal; s_serverRunning = 0; }
 
 int WebServer::getEpollFd() const { return _epollFd; }
 

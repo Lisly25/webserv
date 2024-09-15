@@ -3,6 +3,7 @@
 #include "ScopedSocket.hpp"
 #include "ServerSocket.hpp"
 #include "WebParser.hpp"
+#include <csignal>
 #include <netdb.h>
 #include <string>
 #include <netinet/in.h>
@@ -49,8 +50,8 @@ public:
 
     static void         setFdNonBlocking(int fd);
 private:
+    static volatile sig_atomic_t                s_serverRunning;
     std::vector<ServerSocket>                   _serverSockets = {};
-    static bool                                 _running;
     int                                         _epollFd = -1;
     int                                         _currentEventFd = -1;
     WebParser                                   &_parser;
@@ -76,6 +77,5 @@ private:
     bool                        isRequestComplete(const std::string &request);
     std::string                 extractCompleteRequest(const std::string &buffer);
 
-
-
+    static void                 signalHandler(int signal);
 };
