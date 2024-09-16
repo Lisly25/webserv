@@ -194,6 +194,14 @@
                         const li = document.createElement('li');
                         li.textContent = link.textContent;
                         
+                        const previewButton = document.createElement('button');
+                        previewButton.textContent = 'Show Preview';
+                        previewButton.style.marginLeft = '10px';
+                        previewButton.onclick = function() {
+                            showPreview(link.textContent);
+                        };
+                        li.appendChild(previewButton);
+        
                         const downloadButton = document.createElement('button');
                         downloadButton.textContent = 'Download';
                         downloadButton.style.marginLeft = '10px';
@@ -207,7 +215,7 @@
                             document.body.removeChild(a);
                         };
                         li.appendChild(downloadButton);
-
+        
                         const deleteButton = document.createElement('button');
                         deleteButton.textContent = 'Delete';
                         deleteButton.style.marginLeft = '10px';
@@ -215,7 +223,7 @@
                             deleteFile(link.textContent);
                         };
                         li.appendChild(deleteButton);
-
+        
                         fileList.appendChild(li);
                     });
                 })
@@ -223,7 +231,7 @@
                     document.getElementById('message').style.color = 'red';
                     document.getElementById('message').textContent = 'Error fetching file list: ' + error.message;
                 });
-        }
+        }        
 
 
         function handleTimeoutRequest() {
