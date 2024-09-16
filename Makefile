@@ -7,8 +7,6 @@ NAME = webserv
 
 DOCKER_COMPOSE_FILE := ./docker-services/docker-compose.yml
 
-CGI_TESTS_DIR = ./tests/cgi-tests
-
 all: $(NAME)
 
 $(NAME): $(OBJS)
@@ -22,7 +20,6 @@ clean: down
 
 fclean: clean
 	$(RM) $(NAME)
-	find $(CGI_TESTS_DIR) -type f ! -name 'POST-EXAMPLES.tar.gz.part*' -delete
 
 re: fclean $(NAME)
 
@@ -39,10 +36,5 @@ up:
 
 down:
 	@docker compose -f $(DOCKER_COMPOSE_FILE) down
-
-
-conf-parse-test:
-	c++ -Wall -Wextra -Werror -std=c++17 -ggdb3 srcs/WebErrors/WebErrors.cpp srcs/WebParser/WebParser.cpp srcs/config_parse_test_main.cpp -I srcs/WebErrors -lstdc++fs -o parseTest
-
 
 .PHONY: all clean fclean re up down unpack-test real-deal-test
