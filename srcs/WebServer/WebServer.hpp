@@ -4,6 +4,7 @@
 #include "ServerSocket.hpp"
 #include "WebParser.hpp"
 #include <csignal>
+#include <list>
 #include <netdb.h>
 #include <string>
 #include <netinet/in.h>
@@ -25,12 +26,14 @@
 
 struct CGIProcessInfo
 {
+    int         readFromCgiFd;
+    int         writeToCgiFd;
     pid_t       pid;
     int         clientSocket;
     std::string response;
     std::chrono::steady_clock::time_point startTime;
 };
-using cgiInfoMap = std::unordered_map<int, CGIProcessInfo>;
+using cgiInfoList = std::list<CGIProcessInfo>;
 
 enum FdType  {SERVER, CLIENT, CGI_PIPE };
 
@@ -45,10 +48,10 @@ public:
     void                 start();
     void                 epollController(int clientSocket, int operation, uint32_t events, FdType fdType);
     int                  getEpollFd() const;
-    cgiInfoMap          &getCgiInfoMap();
+    cgiInfoList          &getCgiInfoList();
     int                  getCurrentEventFd() const;
 
-    static void         setFdNonBlocking(int fd);
+    static void          setFdNonBlocking(int fd);
 private:
     static volatile sig_atomic_t                s_serverRunning;
     std::vector<ServerSocket>                   _serverSockets = {};
@@ -58,7 +61,7 @@ private:
     std::vector<struct epoll_event>             _events = {};
 
     std::unordered_map<int, std::string>        _partialRequests;
-    cgiInfoMap                                  _cgiInfoMap;
+    cgiInfoList                                  _cgiInfoList = {};
     std::unordered_map<std::string, addrinfo*>  _proxyInfoMap = {};
     std::unordered_map<int, Request>            _requestMap;
 

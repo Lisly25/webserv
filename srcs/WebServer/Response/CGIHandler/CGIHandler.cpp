@@ -90,8 +90,10 @@ void CGIHandler::parent(pid_t pid)
         cgiInfo.clientSocket = _webServer.getCurrentEventFd();
         cgiInfo.response = "";
         cgiInfo.startTime = std::chrono::steady_clock::now();
+        cgiInfo.readFromCgiFd = _output_pipe[READEND];
+        cgiInfo.writeToCgiFd = _input_pipe[WRITEND];
 
-        _webServer.getCgiInfoMap()[_output_pipe[READEND]] = cgiInfo;
+        _webServer.getCgiInfoList().push_back(cgiInfo);
         _webServer.epollController(_output_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN, FdType::CGI_PIPE);
 
         if (_request.getRequestData().method == "POST" && !_request.getRequestData().body.empty())
