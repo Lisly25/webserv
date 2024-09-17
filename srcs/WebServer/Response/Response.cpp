@@ -31,7 +31,7 @@ std::string Response::generate(const Request &request)
 
         if (request.getErrorCode() != 0)
         {
-            ErrorHandler(request).handleError(response, request.getErrorCode());
+            ErrorHandler(*request.getServer()).handleError(response, request.getErrorCode());
             return response;
         }
         else if (request.getLocation()->type == LocationType::PROXY)

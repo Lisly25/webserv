@@ -34,7 +34,7 @@ void StaticFileHandler::serveFile(std::string& response)
 
         if (!std::filesystem::exists(fullPath))
         {
-            ErrorHandler    errorHandler(_request);
+            ErrorHandler    errorHandler(*_request.getServer());
             errorHandler.handleError(response, NOT_FOUND);
             return;
         }
@@ -43,7 +43,7 @@ void StaticFileHandler::serveFile(std::string& response)
         try {
             readFileContent(fullPath, fileContent);
         } catch (const std::exception& e) {
-            ErrorHandler    errorHandlerServer(_request);
+            ErrorHandler    errorHandlerServer(*_request.getServer());
             errorHandlerServer.handleError(response, SERVER_ERROR);
             return;
         }

@@ -1,14 +1,13 @@
 #include "ErrorHandler.hpp"
 
-ErrorHandler::ErrorHandler(const Request& request)
-    : _request(request)
+ErrorHandler::ErrorHandler(const Server &server) : _server(server)
 {
 }
 
 void ErrorHandler::handleError(std::string& response, int errorCode) const
 {
     std::string errorMessage = getErrorMessage(errorCode);
-    std::string errorPagePath = WebParser::getErrorPage(errorCode, _request.getServer());
+    std::string errorPagePath = WebParser::getErrorPage(errorCode, &_server);
     std::string errorPage;
     if (errorPagePath.length() == 0)
         errorPage = generateDefaultErrorPage(errorCode);
@@ -22,7 +21,7 @@ void ErrorHandler::handleError(std::string& response, int errorCode) const
         {
             errorCode = 500;
             errorMessage = getErrorMessage(errorCode);
-            errorPagePath =  WebParser::getErrorPage(errorCode, _request.getServer());
+            errorPagePath =  WebParser::getErrorPage(errorCode, &_server);
             if (errorPagePath.length() == 0)
                 errorPage = generateDefaultErrorPage(errorCode);
             else

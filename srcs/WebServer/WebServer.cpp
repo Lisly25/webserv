@@ -263,7 +263,7 @@ void WebServer::handleIncomingData(int clientSocket)
 
    try
     {
-        char buffer[1024];
+        char    buffer[1024];
         ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
 
         if (bytesRead > 0)
@@ -293,6 +293,7 @@ void WebServer::handleIncomingData(int clientSocket)
         cleanupClient(clientSocket);
     }
 }
+
 
 void WebServer::handleOutgoingData(int clientSocket)
 {
@@ -450,7 +451,7 @@ void WebServer::CGITimeoutChecker(void)
                 if (it->clientSocket >= 0 && fcntl(it->clientSocket, F_GETFD) != -1)
                 {  
                     std::string response;
-                    ErrorHandler(_requestMap[it->clientSocket]).handleError(response, 504);
+                    ErrorHandler(*_requestMap[it->clientSocket].getServer()).handleError(response, 504);
                     if (send(it->clientSocket, response.c_str(), response.length(), 0) == -1)
                         std::cerr << COLOR_RED_ERROR << "Error sending 504 response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
                     close(it->clientSocket);
