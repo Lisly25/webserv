@@ -30,6 +30,8 @@ void CGIHandler::executeScript(void)
         }
         WebServer::setFdNonBlocking(_output_pipe[READEND]);
         WebServer::setFdNonBlocking(_output_pipe[WRITEND]);
+        WebServer::setFdNonBlocking(_input_pipe[READEND]);
+        WebServer::setFdNonBlocking(_input_pipe[WRITEND]);
         pid = fork();
         if (pid < 0)
         {
@@ -93,17 +95,17 @@ void CGIHandler::parent(pid_t pid)
         cgiInfo.readFromCgiFd = _output_pipe[READEND];
         cgiInfo.writeToCgiFd = _input_pipe[WRITEND];
 
-        _webServer.getCgiInfoList().push_back(cgiInfo);
-        _webServer.epollController(_output_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN, FdType::CGI_PIPE);
-
         if (_request.getRequestData().method == "POST" && !_request.getRequestData().body.empty())
         {
-            size_t bodySize = _request.getRequestData().body.size();
-            ssize_t written = write(_input_pipe[WRITEND], _request.getRequestData().body.c_str(), bodySize);
-            if (written == -1)
-                throw std::runtime_error("Failed to write to CGI script");
+            cgiInfo.pendingWriteData = _request.getRequestData().body;
+            cgiInfo.writeOffset = 0;
+            _webServer.epollController(cgiInfo.writeToCgiFd, EPOLL_CTL_ADD, EPOLLOUT, FdType::CGI_PIPE);
         }
-        close(_input_pipe[WRITEND]);
+        else
+            close(_input_pipe[WRITEND]);
+    
+        _webServer.getCgiInfoList().push_back(cgiInfo);
+        _webServer.epollController(_output_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN, FdType::CGI_PIPE);
         close(_output_pipe[WRITEND]);
     }
     catch (const std::exception &e)
@@ -111,6 +113,7 @@ void CGIHandler::parent(pid_t pid)
         ErrorHandler(_request).handleError(_response, 500);
     }
 }
+
 
 
 void CGIHandler::childSetEnvp(char const *envp[])

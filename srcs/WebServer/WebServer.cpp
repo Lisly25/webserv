@@ -149,7 +149,6 @@ void WebServer::epollController(int clientSocket, int operation, uint32_t events
                     std::cout << COLOR_GREEN_SERVER << " { CGI pipe added to epoll 🏊 }\n\n" << COLOR_RESET;
                     break;
             }
-            setFdNonBlocking(clientSocket);
         }
         if (epoll_ctl(_epollFd, operation, clientSocket, &event) == -1)
         {
@@ -179,6 +178,7 @@ void WebServer::acceptAddClientToEpoll(int clientSocketFd)
         if (clientSocket.getFd() < 0)
             throw std::runtime_error( "Error accepting client" );
 
+        setFdNonBlocking(clientSocket.getFd());
         epollController(clientSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN, FdType::CLIENT);
         clientSocket.release();
     }
@@ -192,9 +192,9 @@ void WebServer::handleIncomingData(int clientSocket)
 {
     auto cleanupClient = [this](int clientSocket)
     {
+        std::cout << "Cleaning up client socket: " << clientSocket << "\n";
         epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
         _partialRequests.erase(clientSocket);
-        _requestMap.erase(clientSocket);
     };
 
     auto isRequestComplete = [](const std::string &request) -> bool
@@ -243,38 +243,31 @@ void WebServer::handleIncomingData(int clientSocket)
         return buffer.substr(0, totalLength);
     };
 
-    auto processRequest = [this, &cleanupClient](int clientSocket, const std::string &requestStr)
+    auto processRequest = [this](int clientSocket, const std::string &requestStr)
     {
         Request request(requestStr, _parser.getServers(), _proxyInfoMap);
-
+        
         _requestMap[clientSocket] = request;
+
         std::cout << COLOR_MAGENTA_SERVER << "  Request to: " << request.getServer()->server_name[0] << \
             ":" << request.getServer()->port <<  request.getRequestData().originalUri << " ✉️\n\n" << COLOR_RESET;
-        if (request.getLocation()->type == LocationType::CGI)
+        if (request.getLocation()->type == LocationType::CGI && request.getErrorCode() == 0)
         {
-            if (request.getErrorCode() != 0)
-            {
-                std::string response;
-                ErrorHandler(request).handleError(response, request.getErrorCode());
-                send(clientSocket, response.c_str(), response.length(), 0);
-                cleanupClient(clientSocket);
-            }
-            else
-                CGIHandler cgiHandler(request, *this);
+            CGIHandler cgiHandler(request, *this);
+            epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
         }
         else
             epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT, FdType::CLIENT);
     };
 
-    try
+   try
     {
-        char    buffer[1024];
+        char buffer[1024];
         ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
 
         if (bytesRead > 0)
         {
             _partialRequests[clientSocket].append(buffer, bytesRead);
-
             while (isRequestComplete(_partialRequests[clientSocket]))
             {
                 std::string completeRequest = extractCompleteRequest(_partialRequests[clientSocket]);
@@ -284,18 +277,19 @@ void WebServer::handleIncomingData(int clientSocket)
         }
         else if (bytesRead == 0)
         {
+            std::cout << "Client disconnected, closing socket: " << clientSocket << "\n";
             cleanupClient(clientSocket);
         }
         else if (bytesRead == -1)
         {
+            std::cerr << "Error reading data from client socket: " << strerror(errno) << "\n";
             cleanupClient(clientSocket);
-            throw std::runtime_error("Error receiving data from client");
         }
     }
     catch (const std::exception &e)
     {
+        std::cerr << "Exception in handleIncomingData: " << e.what() << "\n";
         cleanupClient(clientSocket);
-        throw;
     }
 }
 
@@ -303,10 +297,8 @@ void WebServer::handleOutgoingData(int clientSocket)
 {
     try
     {
-        auto          it = _requestMap.find(clientSocket);
-        if (it != _requestMap.end())
         {
-            const Request &request = it->second;
+            const Request &request = _requestMap[clientSocket];
             Response res(request);
 
             const int bytesSent = send(clientSocket, res.getResponse().c_str(), res.getResponse().length(), 0);
@@ -324,7 +316,6 @@ void WebServer::handleOutgoingData(int clientSocket)
             else
                 epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
         }
-        _requestMap.erase(it);
     }
     catch (const std::exception &e)
     {
@@ -337,58 +328,55 @@ void WebServer::handleOutgoingData(int clientSocket)
     }
 }
 
-void WebServer::handleCGIinteraction(int pipeFd)
+void WebServer::handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int pipeFd, uint32_t events)
 {
-    for (auto it = _cgiInfoList.begin(); it != _cgiInfoList.end(); ++it)
+    auto handleRead = [this](auto it, int fromCgiFd)
     {
-        if (it->readFromCgiFd == pipeFd)
-        {
-            char    buffer[4096];
-            ssize_t bytes = read(pipeFd, buffer, sizeof(buffer));
+        char          buffer[4096];
+        const ssize_t bytes = read(fromCgiFd, buffer, sizeof(buffer));
 
-            if (bytes > 0)
-                it->response.append(buffer, bytes);
-            else if (bytes == 0)
-            {
-                const int clientSocket = it->clientSocket;
-                epollController(pipeFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
-                send(clientSocket, it->response.c_str(), it->response.length(), 0);
-                close(clientSocket);
-                _cgiInfoList.erase(it);
-                _requestMap.erase(clientSocket);
-            }
-            else if (bytes == -1)
-                throw std::runtime_error("Error reading from CGI output pipe");
-            break;
+        if (bytes > 0)
+            it->response.append(buffer, bytes);
+        if (bytes != -1)
+        {
+            const int clientSocket = it->clientSocket;
+            epollController(fromCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);  
+            ssize_t sent = send(clientSocket, it->response.c_str(), it->response.size(), 0);
+            if (sent == -1)
+                std::cerr << COLOR_RED_ERROR << "Error sending CGI response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+            close(clientSocket);
+            _cgiInfoList.erase(it);
         }
+        else if (bytes == -1)
+            throw std::runtime_error("Error reading from CGI output pipe");
+    };
+
+    auto handleWrite = [this](auto it, int toCgiFd)
+    {
+        CGIProcessInfo& cgiInfo = *it;
+        const char*     dataToWrite = cgiInfo.pendingWriteData.c_str() + cgiInfo.writeOffset;
+        const size_t    remainingData = cgiInfo.pendingWriteData.size() - cgiInfo.writeOffset;
+        const ssize_t   written = write(toCgiFd, dataToWrite, remainingData);
+
+        if (written == -1)
+            throw std::runtime_error("Error writing to CGI input pipe");
+
+        cgiInfo.writeOffset += written;
+        if (cgiInfo.writeOffset == cgiInfo.pendingWriteData.size())
+        {
+            epollController(toCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+        }
+    };
+
+    if (events & EPOLLIN && it->readFromCgiFd == pipeFd)
+    {
+         std::cout << "Handling CGI read from fd: " << pipeFd << "\n";
+        handleRead(it, pipeFd);
     }
-}
-
-void WebServer::CGITimeoutChecker(void)
-{
-    auto now = std::chrono::steady_clock::now();
-
-    for (auto it = _cgiInfoList.begin(); it != _cgiInfoList.end();)
+    if (events & EPOLLOUT && it->writeToCgiFd == pipeFd)
     {
-        const int cgiFd = it->readFromCgiFd;
-        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->startTime).count();
-
-        if (elapsed > CGI_TIMEOUT_LIMIT)
-        {
-            std::cout << COLOR_YELLOW_CGI << "  CGI Script Timed Out ⏰\n\n" << COLOR_RESET;
-            if (kill(it->pid, SIGKILL) == -1)
-                std::cerr << COLOR_RED_ERROR << "Failed to kill CGI process: " << strerror(errno) << "\n\n" << COLOR_RESET;
-            if (it->clientSocket >= 0 && fcntl(it->clientSocket, F_GETFD) != -1)
-            {
-                std::string response = ErrorHandler::generateDefaultErrorPage(504);
-                send(it->clientSocket, response.c_str(), response.length(), 0);
-                close(it->clientSocket);
-            }
-            epollController(cgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
-            it = _cgiInfoList.erase(it);
-        }
-        else
-            ++it;
+        std::cout << "Handling CGI write to fd: " << pipeFd << "\n";
+        handleWrite(it, pipeFd);
     }
 }
 
@@ -400,43 +388,82 @@ void WebServer::handleEvents(int eventCount)
             return std::any_of(_serverSockets.begin(), _serverSockets.end(),
                                [fd](const ScopedSocket& socket) { return socket.getFd() == fd; });
         };
-        auto isCgiFd = [this](int fd) -> bool {
-            for (const auto& cgiInfo : _cgiInfoList)
-            {
-                if (cgiInfo.readFromCgiFd == fd || cgiInfo.writeToCgiFd == fd)
-                    return true;
-            }
-            return false;
+
+        auto findCgiEvent = [this](int fd) -> std::list<CGIProcessInfo>::iterator {
+            return std::find_if(_cgiInfoList.begin(), _cgiInfoList.end(),
+                                [fd](const CGIProcessInfo& cgiInfo) {
+                                    return cgiInfo.readFromCgiFd == fd || cgiInfo.writeToCgiFd == fd;
+                                });
         };
 
         for (int i = 0; i < eventCount; ++i)
         {
-           _currentEventFd = _events[i].data.fd;
+            _currentEventFd = _events[i].data.fd;
+            std::cout << "Handling event for fd: " << _currentEventFd << "\n";
 
             if (getCorrectServerSocket(_currentEventFd))
             {
+                std::cout << "Handling incoming connection for server socket\n";
                 acceptAddClientToEpoll(_currentEventFd);
+                continue;
             }
-            else if (isCgiFd(_currentEventFd))
+
+            auto cgiInfoIter = findCgiEvent(_currentEventFd);
+            if (cgiInfoIter != _cgiInfoList.end())
             {
-                handleCGIinteraction(_currentEventFd);
+                std::cout << "Handling CGI interaction for fd: " << _currentEventFd << "\n";
+                handleCgiInteraction(cgiInfoIter, _currentEventFd, _events[i].events);
+                continue;
             }
-            else
+
+            if (_events[i].events & EPOLLIN)
             {
-                if (_events[i].events & EPOLLIN)
-                {
-                    handleIncomingData(_currentEventFd);
-                }
-                else if (_events[i].events & EPOLLOUT)
-                {
-                    handleOutgoingData(_currentEventFd);
-                }
+                std::cout << "Handling incoming data for client socket: " << _currentEventFd << "\n";
+                handleIncomingData(_currentEventFd);
+            }
+            else if (_events[i].events & EPOLLOUT)
+            {
+                std::cout << "Handling outgoing data for client socket: " << _currentEventFd << "\n";
+                handleOutgoingData(_currentEventFd);
             }
         }
     }
     catch (const std::exception &e)
     {
+        std::cerr << "Error in handleEvents: " << e.what() << "\n";
         throw;
+    }
+}
+
+
+void WebServer::CGITimeoutChecker(void)
+{
+    auto now = std::chrono::steady_clock::now();
+
+    for (auto it = _cgiInfoList.begin(); it != _cgiInfoList.end();)
+    {
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->startTime).count();
+
+        if (elapsed > CGI_TIMEOUT_LIMIT)
+        {
+            std::cout << COLOR_YELLOW_CGI << "  CGI Script Timed Out ⏰\n\n" << COLOR_RESET;
+            if (kill(it->pid, SIGKILL) == -1)
+                std::cerr << COLOR_RED_ERROR << "Failed to kill CGI process: " << strerror(errno) << "\n\n" << COLOR_RESET;
+            if (it->clientSocket >= 0 && fcntl(it->clientSocket, F_GETFD) != -1)
+            {  
+                std::string response;
+                ErrorHandler(_requestMap[it->clientSocket]).handleError(response, 504);
+                send(it->clientSocket, response.c_str(), response.length(), 0);
+                close(it->clientSocket);
+            }
+            if (_requestMap[it->clientSocket].getRequestData().method == "POST")
+                epollController(it->writeToCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+            epollController(it->readFromCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+            _requestMap.erase(it->clientSocket);
+            it = _cgiInfoList.erase(it);
+        }
+        else
+            ++it;
     }
 }
 
@@ -482,7 +509,7 @@ void WebServer::setFdNonBlocking(int fd)
 {
     int flags = fcntl(fd, F_GETFL, 0);
     if (flags == -1)
-        throw std::runtime_error("Failed to get pipe flags");
+        throw std::runtime_error("Failed to get fd flags");
     flags |= O_NONBLOCK | FD_CLOEXEC;
     if (fcntl(fd, F_SETFL, flags) == -1)
         throw std::runtime_error("Failed to set non-blocking mode");

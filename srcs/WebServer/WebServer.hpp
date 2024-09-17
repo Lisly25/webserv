@@ -32,6 +32,9 @@ struct CGIProcessInfo
     int         clientSocket;
     std::string response;
     std::chrono::steady_clock::time_point startTime;
+    std::string pendingWriteData;
+    size_t      writeOffset = 0;
+    size_t      sentBytes = 0;
 };
 using cgiInfoList = std::list<CGIProcessInfo>;
 
@@ -71,7 +74,8 @@ private:
     void                        acceptAddClientToEpoll(int serverSocketFd);
     void                        resolveProxyAddresses(const std::vector<Server>& server_confs);
 
-    void                        handleCGIinteraction(int pipeFd); // read() && send() for CGI
+    void                        handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int pipeFd, uint32_t events);
+
     void                        handleIncomingData(int clientSocket); // recv()
     void                        handleOutgoingData(int clientSocket); // send()
     void                        CGITimeoutChecker(void);
@@ -81,4 +85,8 @@ private:
     std::string                 extractCompleteRequest(const std::string &buffer);
 
     static void                 signalHandler(int signal);
+
+
+
+    void                        handleClientWrite(int clientSocket);
 };
