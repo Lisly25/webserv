@@ -1,0 +1,39 @@
+# Testing root with GET
+http://localhost:5252/ GET
+
+# Testing static file endpoints with GET
+http://localhost:5252/animals.html GET
+http://localhost:5252/plants.html GET
+http://localhost:5252/fungi.html GET
+http://localhost:5252/user_facts.html GET
+
+# Testing another alias with GET
+http://localhost:5252/another/animals.html GET
+http://localhost:5252/another/plants.html GET
+http://localhost:5252/another/fungi.html GET
+
+# Testing file listing with GET (autoindex enabled)
+http://localhost:5252/list/ GET
+http://localhost:5252/sample/ GET
+
+# Testing file upload with POST (simulating a form upload)
+http://localhost:5252/upload/ POST content-type="application/x-www-form-urlencoded" body="file=@path/to/file.txt"
+
+# Testing file deletion with DELETE
+http://localhost:5252/delete/?filename=test.txt DELETE
+
+# Multiple types of data for /upload/
+http://localhost:5252/upload/ POST content-type="application/x-www-form-urlencoded" body="name=JohnDoe&description=Fun%20fact%20about%20plants"
+
+# Invalid URLs to trigger 404 errors
+http://localhost:5252/nonexistent GET
+http://localhost:5252/fun_facts/nonexistent.html GET
+
+# Multiple concurrent requests to the homepage
+http://localhost:5252/ GET
+http://localhost:5252/ GET
+http://localhost:5252/ GET
+
+# Additional stress tests on root path
+http://localhost:5252/ POST body="data=something"
+http://localhost:5252/ DELETE

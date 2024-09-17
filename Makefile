@@ -40,4 +40,7 @@ down:
 check-open-fds:
 	@while true; do lsof -p $(shell pidof webserv); sleep 1; done
 
+crazy-test:
+	./tests/crazytest.sh
+
 .PHONY: all clean fclean re up down unpack-test real-deal-test
