@@ -365,6 +365,7 @@ void WebServer::handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int
         if (cgiInfo.writeOffset == cgiInfo.pendingWriteData.size())
         {
             epollController(toCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+            cgiInfo.writeToCgiFd = -1;
         }
     };
 
@@ -441,7 +442,7 @@ void WebServer::CGITimeoutChecker(void)
                 send(it->clientSocket, response.c_str(), response.length(), 0);
                 close(it->clientSocket);
             }
-            if (_requestMap[it->clientSocket].getRequestData().method == "POST")
+            if (_requestMap[it->clientSocket].getRequestData().method == "POST" && it->writeToCgiFd != -1)
                 epollController(it->writeToCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
             epollController(it->readFromCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
             _requestMap.erase(it->clientSocket);
