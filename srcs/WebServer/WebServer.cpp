@@ -254,7 +254,7 @@ void WebServer::handleIncomingData(int clientSocket)
         if (request.getLocation()->type == LocationType::CGI && request.getErrorCode() == 0)
         {
             CGIHandler cgiHandler(request, *this);
-            epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
+            epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr); // Only delete from epoll dont close()
         }
         else
             epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT, FdType::CLIENT);
@@ -369,13 +369,20 @@ void WebServer::handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int
         }
     };
 
-    if (events & EPOLLIN && it->readFromCgiFd == pipeFd)
+    try
     {
-        handleRead(it, pipeFd);
+        if (events & EPOLLIN && it->readFromCgiFd == pipeFd)
+        {
+            handleRead(it, pipeFd);
+        }
+        if (events & EPOLLOUT && it->writeToCgiFd == pipeFd)
+        {
+            handleWrite(it, pipeFd);
+        }
     }
-    if (events & EPOLLOUT && it->writeToCgiFd == pipeFd)
+    catch (const std::exception &e)
     {
-        handleWrite(it, pipeFd);
+        throw ;
     }
 }
 
@@ -424,42 +431,57 @@ void WebServer::handleEvents(int eventCount)
 
 void WebServer::CGITimeoutChecker(void)
 {
-    auto now = std::chrono::steady_clock::now();
-
-    for (auto it = _cgiInfoList.begin(); it != _cgiInfoList.end();)
+    try 
     {
-        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->startTime).count();
+        auto now = std::chrono::steady_clock::now();
 
-        if (elapsed > CGI_TIMEOUT_LIMIT)
+        for (auto it = _cgiInfoList.begin(); it != _cgiInfoList.end();)
         {
-            std::cout << COLOR_YELLOW_CGI << "  CGI Script Timed Out ⏰\n\n" << COLOR_RESET;
-            if (kill(it->pid, SIGKILL) == -1)
-                std::cerr << COLOR_RED_ERROR << "Failed to kill CGI process: " << strerror(errno) << "\n\n" << COLOR_RESET;
-            if (it->clientSocket >= 0 && fcntl(it->clientSocket, F_GETFD) != -1)
-            {  
-                std::string response;
-                ErrorHandler(_requestMap[it->clientSocket]).handleError(response, 504);
-                send(it->clientSocket, response.c_str(), response.length(), 0);
-                close(it->clientSocket);
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->startTime).count();
+
+            if (elapsed > CGI_TIMEOUT_LIMIT)
+            {
+                std::cout << COLOR_YELLOW_CGI << "  CGI Script Timed Out ⏰\n\n" << COLOR_RESET;
+                if (kill(it->pid, SIGKILL) == -1)
+                    std::cerr << COLOR_RED_ERROR << "Failed to kill CGI process: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                if (it->clientSocket >= 0 && fcntl(it->clientSocket, F_GETFD) != -1)
+                {  
+                    std::string response;
+                    ErrorHandler(_requestMap[it->clientSocket]).handleError(response, 504);
+                    if (send(it->clientSocket, response.c_str(), response.length(), 0) == -1)
+                        std::cerr << COLOR_RED_ERROR << "Error sending 504 response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                    close(it->clientSocket);
+                }
+                if (_requestMap[it->clientSocket].getRequestData().method == "POST" && it->writeToCgiFd != -1)
+                    epollController(it->writeToCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+                epollController(it->readFromCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+                _requestMap.erase(it->clientSocket);
+                it = _cgiInfoList.erase(it);
             }
-            if (_requestMap[it->clientSocket].getRequestData().method == "POST" && it->writeToCgiFd != -1)
-                epollController(it->writeToCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
-            epollController(it->readFromCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
-            _requestMap.erase(it->clientSocket);
-            it = _cgiInfoList.erase(it);
+            else
+                ++it;
         }
-        else
-            ++it;
+    }
+    catch (const std::exception &e)
+    {
+        throw;
     }
 }
 
 void WebServer::start()
 {
-    std::signal(SIGINT, signalHandler);  
-    std::signal(SIGTERM, signalHandler);
-    std::signal(SIGQUIT, signalHandler);
-    std::signal(SIGTSTP, signalHandler); 
-    std::signal(SIGPIPE, SIG_IGN);
+    try
+    {
+        std::signal(SIGINT, signalHandler);  
+        std::signal(SIGTERM, signalHandler);
+        std::signal(SIGQUIT, signalHandler);
+        std::signal(SIGTSTP, signalHandler); 
+        std::signal(SIGPIPE, SIG_IGN);
+    }
+    catch (const std::exception &e) {
+        std::cerr << "Error setting signal handlers: " << e.what() << "\n";
+        throw;
+    }
 
     while (s_serverRunning)
     {
