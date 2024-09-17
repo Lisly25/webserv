@@ -43,8 +43,8 @@ class   CGIHandler
         const Request&   _request;
         std::string      _response;
         std::string      _path;
-        int              _output_pipe[PIPES];
-        int              _input_pipe[PIPES];
+        int              _fromCgi_pipe[PIPES];
+        int              _toCgi_pipe[PIPES];
 
         bool            validateExecutable( void );
         bool            parentWaitForChild(pid_t pid);

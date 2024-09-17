@@ -37,4 +37,7 @@ up:
 down:
 	@docker compose -f $(DOCKER_COMPOSE_FILE) down
 
+check-open-fds:
+	@while true; do lsof -p $(shell pidof webserv); sleep 1; done
+
 .PHONY: all clean fclean re up down unpack-test real-deal-test

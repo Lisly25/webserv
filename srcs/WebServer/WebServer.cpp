@@ -370,12 +370,10 @@ void WebServer::handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int
 
     if (events & EPOLLIN && it->readFromCgiFd == pipeFd)
     {
-         std::cout << "Handling CGI read from fd: " << pipeFd << "\n";
         handleRead(it, pipeFd);
     }
     if (events & EPOLLOUT && it->writeToCgiFd == pipeFd)
     {
-        std::cout << "Handling CGI write to fd: " << pipeFd << "\n";
         handleWrite(it, pipeFd);
     }
 }
@@ -399,38 +397,25 @@ void WebServer::handleEvents(int eventCount)
         for (int i = 0; i < eventCount; ++i)
         {
             _currentEventFd = _events[i].data.fd;
-            std::cout << "Handling event for fd: " << _currentEventFd << "\n";
-
             if (getCorrectServerSocket(_currentEventFd))
             {
-                std::cout << "Handling incoming connection for server socket\n";
                 acceptAddClientToEpoll(_currentEventFd);
                 continue;
             }
-
             auto cgiInfoIter = findCgiEvent(_currentEventFd);
             if (cgiInfoIter != _cgiInfoList.end())
             {
-                std::cout << "Handling CGI interaction for fd: " << _currentEventFd << "\n";
                 handleCgiInteraction(cgiInfoIter, _currentEventFd, _events[i].events);
                 continue;
             }
-
             if (_events[i].events & EPOLLIN)
-            {
-                std::cout << "Handling incoming data for client socket: " << _currentEventFd << "\n";
                 handleIncomingData(_currentEventFd);
-            }
             else if (_events[i].events & EPOLLOUT)
-            {
-                std::cout << "Handling outgoing data for client socket: " << _currentEventFd << "\n";
                 handleOutgoingData(_currentEventFd);
-            }
         }
     }
     catch (const std::exception &e)
     {
-        std::cerr << "Error in handleEvents: " << e.what() << "\n";
         throw;
     }
 }

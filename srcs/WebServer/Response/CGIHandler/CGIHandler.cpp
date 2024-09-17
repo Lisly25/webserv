@@ -23,15 +23,15 @@ void CGIHandler::executeScript(void)
             ErrorHandler(_request).handleError(_response, 500);
             return WebErrors::printerror("CGIHandler::executeScript", "Error accessing script file") , void();
         }
-        if (pipe(_output_pipe) == -1 || pipe(_input_pipe) == -1)
+        if (pipe(_fromCgi_pipe) == -1 || pipe(_toCgi_pipe) == -1)
         {
             ErrorHandler(_request).handleError(_response, 500);
             return WebErrors::printerror("CGIHandler::executeScript", "Error creating pipes") , void();
         }
-        WebServer::setFdNonBlocking(_output_pipe[READEND]);
-        WebServer::setFdNonBlocking(_output_pipe[WRITEND]);
-        WebServer::setFdNonBlocking(_input_pipe[READEND]);
-        WebServer::setFdNonBlocking(_input_pipe[WRITEND]);
+        WebServer::setFdNonBlocking(_fromCgi_pipe[READEND]);
+        WebServer::setFdNonBlocking(_fromCgi_pipe[WRITEND]);
+        WebServer::setFdNonBlocking(_toCgi_pipe[READEND]);
+        WebServer::setFdNonBlocking(_toCgi_pipe[WRITEND]);
         pid = fork();
         if (pid < 0)
         {
@@ -58,14 +58,14 @@ void CGIHandler::child(void)
         char const *argv[] = {PYTHON3, _path.c_str(), NULL};
         char const *envp[9];
 
-        close(_input_pipe[WRITEND]);
-        dup2(_input_pipe[READEND], STDIN_FILENO);
-        close(_input_pipe[READEND]);
+        close(_toCgi_pipe[WRITEND]);
+        dup2(_toCgi_pipe[READEND], STDIN_FILENO);
+        close(_toCgi_pipe[READEND]);
 
-        close(_output_pipe[READEND]);
-        dup2(_output_pipe[WRITEND], STDOUT_FILENO);
-        dup2(_output_pipe[WRITEND], STDERR_FILENO);
-        close(_output_pipe[WRITEND]);
+        close(_fromCgi_pipe[READEND]);
+        dup2(_fromCgi_pipe[WRITEND], STDOUT_FILENO);
+        dup2(_fromCgi_pipe[WRITEND], STDERR_FILENO);
+        close(_fromCgi_pipe[WRITEND]);
 
         childSetEnvp(envp);
         execve(PYTHON3, (char *const *)argv, (char *const *)envp);
@@ -92,8 +92,8 @@ void CGIHandler::parent(pid_t pid)
         cgiInfo.clientSocket = _webServer.getCurrentEventFd();
         cgiInfo.response = "";
         cgiInfo.startTime = std::chrono::steady_clock::now();
-        cgiInfo.readFromCgiFd = _output_pipe[READEND];
-        cgiInfo.writeToCgiFd = _input_pipe[WRITEND];
+        cgiInfo.readFromCgiFd = _fromCgi_pipe[READEND];
+        cgiInfo.writeToCgiFd = _toCgi_pipe[WRITEND];
 
         if (_request.getRequestData().method == "POST" && !_request.getRequestData().body.empty())
         {
@@ -102,19 +102,18 @@ void CGIHandler::parent(pid_t pid)
             _webServer.epollController(cgiInfo.writeToCgiFd, EPOLL_CTL_ADD, EPOLLOUT, FdType::CGI_PIPE);
         }
         else
-            close(_input_pipe[WRITEND]);
+            close(_toCgi_pipe[WRITEND]);
     
         _webServer.getCgiInfoList().push_back(cgiInfo);
-        _webServer.epollController(_output_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN, FdType::CGI_PIPE);
-        close(_output_pipe[WRITEND]);
+        _webServer.epollController(_fromCgi_pipe[READEND], EPOLL_CTL_ADD, EPOLLIN, FdType::CGI_PIPE);
+        close(_fromCgi_pipe[WRITEND]);
+        close(_toCgi_pipe[READEND]);
     }
     catch (const std::exception &e)
     {
         ErrorHandler(_request).handleError(_response, 500);
     }
 }
-
-
 
 void CGIHandler::childSetEnvp(char const *envp[])
 {
