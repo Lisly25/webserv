@@ -335,21 +335,23 @@ void WebServer::handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int
 {
     auto handleCgiRead = [this](auto it, int fromCgiFd)
     {
-        char          buffer[4096];
-        const ssize_t bytes = read(fromCgiFd, buffer, sizeof(buffer));
+        char            buffer[4096];
+        const ssize_t   bytes = read(fromCgiFd, buffer, sizeof(buffer));
 
         if (bytes > 0)
             it->response.append(buffer, bytes);
+
         if (bytes != -1)
         {
-            const int clientSocket = it->clientSocket;
-            epollController(fromCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);  
+            const int   clientSocket = it->clientSocket;
+            epollController(fromCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+
             ssize_t sent = send(clientSocket, it->response.c_str(), it->response.size(), 0);
             if (sent == -1)
                 std::cerr << COLOR_RED_ERROR << "Error sending CGI response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
             close(clientSocket);
             _cgiInfoList.erase(it);
-            _requestMap.erase(it->clientSocket);
+            _requestMap.erase(clientSocket);
         }
         else if (bytes == -1)
             throw std::runtime_error("Error reading from CGI output pipe");
@@ -364,7 +366,6 @@ void WebServer::handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int
 
         if (written == -1)
             throw std::runtime_error("Error writing to CGI input pipe");
-
         cgiInfo.writeOffset += written;
         if (cgiInfo.writeOffset == cgiInfo.pendingWriteData.size())
         {
@@ -389,6 +390,7 @@ void WebServer::handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int
         throw ;
     }
 }
+
 
 void WebServer::handleEvents(int eventCount)
 {
