@@ -258,6 +258,7 @@ void WebServer::handleIncomingData(int clientSocket)
         }
         else
             epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT, FdType::CLIENT);
+        _partialRequests.erase(clientSocket);
     };
 
    try
@@ -315,6 +316,7 @@ void WebServer::handleOutgoingData(int clientSocket)
             }
             else
                 epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
+            _requestMap.erase(clientSocket);
         }
     }
     catch (const std::exception &e)
@@ -330,7 +332,7 @@ void WebServer::handleOutgoingData(int clientSocket)
 
 void WebServer::handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int pipeFd, uint32_t events)
 {
-    auto handleRead = [this](auto it, int fromCgiFd)
+    auto handleCgiRead = [this](auto it, int fromCgiFd)
     {
         char          buffer[4096];
         const ssize_t bytes = read(fromCgiFd, buffer, sizeof(buffer));
@@ -346,12 +348,13 @@ void WebServer::handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int
                 std::cerr << COLOR_RED_ERROR << "Error sending CGI response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
             close(clientSocket);
             _cgiInfoList.erase(it);
+            _requestMap.erase(it->clientSocket);
         }
         else if (bytes == -1)
             throw std::runtime_error("Error reading from CGI output pipe");
     };
 
-    auto handleWrite = [this](auto it, int toCgiFd)
+    auto handleCgiWrite = [this](auto it, int toCgiFd)
     {
         CGIProcessInfo& cgiInfo = *it;
         const char*     dataToWrite = cgiInfo.pendingWriteData.c_str() + cgiInfo.writeOffset;
@@ -373,11 +376,11 @@ void WebServer::handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int
     {
         if (events & EPOLLIN && it->readFromCgiFd == pipeFd)
         {
-            handleRead(it, pipeFd);
+            handleCgiRead(it, pipeFd);
         }
         if (events & EPOLLOUT && it->writeToCgiFd == pipeFd)
         {
-            handleWrite(it, pipeFd);
+            handleCgiWrite(it, pipeFd);
         }
     }
     catch (const std::exception &e)
