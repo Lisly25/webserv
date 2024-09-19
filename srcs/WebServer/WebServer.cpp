@@ -188,6 +188,40 @@ void WebServer::acceptAddClientToEpoll(int clientSocketFd)
     }
 }
 
+bool WebServer::isServerMatchAndBodySizeValid(const std::string& request, long& contentLength, const Server*& matchedServer)
+{
+    const size_t headerEnd = request.find("\r\n\r\n");
+    if (headerEnd == std::string::npos) return true;
+
+    std::istringstream stream(request.substr(0, headerEnd));
+    std::string line, hostHeader;
+
+    while (std::getline(stream, line) && !line.empty())
+    {
+        if (line.find("Host:") == 0)
+            hostHeader = WebParser::trimSpaces(line.substr(5));
+        else if (line.find("Content-Length:") == 0)
+            contentLength = std::stol(line.substr(15));
+    }
+
+    if (hostHeader.empty()) return true;
+
+    for (const auto& server : _parser.getServers())
+    {
+        std::string fullServerName = server.server_name[0] + ":" + std::to_string(server.port);
+        if (hostHeader == fullServerName)
+        {
+            matchedServer = &server;
+            if (server.client_max_body_size != 0 && contentLength > server.client_max_body_size)
+                return false;
+            return true;
+        }
+    }
+    matchedServer = nullptr;
+    return true;
+}
+
+
 void WebServer::handleIncomingData(int clientSocket)
 {
     auto cleanupClient = [this](int clientSocket)
@@ -199,14 +233,13 @@ void WebServer::handleIncomingData(int clientSocket)
 
     auto isRequestComplete = [](const std::string &request) -> bool
     {
-        size_t              headerEnd = request.find("\r\n\r\n");
-
+        size_t headerEnd = request.find("\r\n\r\n");
         if (headerEnd == std::string::npos)
             return false;
 
-        size_t              contentLength = 0;
-        std::istringstream  stream(request.substr(0, headerEnd + 4));
-        std::string         line;
+        size_t contentLength = 0;
+        std::istringstream stream(request.substr(0, headerEnd + 4));
+        std::string line;
 
         while (std::getline(stream, line) && line != "\r")
         {
@@ -223,13 +256,13 @@ void WebServer::handleIncomingData(int clientSocket)
 
     auto extractCompleteRequest = [](const std::string &buffer) -> std::string
     {
-        size_t              headerEnd = buffer.find("\r\n\r\n");
-
+        const size_t headerEnd = buffer.find("\r\n\r\n");
         if (headerEnd == std::string::npos)
             return "";
-        size_t              contentLength = 0;
-        std::istringstream  stream(buffer.substr(0, headerEnd + 4));
-        std::string         line;
+
+        size_t             contentLength = 0;
+        std::istringstream stream(buffer.substr(0, headerEnd + 4));
+        std::string        line;
 
         while (std::getline(stream, line) && line != "\r")
         {
@@ -239,36 +272,51 @@ void WebServer::handleIncomingData(int clientSocket)
                 break;
             }
         }
-        const size_t        totalLength = headerEnd + 4 + contentLength;
+        const size_t totalLength = headerEnd + 4 + contentLength;
         return buffer.substr(0, totalLength);
     };
 
     auto processRequest = [this](int clientSocket, const std::string &requestStr)
     {
         Request request(requestStr, _parser.getServers(), _proxyInfoMap);
-        
         _requestMap[clientSocket] = request;
 
-        std::cout << COLOR_MAGENTA_SERVER << "  Request to: " << request.getServer()->server_name[0] << \
-            ":" << request.getServer()->port <<  request.getRequestData().originalUri << " ✉️\n\n" << COLOR_RESET;
+        std::cout << COLOR_MAGENTA_SERVER << "  Request to: " << request.getServer()->server_name[0]
+                  << ":" << request.getServer()->port << request.getRequestData().originalUri << " ✉️\n\n"
+                  << COLOR_RESET;
+
         if (request.getLocation()->type == LocationType::CGI && request.getErrorCode() == 0)
         {
             CGIHandler cgiHandler(request, *this);
-            epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr); // Only delete from epoll dont close()
+            epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr); // Only delete from epoll, don't close()
         }
         else
+        {
             epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT, FdType::CLIENT);
+        }
         _partialRequests.erase(clientSocket);
     };
 
-   try
+    try
     {
-        char    buffer[1024];
-        ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
+        char            buffer[1024];
+        ssize_t         bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
+        long            contentLength = 0;
+        const Server*   matchedServer = nullptr;
 
         if (bytesRead > 0)
         {
             _partialRequests[clientSocket].append(buffer, bytesRead);
+            if (!isServerMatchAndBodySizeValid(_partialRequests[clientSocket], contentLength, matchedServer))
+            {
+                if (matchedServer)
+                {
+                    ErrorHandler(*matchedServer).handleError(_partialRequests[clientSocket], REQUEST_BODY_TOO_LARGE);
+                    if (send(clientSocket, _partialRequests[clientSocket].c_str(), _partialRequests[clientSocket].length(), 0) == -1)
+                        std::cerr << COLOR_RED_ERROR << "Error sending 413 response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                }
+                return cleanupClient(clientSocket);
+            }
             while (isRequestComplete(_partialRequests[clientSocket]))
             {
                 std::string completeRequest = extractCompleteRequest(_partialRequests[clientSocket]);

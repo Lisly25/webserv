@@ -75,6 +75,7 @@ private:
     void                        resolveProxyAddresses(const std::vector<Server>& server_confs);
 
     void                        handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int pipeFd, uint32_t events);
+    bool                        isServerMatchAndBodySizeValid(const std::string& request, long& contentLength, const Server*& matchedServer);
 
     void                        handleIncomingData(int clientSocket); // recv()
     void                        handleOutgoingData(int clientSocket); // send()
