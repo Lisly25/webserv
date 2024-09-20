@@ -95,8 +95,6 @@ void CGIHandler::parent(pid_t pid)
         cgiInfo.readFromCgiFd = _fromCgi_pipe[READEND];
         cgiInfo.writeToCgiFd = _toCgi_pipe[WRITEND];
 
-        std::cout << "GOING TO WRITE BODY SIZE: " << _request.getRequestData().body.size() << std::endl;
-        std::cout << "GOING TO WRITE BODY SIZE: " << _request.getRequestData().body.size() << std::endl;
         if (_request.getRequestData().method == "POST" && !_request.getRequestData().body.empty())
         {
             cgiInfo.pendingWriteData = _request.getRequestData().body;

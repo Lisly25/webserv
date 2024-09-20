@@ -413,7 +413,10 @@ void WebServer::handleCgiInteraction(std::list<CGIProcessInfo>::iterator it, int
         const ssize_t   written = write(toCgiFd, dataToWrite, remainingData);
 
         if (written == -1)
-            throw std::runtime_error("Error writing to CGI input pipe");
+        {
+            std::cerr << COLOR_RED_ERROR << "Error writing to CGI script: " << strerror(errno) << "\n\n" << COLOR_RESET;
+            return;
+        }
         cgiInfo.writeOffset += written;
         if (cgiInfo.writeOffset == cgiInfo.pendingWriteData.size())
         {

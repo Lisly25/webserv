@@ -3,20 +3,6 @@ import os
 import sys
 import re
 import traceback
-import logging
-
-def setup_logging():
-    """Set up logging to a file."""
-    log_dir = os.environ.get('UPLOAD_LOG_DIR', 'logs')
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    log_file = os.path.join(log_dir, 'upload_debug.log')
-    logging.basicConfig(
-        filename=log_file,
-        filemode='a',
-        format='%(asctime)s [%(levelname)s] %(message)s',
-        level=logging.DEBUG
-    )
 
 def create_upload_dir(directory):
     """Create the upload directory if it doesn't exist."""
@@ -30,8 +16,6 @@ def stream_to_file(filepath, initial_data, remaining_content_length):
             output_file.write(initial_data)
             total_written = len(initial_data)
             remaining = remaining_content_length
-            logging.debug(f"Initial data written: {len(initial_data)} bytes")
-            logging.debug(f"Remaining content to read: {remaining} bytes")
 
             while remaining > 0:
                 chunk_size = min(4096, remaining)
@@ -41,12 +25,8 @@ def stream_to_file(filepath, initial_data, remaining_content_length):
                 output_file.write(chunk)
                 total_written += len(chunk)
                 remaining -= len(chunk)
-                logging.debug(f"Read and wrote chunk of size {len(chunk)} bytes, {remaining} bytes remaining")
         
-            logging.debug(f"Total bytes written: {total_written} bytes")
-    
     except IOError as e:
-        logging.error(f"Error writing file: {e}")
         raise
 
 def parse_headers(raw_data):
@@ -84,9 +64,7 @@ def handle_upload():
     create_upload_dir(upload_dir)
 
     content_length = int(os.environ.get('CONTENT_LENGTH', 0))
-    logging.debug(f"Content-Length received: {content_length}")
 
-    # Read headers and initial data
     raw_headers = b""
     total_read = 0
     while b"\r\n\r\n" not in raw_headers:
@@ -95,8 +73,6 @@ def handle_upload():
             break
         raw_headers += chunk
         total_read += len(chunk)
-
-    logging.debug(f"Total bytes read for headers: {total_read}")
 
     filename, file_content_start = parse_headers(raw_headers)
     
@@ -112,12 +88,6 @@ def handle_upload():
     file_path = os.path.join(upload_dir, filename)
     initial_data = raw_headers[file_content_start:]
 
-    logging.debug(f"Filename extracted: {filename}")
-    logging.debug(f"Length of initial data after headers: {len(initial_data)} bytes")
-    logging.debug(f"Saving to file: {file_path}")
-
-    # Total bytes read so far is total_read, which includes headers and initial_data
-    # Remaining content to read is content_length - total_read
     remaining_content_length = content_length - total_read
 
     stream_to_file(file_path, initial_data, remaining_content_length)
@@ -133,11 +103,9 @@ def handle_upload():
 def main():
     """Main function to handle exceptions and initiate the upload process."""
     try:
-        setup_logging()
         handle_upload()
     except Exception as e:
         error_message = traceback.format_exc()
-        logging.error(f"Exception occurred: {error_message}")
         http_response(
             "500 Internal Server Error", 
             "text/html", 
