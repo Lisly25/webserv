@@ -31,9 +31,9 @@
     
     <div id="container">
         <div>
-            <h1>Latest Uploaded File Preview:</h1>
+            <h1>File Preview:</h1>
             <div id="filePreview" style="width: 1200px; height: 600px; border: 1px solid black; display: flex; justify-content: center; align-items: center;">
-                <p>Loading preview...</p>
+                <p>Select a file to preview.</p>
             </div>
         </div>
         <div id="fileList">
@@ -66,10 +66,6 @@
             }, 100);
         });
     
-        function listFiles() {
-            console.log('Refreshing file list...');
-        }
-
         function isAscii(str) {
             return [...str].every(char => char.codePointAt(0) <= 127);
         }
@@ -182,8 +178,7 @@
                     fileList.innerHTML = ''; 
                     
                     if (links.length > 0) {
-                        const latestFile = links[links.length - 1].textContent;
-                        showPreview(latestFile);
+                        document.getElementById('filePreview').innerHTML = '<p>Select a file to preview.</p>';
                     } else {
                         document.getElementById('filePreview').innerHTML = '<p>No files uploaded yet.</p>';
                     }
@@ -306,8 +301,6 @@
             }
         }
         
-        
-
         function showModal(content) {
             document.getElementById('modalContent').innerHTML = content;
             document.getElementById('errorModal').style.display = 'block';
@@ -321,6 +314,7 @@
 
         window.onload = function() {
             listFiles(); 
+            // Removed automatic preview of the latest file
         };
     </script>
 </body>
