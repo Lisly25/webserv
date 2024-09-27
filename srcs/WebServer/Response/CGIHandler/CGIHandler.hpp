@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   CgiHandler.hpp                                     :+:      :+:    :+:   */
+/*   CGIHandler.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: uahmed <uahmed@student.hive.fi>            +#+  +:+       +#+        */
+/*   By: alex <alex@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/09 10:52:47 by uahmed            #+#    #+#             */
-/*   Updated: 2024/08/09 10:54:29 by uahmed           ###   ########.fr       */
+/*   Updated: 2024/09/27 13:47:19 by alex             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,8 +43,8 @@ class   CGIHandler
         const Request&   _request;
         std::string      _response;
         std::string      _path;
-        int              _output_pipe[PIPES];
-        int              _input_pipe[PIPES];
+        int              _fromCgi_pipe[PIPES];
+        int              _toCgi_pipe[PIPES];
 
         bool            validateExecutable( void );
         bool            parentWaitForChild(pid_t pid);
