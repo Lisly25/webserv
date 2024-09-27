@@ -23,10 +23,8 @@ fclean: clean
 
 re: fclean $(NAME)
 
-# TESTS ----
-
-real-deal-test: up unpack-test $(NAME)
-	./webserv ./tests/real-deal.conf
+eval: up all
+	./webserv ./tests/eval.conf
 
 up:
 	mkdir -p ./docker-services/homer
@@ -37,4 +35,4 @@ up:
 down:
 	@docker compose -f $(DOCKER_COMPOSE_FILE) down
 
-.PHONY: all clean fclean re up down unpack-test real-deal-test
+.PHONY: all clean fclean re up down eval

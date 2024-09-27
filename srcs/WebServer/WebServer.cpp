@@ -149,7 +149,6 @@ void WebServer::epollController(int clientSocket, int operation, uint32_t events
                     std::cout << COLOR_GREEN_SERVER << " { CGI pipe added to epoll 🏊 }\n\n" << COLOR_RESET;
                     break;
             }
-            setFdNonBlocking(clientSocket);
         }
         if (epoll_ctl(_epollFd, operation, clientSocket, &event) == -1)
         {
@@ -178,7 +177,7 @@ void WebServer::acceptAddClientToEpoll(int clientSocketFd)
 
         if (clientSocket.getFd() < 0)
             throw std::runtime_error( "Error accepting client" );
-
+        setFdNonBlocking(clientSocketFd);
         epollController(clientSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN, FdType::CLIENT);
         clientSocket.release();
     }
@@ -243,27 +242,25 @@ void WebServer::handleIncomingData(int clientSocket)
         return buffer.substr(0, totalLength);
     };
 
-    auto processRequest = [this, &cleanupClient](int clientSocket, const std::string &requestStr)
+        auto processRequest = [this](int clientSocket, const std::string &requestStr)
     {
         Request request(requestStr, _parser.getServers(), _proxyInfoMap);
-
         _requestMap[clientSocket] = request;
-        std::cout << COLOR_MAGENTA_SERVER << "  Request to: " << request.getServer()->server_name[0] << \
-            ":" << request.getServer()->port <<  request.getRequestData().originalUri << " ✉️\n\n" << COLOR_RESET;
-        if (request.getLocation()->type == LocationType::CGI)
+
+        std::cout << COLOR_MAGENTA_SERVER << "  Request to: " << request.getServer()->server_name[0]
+                  << ":" << request.getServer()->port << request.getRequestData().originalUri << " ✉️\n\n"
+                  << COLOR_RESET;
+
+        if (request.getLocation()->type == LocationType::CGI && request.getErrorCode() == 0)
         {
-            if (request.getErrorCode() != 0)
-            {
-                std::string response;
-                ErrorHandler(request).handleError(response, request.getErrorCode());
-                send(clientSocket, response.c_str(), response.length(), 0);
-                cleanupClient(clientSocket);
-            }
-            else
-                CGIHandler cgiHandler(request, *this);
+            CGIHandler cgiHandler(request, *this);
+            epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientSocket, nullptr); // Only delete from epoll, don't close()
         }
         else
+        {
             epollController(clientSocket, EPOLL_CTL_MOD, EPOLLOUT, FdType::CLIENT);
+        }
+        _partialRequests.erase(clientSocket);
     };
 
     try
@@ -339,56 +336,76 @@ void WebServer::handleOutgoingData(int clientSocket)
 
 void WebServer::handleCGIinteraction(int pipeFd)
 {
-    for (auto it = _cgiInfoList.begin(); it != _cgiInfoList.end(); ++it)
-    {
-        if (it->readFromCgiFd == pipeFd)
+    try
+    {    
+        for (auto it = _cgiInfoList.begin(); it != _cgiInfoList.end(); ++it)
         {
-            char    buffer[4096];
-            ssize_t bytes = read(pipeFd, buffer, sizeof(buffer));
-
-            if (bytes > 0)
-                it->response.append(buffer, bytes);
-            else if (bytes == 0)
+            if (it->readFromCgiFd == pipeFd)
             {
-                const int clientSocket = it->clientSocket;
-                epollController(pipeFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
-                send(clientSocket, it->response.c_str(), it->response.length(), 0);
-                close(clientSocket);
-                _cgiInfoList.erase(it);
-                _requestMap.erase(clientSocket);
+                char    buffer[4096];
+                ssize_t bytes = read(pipeFd, buffer, sizeof(buffer));
+
+                if (bytes > 0)
+                    it->response.append(buffer, bytes);
+                else if (bytes == 0)
+                {
+                    const int clientSocket = it->clientSocket;
+                    epollController(pipeFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+                    if (send(clientSocket, it->response.c_str(), it->response.length(), 0) == -1)
+                        std::cerr << COLOR_RED_ERROR << "Error sending CGI response to client: "\
+                            << strerror(errno) << "\n\n" << COLOR_RESET;
+                    close(clientSocket);
+                    _cgiInfoList.erase(it);
+                    _requestMap.erase(clientSocket);
+                }
+                else if (bytes == -1)
+                    throw std::runtime_error("Error reading from CGI output pipe");
+                break;
             }
-            else if (bytes == -1)
-                throw std::runtime_error("Error reading from CGI output pipe");
-            break;
         }
+    }
+    catch (std::exception &e)
+    {
+        throw;
     }
 }
 
 void WebServer::CGITimeoutChecker(void)
 {
-    auto now = std::chrono::steady_clock::now();
-
-    for (auto it = _cgiInfoList.begin(); it != _cgiInfoList.end();)
+    try 
     {
-        const int cgiFd = it->readFromCgiFd;
-        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->startTime).count();
+        auto now = std::chrono::steady_clock::now();
 
-        if (elapsed > CGI_TIMEOUT_LIMIT)
+        for (auto it = _cgiInfoList.begin(); it != _cgiInfoList.end();)
         {
-            std::cout << COLOR_YELLOW_CGI << "  CGI Script Timed Out ⏰\n\n" << COLOR_RESET;
-            if (kill(it->pid, SIGKILL) == -1)
-                std::cerr << COLOR_RED_ERROR << "Failed to kill CGI process: " << strerror(errno) << "\n\n" << COLOR_RESET;
-            if (it->clientSocket >= 0 && fcntl(it->clientSocket, F_GETFD) != -1)
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->startTime).count();
+
+            if (elapsed > CGI_TIMEOUT_LIMIT)
             {
-                std::string response = ErrorHandler::generateDefaultErrorPage(504);
-                send(it->clientSocket, response.c_str(), response.length(), 0);
-                close(it->clientSocket);
+                std::cout << COLOR_YELLOW_CGI << "  CGI Script Timed Out ⏰\n\n" << COLOR_RESET;
+                if (kill(it->pid, SIGKILL) == -1)
+                    std::cerr << COLOR_RED_ERROR << "Failed to kill CGI process: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                if (it->clientSocket >= 0 && fcntl(it->clientSocket, F_GETFD) != -1)
+                {  
+                    std::string response;
+                    ErrorHandler(_requestMap[it->clientSocket]).handleError(response, 504);
+                    if (send(it->clientSocket, response.c_str(), response.length(), 0) == -1)
+                        std::cerr << COLOR_RED_ERROR << "Error sending 504 response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                    close(it->clientSocket);
+                }
+                if (_requestMap[it->clientSocket].getRequestData().method == "POST" && it->writeToCgiFd != -1)
+                    epollController(it->writeToCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+                epollController(it->readFromCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+                _requestMap.erase(it->clientSocket);
+                it = _cgiInfoList.erase(it);
             }
-            epollController(cgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
-            it = _cgiInfoList.erase(it);
+            else
+                ++it;
         }
-        else
-            ++it;
+    }
+    catch (const std::exception &e)
+    {
+        throw;
     }
 }
 
@@ -442,11 +459,18 @@ void WebServer::handleEvents(int eventCount)
 
 void WebServer::start()
 {
-    std::signal(SIGINT, signalHandler);  
-    std::signal(SIGTERM, signalHandler);
-    std::signal(SIGQUIT, signalHandler);
-    std::signal(SIGTSTP, signalHandler); 
-    std::signal(SIGPIPE, SIG_IGN);
+    try
+    {
+        std::signal(SIGINT, signalHandler);  
+        std::signal(SIGTERM, signalHandler);
+        std::signal(SIGQUIT, signalHandler);
+        std::signal(SIGTSTP, signalHandler); 
+        std::signal(SIGPIPE, SIG_IGN);
+    }
+    catch (const std::exception &e) {
+        std::cerr << "Error setting signal handlers: " << e.what() << "\n";
+        throw;
+    }
 
     while (s_serverRunning)
     {
