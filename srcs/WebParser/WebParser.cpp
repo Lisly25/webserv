@@ -232,6 +232,7 @@ void    WebParser::extractLocationInfo(size_t contextStart, size_t contextEnd)
     currentLocation.uri = extractLocationUri(contextStart);
     currentLocation.root = extractRoot(contextStart, contextEnd);
     currentLocation.upload_folder = extractUploadFolder(contextStart, contextEnd);
+    currentLocation.httpRedirection = extractHttpRedirection(contextStart, contextEnd);
     _servers.back().locations.push_back(currentLocation);
     extractAllowedMethods(contextStart, contextEnd);
     extractAutoinex(contextStart, contextEnd);
@@ -725,4 +726,20 @@ void    WebParser::extractIndex(size_t contextStart, size_t contextEnd)
             throw WebErrors::BaseException("Vector operation failed");
         }
     }
+}
+
+std::string      WebParser::extractHttpRedirection(size_t contextStart, size_t contextEnd)
+{
+    std::string key = "return";
+    ssize_t directiveLocation = locateDirective(contextStart, contextEnd, key);
+
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: only one 'return' directive allowed per location context");
+    if (directiveLocation == 0)
+        return ;
+
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+    if (line.length() == 0)
+        throw WebErrors::ConfigFormatException("Error: can't specify empty string as HTTP redirection target (\"return\" directive)");
+    return (line);
 }
