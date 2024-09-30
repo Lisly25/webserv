@@ -94,10 +94,12 @@ void CGIHandler::parent(pid_t pid)
         cgiInfo.writeToCgiFd = _toCgi_pipe[WRITEND];
         if (_request.getRequestData().method == "POST" && !_request.getRequestData().body.empty())
         {
-            size_t bodySize = _request.getRequestData().body.size();
-            ssize_t written = write(_toCgi_pipe[WRITEND], _request.getRequestData().body.c_str(), bodySize);
+            const size_t bodySize = _request.getRequestData().body.size();
+            const ssize_t written = write(_toCgi_pipe[WRITEND], _request.getRequestData().body.c_str(), bodySize);
             if (written == -1)
                 throw std::runtime_error("Failed to write to CGI script");
+            else if (written == 0)
+                throw std::runtime_error("Zero bytes written to CGI");
         }
         else
             close(_toCgi_pipe[WRITEND]);

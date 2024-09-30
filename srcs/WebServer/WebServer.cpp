@@ -337,7 +337,7 @@ void WebServer::handleOutgoingData(int clientSocket)
 void WebServer::handleCGIinteraction(int pipeFd)
 {
     try
-    {    
+    {
         for (auto it = _cgiInfoList.begin(); it != _cgiInfoList.end(); ++it)
         {
             if (it->readFromCgiFd == pipeFd)
@@ -351,9 +351,11 @@ void WebServer::handleCGIinteraction(int pipeFd)
                 {
                     const int clientSocket = it->clientSocket;
                     epollController(pipeFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
-                    if (send(clientSocket, it->response.c_str(), it->response.length(), 0) == -1)
-                        std::cerr << COLOR_RED_ERROR << "Error sending CGI response to client: "\
-                            << strerror(errno) << "\n\n" << COLOR_RESET;
+                    const int   ret = send(clientSocket, it->response.c_str(), it->response.length(), 0);
+                    if (ret == -1)
+                        std::cerr << COLOR_RED_ERROR << "Error sending 504 response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                    else if (ret == 0)
+                        std::cerr << COLOR_RED_ERROR << "Error sending Cgi response to client, Connection closed by the client: " << strerror(errno) << "\n\n" << COLOR_RESET;
                     close(clientSocket);
                     _cgiInfoList.erase(it);
                     _requestMap.erase(clientSocket);
@@ -389,8 +391,11 @@ void WebServer::CGITimeoutChecker(void)
                 {  
                     std::string response;
                     ErrorHandler(_requestMap[it->clientSocket]).handleError(response, 504);
-                    if (send(it->clientSocket, response.c_str(), response.length(), 0) == -1)
+                    const int   ret = send(it->clientSocket, response.c_str(), response.length(), 0);
+                    if (ret == -1)
                         std::cerr << COLOR_RED_ERROR << "Error sending 504 response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                    else if (ret == 0)
+                        std::cerr << COLOR_RED_ERROR << "Error sending 504 response to client, Connection closed by the client: " << strerror(errno) << "\n\n" << COLOR_RESET;
                     close(it->clientSocket);
                 }
                 if (_requestMap[it->clientSocket].getRequestData().method == "POST" && it->writeToCgiFd != -1)
