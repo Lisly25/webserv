@@ -93,7 +93,6 @@ private:
     void                        extractRedirectionAndTarget(size_t contextStart, size_t contextEnd);
     void                        extractIndex(size_t contextStart, size_t contextEnd);
     std::string                 extractUploadFolder(size_t contextStart, size_t contextEnd);
-    //std::string                 extractHttpRedirection(size_t contextStart, size_t contextEnd);
 
     //in WebParserUtils
 
