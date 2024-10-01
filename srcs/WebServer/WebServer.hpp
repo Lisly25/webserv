@@ -33,7 +33,19 @@ struct CGIProcessInfo
     std::string response;
     std::chrono::steady_clock::time_point startTime;
 };
+
+struct ClientInfo
+{
+    int           clientSocket;
+    const Server  *server_conf;
+    std::chrono::steady_clock::time_point   lastActivity;
+};
+
 using cgiInfoList = std::list<CGIProcessInfo>;
+using clientInfoMap = std::unordered_map<int, ClientInfo>;
+using proxyInfoMap = std::unordered_map<std::string, addrinfo*>;
+using requestMap = std::unordered_map<int, Request>;
+using partialRequestMap = std::unordered_map<int, std::string>;
 
 enum FdType  {SERVER, CLIENT, CGI_PIPE };
 
@@ -60,10 +72,11 @@ private:
     WebParser                                   &_parser;
     std::vector<struct epoll_event>             _events = {};
 
-    std::unordered_map<int, std::string>        _partialRequests;
-    cgiInfoList                                  _cgiInfoList = {};
-    std::unordered_map<std::string, addrinfo*>  _proxyInfoMap = {};
-    std::unordered_map<int, Request>            _requestMap;
+    partialRequestMap                           _partialRequests;
+    cgiInfoList                                 _cgiInfoList = {};
+    proxyInfoMap                                _proxyInfoMap = {};
+    requestMap                                  _requestMap = {};
+    clientInfoMap                               _clientInfoMap = {};
 
     std::vector<ServerSocket>   createServerSockets(const std::vector<Server> &server_confs);
     void                        handleClient(int clientSocket);
@@ -74,7 +87,7 @@ private:
     void                        handleCGIinteraction(int pipeFd); // read() && send() for CGI
     void                        handleIncomingData(int clientSocket); // recv()
     void                        handleOutgoingData(int clientSocket); // send()
-    void                        CGITimeoutChecker(void);
+    void                        timeoutChecker(void);
     void                        cleanupClient(int clientSocket);
     void                        processRequest(int clientSocket, const std::string &requestStr);
     bool                        isRequestComplete(const std::string &request);
