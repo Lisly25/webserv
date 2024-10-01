@@ -201,6 +201,7 @@ void WebParser::extractServerInfo(size_t contextStart, size_t contextEnd)
     _servers.back().client_max_body_size = extractClientMaxBodySize(contextStart, contextEnd);
     _servers.back().host = extractHost(contextStart, contextEnd);
     _servers.back().server_root = extractServerRoot(contextStart, contextEnd);
+    _servers.back().client_timeout = extractClientTimeout(contextStart, contextEnd);
     extractErrorPageInfo(contextStart, contextEnd);
 
     size_t i;
@@ -360,6 +361,37 @@ long WebParser::extractClientMaxBodySize(size_t contextStart, size_t contextEnd)
     else
         throw WebErrors::ConfigFormatException("Error: client_max_body_size must have unit specified 'K' for kilobytes, 'M' for megabytes");
     return (numericComponent);
+}
+
+size_t WebParser::extractClientTimeout(size_t contextStart, size_t contextEnd)
+{
+    std::string key = "client_timeout";
+    ssize_t     directiveLocation = locateDirective(contextStart, contextEnd, key);
+
+    if (directiveLocation == -1)
+        throw WebErrors::ConfigFormatException("Error: multiple client_timeout directives per server");
+    if (directiveLocation == 0)
+        throw WebErrors::ConfigFormatException("Error: missing client_timeout directive for some server block");
+
+    std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
+
+    if (line.empty())
+        throw WebErrors::ConfigFormatException("Error: client_timeout directive value is missing");
+    line = WebParser::trimSpaces(line);
+    size_t timeout;
+    try
+    {
+        size_t pos = 0;
+        timeout = std::stoul(line, &pos);
+        if (pos != line.length())
+            throw std::invalid_argument("Extra characters after number");
+    }
+    catch (const std::exception& e)
+    {
+        throw WebErrors::ConfigFormatException("Error: invalid client_timeout value");
+    }
+
+    return timeout;
 }
 
 std::string     WebParser::extractServerRoot(size_t contextStart, size_t contextEnd) const

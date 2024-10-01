@@ -38,6 +38,7 @@ struct Server {
     std::map<int, std::string>     error_page;
     std::vector<Location>          locations;
     std::string                    server_root;
+    int                            client_timeout;
 };
 
 class WebParser
@@ -93,7 +94,7 @@ private:
     void                        extractRedirectionAndTarget(size_t contextStart, size_t contextEnd);
     void                        extractIndex(size_t contextStart, size_t contextEnd);
     std::string                 extractUploadFolder(size_t contextStart, size_t contextEnd);
-
+    size_t                      extractClientTimeout(size_t contextStart, size_t contextEnd);
     //in WebParserUtils
 
     static bool                     checkSemicolon(std::string line);
