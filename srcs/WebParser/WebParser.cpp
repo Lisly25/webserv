@@ -232,7 +232,7 @@ void    WebParser::extractLocationInfo(size_t contextStart, size_t contextEnd)
     currentLocation.uri = extractLocationUri(contextStart);
     currentLocation.root = extractRoot(contextStart, contextEnd);
     currentLocation.upload_folder = extractUploadFolder(contextStart, contextEnd);
-    currentLocation.httpRedirection = extractHttpRedirection(contextStart, contextEnd);
+    //currentLocation.httpRedirection = extractHttpRedirection(contextStart, contextEnd);
     _servers.back().locations.push_back(currentLocation);
     extractAllowedMethods(contextStart, contextEnd);
     extractAutoinex(contextStart, contextEnd);
@@ -491,13 +491,18 @@ void WebParser::printParsedInfo(void)
                 std::cout << "yes" << std::endl;
             else
                 std::cout << "no" << std::endl;
+            std::cout << ">>> HEAD: ";
+            if (servers[i].locations[h].allowedHEAD == true)
+                std::cout << "yes" << std::endl;
+            else
+                std::cout << "no" << std::endl;
             std::cout << ">>> root directory: " << servers[i].locations[h].root << std::endl;
             std::cout << ">>> autoindexing: ";
             if (servers[i].locations[h].autoIndexOn == true)
                 std::cout << "on" << std::endl;
             else
                 std::cout << "off" << std::endl;
-            std::cout << ">>> Redirection type {CGI, PROXY, ALIAS, STANDARD}: " << servers[i].locations[h].type << std::endl;
+            std::cout << ">>> Redirection type {HTTP, CGI, PROXY, ALIAS, STANDARD}: " << servers[i].locations[h].type << std::endl;
             std::cout << ">>> Target: " << servers[i].locations[h].target << std::endl;
             std::cout << ">>> Index files:" << std::endl;
             for (size_t s = 0; s < servers[i].locations[h].index.size(); s++)
@@ -598,9 +603,9 @@ std::string WebParser::extractRoot(size_t contextStart, size_t contextEnd) const
     if (directiveLocation == 0)
     {   
         if (locateDirective(contextStart, contextEnd, "alias") != 0 || locateDirective(contextStart, contextEnd, "proxy_pass") != 0
-            || locateDirective(contextStart, contextEnd, "cgi_pass") != 0)
+            || locateDirective(contextStart, contextEnd, "cgi_pass") != 0  || locateDirective(contextStart, contextEnd, "return") != 0)
             return ("");
-        throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts that do not contain 'proxy_pass', 'cgi_pass' or 'alias' directives");
+        throw WebErrors::ConfigFormatException("Error: please add the 'root' directive to all location contexts that do not contain 'proxy_pass', 'cgi_pass', 'return' or 'alias' directives");
     }
     
     std::string line = removeDirectiveKey(_configFile[directiveLocation], key);
@@ -646,12 +651,13 @@ void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t conte
     ssize_t     aliasLocation = locateDirective(contextStart, contextEnd, "alias");
     ssize_t     proxyLocation = locateDirective(contextStart, contextEnd, "proxy_pass");
     ssize_t     cgiLocation = locateDirective(contextStart, contextEnd, "cgi_pass");
+    ssize_t     httpRedirLocation = locateDirective(contextStart, contextEnd, "return");
 
-    if (aliasLocation == -1 || proxyLocation == -1 || cgiLocation == -1)
+    if (aliasLocation == -1 || proxyLocation == -1 || cgiLocation == -1 || httpRedirLocation == -1)
         throw WebErrors::ConfigFormatException("Error: only one redirection type directive per location context is allowed");
     else if (aliasLocation != 0)
     {
-        if (proxyLocation > 0 || cgiLocation  > 0)
+        if (proxyLocation > 0 || cgiLocation  > 0 || httpRedirLocation > 0)
             throw WebErrors::ConfigFormatException("Error: only one type of redirection allowed per location context");
         //parse the alias, and store it in location.target
         _servers.back().locations.back().target = removeDirectiveKey(_configFile[aliasLocation], "alias");
@@ -662,7 +668,7 @@ void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t conte
     }
     else if (proxyLocation != 0)
     {
-        if (cgiLocation  > 0)
+        if (cgiLocation  > 0 || httpRedirLocation > 0)
             throw WebErrors::ConfigFormatException("Error: only one type of redirection allowed per location context");
         //parse the proxy_pass, and store it in location.target
         //no error checking is done yet
@@ -674,6 +680,8 @@ void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t conte
     }
     else if (cgiLocation != 0)
     {
+        if (httpRedirLocation > 0)
+            throw WebErrors::ConfigFormatException("Error: only one type of redirection allowed per location context");
         //parse the cgi_pass, and create target from server_root + cgi_pass
         //no error checking is done yet
         _servers.back().locations.back().target = removeDirectiveKey(_configFile[cgiLocation], "cgi_pass");
@@ -684,6 +692,16 @@ void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t conte
         if (_servers.back().server_root.size() != 0)
             _servers.back().locations.back().target = createStandardTarget(_servers.back().locations.back().target, _servers.back().server_root);
         _servers.back().locations.back().type = CGI;
+        return ;
+    }
+    else if (httpRedirLocation != 0)
+    {
+        //parse the cgi_pass, and create target from server_root + cgi_pass
+        //no error checking is done yet
+        _servers.back().locations.back().target = removeDirectiveKey(_configFile[httpRedirLocation], "return");
+        if (_servers.back().locations.back().target.size() == 0)
+            throw WebErrors::ConfigFormatException("Error: 'return' directive cannot be empty");
+        _servers.back().locations.back().type = HTTP;
         return ;
     }
     //since there is no redirection, create location.target from server_root + location.root + location.uri
@@ -728,7 +746,7 @@ void    WebParser::extractIndex(size_t contextStart, size_t contextEnd)
     }
 }
 
-std::string      WebParser::extractHttpRedirection(size_t contextStart, size_t contextEnd)
+/*std::string      WebParser::extractHttpRedirection(size_t contextStart, size_t contextEnd)
 {
     std::string key = "return";
     ssize_t directiveLocation = locateDirective(contextStart, contextEnd, key);
@@ -742,4 +760,4 @@ std::string      WebParser::extractHttpRedirection(size_t contextStart, size_t c
     if (line.length() == 0)
         throw WebErrors::ConfigFormatException("Error: can't specify empty string as HTTP redirection target (\"return\" directive)");
     return (line);
-}
+}*/
