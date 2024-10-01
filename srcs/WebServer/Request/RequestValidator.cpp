@@ -5,7 +5,7 @@
 #include <sys/stat.h> 
 #include <filesystem>
 
-Request::RequestValidator::RequestValidator(Request& request, const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap)
+Request::RequestValidator::RequestValidator(Request& request, std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap)
     : _request(request), _servers(servers), _proxyInfoMap(proxyInfoMap) {}
 
 bool Request::RequestValidator::isReadOk() const
@@ -53,7 +53,7 @@ bool Request::RequestValidator::validate() const
 {
     try
     {
-        for (const auto& srv : _servers)
+        for (auto& srv : _servers)
         {
             if (isServerMatch(srv))
             {
@@ -307,7 +307,7 @@ bool Request::RequestValidator::areHeadersValid() const
     }
 }
 
-bool Request::RequestValidator::isServerMatch(const Server& server) const
+bool Request::RequestValidator::isServerMatch(Server& server) const
 {
     try
     {

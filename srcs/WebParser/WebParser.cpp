@@ -46,7 +46,7 @@ bool WebParser::parse()
     return true;
 }
 
-const std::vector<Server> &WebParser::getServers(void) const
+std::vector<Server> &WebParser::getServers(void)
 {
     return (_servers);
 }

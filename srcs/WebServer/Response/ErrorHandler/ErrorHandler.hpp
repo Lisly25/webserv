@@ -5,11 +5,11 @@
 class ErrorHandler
 {
 public:
-    ErrorHandler(const Request& request);
+    ErrorHandler(Request& request);
     void handleError(std::string& response, int errorCode) const;
     static std::string generateDefaultErrorPage(int errorCode);
 private:
-    const Request& _request;
+    Request& _request;
 
     std::string getErrorMessage(int errorCode) const;
     std::string getErrorPage(int errorCode) const;

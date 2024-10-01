@@ -13,7 +13,7 @@
 #include "StaticFileHandler.hpp"
 #include "WebServer.hpp"
 
-Response::Response(const Request &request)
+Response::Response(Request &request)
 {
     try {
         _response = generate(request);
@@ -24,7 +24,7 @@ Response::Response(const Request &request)
     }
 }
 
-std::string Response::generate(const Request &request)
+std::string Response::generate(Request &request)
 {
     try {
         std::string response;

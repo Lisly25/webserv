@@ -1,6 +1,6 @@
 #include "ErrorHandler.hpp"
 
-ErrorHandler::ErrorHandler(const Request& request)
+ErrorHandler::ErrorHandler(Request& request)
     : _request(request)
 {
 }

@@ -34,13 +34,13 @@
 class   CGIHandler
 {
     public:
-        CGIHandler(const Request& request, WebServer &webServer);
+        CGIHandler(Request& request, WebServer &webServer);
         ~CGIHandler() = default;
 
         std::string      getCGIResponse( void ) const;
     private:
         WebServer       &_webServer;
-        const Request&   _request;
+        Request&         _request;
         std::string      _response;
         std::string      _scriptPath;
         int              _fromCgi_pipe[PIPES];

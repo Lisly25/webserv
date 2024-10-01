@@ -6,7 +6,7 @@
 #include "WebServer.hpp"
 #include <fcntl.h>
 
-CGIHandler::CGIHandler(const Request& request, WebServer &webServer) : _webServer(webServer), _request(request), _response(""), _scriptPath(_request.getRequestData().uri)
+CGIHandler::CGIHandler(Request& request, WebServer &webServer) : _webServer(webServer), _request(request), _response(""), _scriptPath(_request.getRequestData().uri)
 {
     std::cout << COLOR_YELLOW_CGI << "  CGIHandler: " << _request.getRequestData().method << " " <<  " 🐍\n\n" << COLOR_RESET;
     executeScript();

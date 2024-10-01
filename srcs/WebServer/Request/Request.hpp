@@ -49,11 +49,11 @@ class Request
 {
 public:
     Request();
-    Request(const std::string& rawRequest, const std::vector<Server>& servers,\
+    Request(const std::string& rawRequest, std::vector<Server>& servers,\
         const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
 
     const std::string&  getRawRequest() const;
-    const Server*       getServer() const;
+    Server*             &getServer() ;
     const Location*     getLocation() const;
     addrinfo*           getProxyInfo() const;
     const RequestData&  getRequestData() const;
@@ -61,7 +61,7 @@ public:
 private:
     RequestData     _requestData = {};
     std::string     _rawRequest;
-    const Server*   _server = nullptr;
+    Server*         _server = nullptr;
     const Location* _location = nullptr;
     addrinfo*       _proxyInfo;
 
@@ -80,14 +80,14 @@ public:
     class RequestValidator
     {
     public:
-        RequestValidator(Request& request, const std::vector<Server>& servers,\
+        RequestValidator(Request& request, std::vector<Server>& servers,\
             const std::unordered_map<std::string, addrinfo*>& proxyInfoMap);
         ~RequestValidator() = default;
         bool validate() const;
 
     private:
         Request&                                            _request;
-        const std::vector<Server>&                          _servers;
+        std::vector<Server>&                                _servers;
         const std::unordered_map<std::string, addrinfo*>&   _proxyInfoMap;
 
         bool checkForIndexing(std::string& fullPath) const;
@@ -97,7 +97,7 @@ public:
         bool isAllowedMethod()    const;
         bool isProtocolValid()  const;
         bool areHeadersValid()  const;
-        bool isServerMatch(const Server& server) const;
+        bool isServerMatch(Server& server) const;
         bool matchLocationSetData(const Server& server) const;
         bool isServerFull() const;
         bool isUploadDirAccessible() const;

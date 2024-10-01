@@ -5,7 +5,7 @@
 #include "WebErrors.hpp"
 #include "WebServer.hpp"
 
-StaticFileHandler::StaticFileHandler(const Request& request) 
+StaticFileHandler::StaticFileHandler(Request& request) 
     : _request(request) {}
 
 void StaticFileHandler::serveFile(std::string& response)
@@ -60,7 +60,7 @@ void StaticFileHandler::serveFile(std::string& response)
     }
 }
 
-void StaticFileHandler::handleCookies(const Request &request, std::string &response)
+void StaticFileHandler::handleCookies(Request &request, std::string &response)
 {
     auto addCookie = [&](const std::string& name, const std::string& value, int maxAge) {
         response += "Set-Cookie: " + name + "=" + value + "; Path=/; Max-Age=" + std::to_string(maxAge) + "\r\n";

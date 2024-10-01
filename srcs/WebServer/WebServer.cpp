@@ -167,19 +167,31 @@ void WebServer::epollController(int clientSocket, int operation, uint32_t events
     }
 }
 
-void WebServer::acceptAddClientToEpoll(int clientSocketFd)
+void WebServer::acceptAddClientToEpoll(int serverSocketFd)
 {
+    auto getServerConfigForSocket = [this](int serverSocketFd) -> Server* {
+        for (size_t i = 0; i < _serverSockets.size(); ++i)
+        {
+            if (_serverSockets[i].getFd() == serverSocketFd)
+                return &_parser.getServers()[i];
+        }
+        return nullptr;
+    };
+
     try
     {
         struct sockaddr_in  clientAddr;
         socklen_t           clientLen = sizeof(clientAddr);
-        ScopedSocket        clientSocket(accept(clientSocketFd, (struct sockaddr *)&clientAddr, &clientLen), 0);
+        int                 clientSocketFd = accept(serverSocketFd, (struct sockaddr *)&clientAddr, &clientLen);
 
-        if (clientSocket.getFd() < 0)
-            throw std::runtime_error( "Error accepting client" );
+        if (clientSocketFd < 0)
+            throw std::runtime_error("Error accepting client");
+
         setFdNonBlocking(clientSocketFd);
-        epollController(clientSocket.getFd(), EPOLL_CTL_ADD, EPOLLIN, FdType::CLIENT);
-        clientSocket.release();
+        epollController(clientSocketFd, EPOLL_CTL_ADD, EPOLLIN, FdType::CLIENT);
+
+        Server* serverConfig = getServerConfigForSocket(serverSocketFd);
+        _clientInfoMap[clientSocketFd] = ClientInfo{clientSocketFd, serverConfig, std::chrono::steady_clock::now()};
     }
     catch (const std::exception &e)
     {
@@ -194,6 +206,7 @@ void WebServer::handleIncomingData(int clientSocket)
         epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
         _partialRequests.erase(clientSocket);
         _requestMap.erase(clientSocket);
+        _clientInfoMap.erase(clientSocket);
     };
 
     auto isRequestComplete = [](const std::string &request) -> bool
@@ -298,41 +311,59 @@ void WebServer::handleIncomingData(int clientSocket)
 
 void WebServer::handleOutgoingData(int clientSocket)
 {
+      auto closeConnection = [this, clientSocket]() {
+            epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
+            _clientInfoMap.erase(clientSocket);
+            _partialRequests.erase(clientSocket);
+            _requestMap.erase(clientSocket);
+        };
+
+        auto handleError = [&](const std::string& errorMsg) {
+            closeConnection();
+            throw std::runtime_error(errorMsg);
+        };
+
     try
     {
-        auto          it = _requestMap.find(clientSocket);
+        auto it = _requestMap.find(clientSocket);
         if (it != _requestMap.end())
         {
-            const Request &request = it->second;
+            Request  &request = it->second;
             Response res(request);
 
-            const int bytesSent = send(clientSocket, res.getResponse().c_str(), res.getResponse().length(), 0);
+            const std::string& responseStr = res.getResponse();
+            const int          bytesSent = send(clientSocket, responseStr.c_str(), responseStr.length(), 0);
 
             if (bytesSent == -1)
             {
-                epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
-                throw std::runtime_error("Error sending response to client");
+                handleError("Error sending response to client");
             }
             else if (bytesSent == 0)
             {
-                epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
-                throw std::runtime_error("Connection closed by the client");
+                handleError("Connection closed by the client");
             }
             else
-                epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
+            {
+                if (request.getRequestData().headers.find("Connection") != request.getRequestData().headers.end())
+                {
+                    if (request.getRequestData().headers.find("Connection")->second == "close")
+                        closeConnection();
+                }
+                else
+                    epollController(clientSocket, EPOLL_CTL_MOD, EPOLLIN, FdType::CLIENT);
+            }
+            _requestMap.erase(it);
         }
-        _requestMap.erase(it);
+        else
+            closeConnection();
     }
     catch (const std::exception &e)
     {
-        try {
-            epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
-        } catch (const std::exception &inner_e) {
-            WebErrors::combineExceptions(e, inner_e);
-        }
+        closeConnection();
         throw;
     }
 }
+
 
 void WebServer::handleCGIinteraction(int pipeFd)
 {
@@ -372,44 +403,98 @@ void WebServer::handleCGIinteraction(int pipeFd)
     }
 }
 
-void WebServer::CGITimeoutChecker(void)
+void WebServer::timeoutChecker(void)
 {
-    try 
+    try
     {
         auto now = std::chrono::steady_clock::now();
 
-        for (auto it = _cgiInfoList.begin(); it != _cgiInfoList.end();)
-        {
-            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->startTime).count();
-
-            if (elapsed > CGI_TIMEOUT_LIMIT)
+        auto checkCGITimeouts = [this, now]() {
+            for (auto it = _cgiInfoList.begin(); it != _cgiInfoList.end();)
             {
-                std::cout << COLOR_YELLOW_CGI << "  CGI Script Timed Out ⏰\n\n" << COLOR_RESET;
-                if (kill(it->pid, SIGKILL) == -1)
-                    std::cerr << COLOR_RED_ERROR << "Failed to kill CGI process: " << strerror(errno) << "\n\n" << COLOR_RESET;
-                if (it->clientSocket >= 0 && fcntl(it->clientSocket, F_GETFD) != -1)
-                {  
-                    std::string response;
-                    ErrorHandler(_requestMap[it->clientSocket]).handleError(response, 504);
-                    const int   ret = send(it->clientSocket, response.c_str(), response.length(), 0);
-                    if (ret == -1)
-                        std::cerr << COLOR_RED_ERROR << "Error sending 504 response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
-                    else if (ret == 0)
-                        std::cerr << COLOR_RED_ERROR << "Error sending 504 response to client, Connection closed by the client: " << strerror(errno) << "\n\n" << COLOR_RESET;
-                    close(it->clientSocket);
+                auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->startTime).count();
+
+                if (elapsed > CGI_TIMEOUT_LIMIT)
+                {
+                    std::cout << COLOR_YELLOW_CGI << "  CGI Script Timed Out ⏰\n\n" << COLOR_RESET;
+                    if (kill(it->pid, SIGKILL) == -1)
+                        std::cerr << COLOR_RED_ERROR << "Failed to kill CGI process: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                    if (it->clientSocket >= 0 && fcntl(it->clientSocket, F_GETFD) != -1)
+                    {
+                        std::string response;
+                        ErrorHandler(_requestMap[it->clientSocket]).handleError(response, 504);
+                        const int ret = send(it->clientSocket, response.c_str(), response.length(), 0);
+                        if (ret == -1)
+                            std::cerr << COLOR_RED_ERROR << "Error sending 504 response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                        else if (ret == 0)
+                            std::cerr << COLOR_RED_ERROR << "Error sending 504 response to client, Connection closed by the client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                        close(it->clientSocket);
+                    }
+                    if (_requestMap[it->clientSocket].getRequestData().method == "POST" && it->writeToCgiFd != -1)
+                        epollController(it->writeToCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+                    epollController(it->readFromCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
+                    _requestMap.erase(it->clientSocket);
+                    it = _cgiInfoList.erase(it);
                 }
-                if (_requestMap[it->clientSocket].getRequestData().method == "POST" && it->writeToCgiFd != -1)
-                    epollController(it->writeToCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
-                epollController(it->readFromCgiFd, EPOLL_CTL_DEL, 0, FdType::CGI_PIPE);
-                _requestMap.erase(it->clientSocket);
-                it = _cgiInfoList.erase(it);
+                else
+                {
+                    ++it;
+                }
             }
-            else
-                ++it;
-        }
+        };
+
+        auto checkClientTimeouts = [this, now]() {
+            for (auto it = _clientInfoMap.begin(); it != _clientInfoMap.end();)
+            {
+                int         clientSocketFd = it->first;
+                ClientInfo  &clientInfo = it->second;
+                size_t      clientTimeout = clientInfo.server_conf->client_timeout;
+                auto        duration = std::chrono::duration_cast<std::chrono::seconds>(now - clientInfo.lastActivity);
+
+                if (duration.count() > static_cast<long>(clientTimeout))
+                {
+                    std::cout << COLOR_YELLOW_CGI << "  Client Timed Out ⏰\n\n" << COLOR_RESET;
+                    std::string response;
+                    Request*    requestPtr = nullptr;
+                    auto        requestIt = _requestMap.find(clientSocketFd);
+
+                    if (requestIt != _requestMap.end())
+                        requestPtr = &requestIt->second;
+                    else
+                    {
+                        Request defaultRequest;
+                        defaultRequest.getServer() = clientInfo.server_conf;
+                        requestPtr = &defaultRequest;
+                    }
+
+                    ErrorHandler(*requestPtr).handleError(response, 408);
+                    const int ret = send(clientSocketFd, response.c_str(), response.length(), 0);
+
+                    if (ret == -1)
+                        std::cerr << COLOR_RED_ERROR << "Error sending 408 response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                    else if (ret == 0)
+                        std::cerr << COLOR_RED_ERROR << "Error sending 408 response to client, Connection closed by the client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+
+                    
+                    epollController(clientSocketFd, EPOLL_CTL_DEL, 0, FdType::CLIENT);
+                    _partialRequests.erase(clientSocketFd);
+                    _requestMap.erase(clientSocketFd);
+                    it = _clientInfoMap.erase(it);
+                    _cgiInfoList.remove_if([clientSocketFd](const CGIProcessInfo &cgiInfo) {
+                        return cgiInfo.clientSocket == clientSocketFd;
+                    });
+                }
+                else
+                    ++it;
+            }
+        };
+
+        checkCGITimeouts();
+        checkClientTimeouts();
     }
     catch (const std::exception &e)
     {
+        std::cerr << COLOR_RED_ERROR << "Error checking timeouts: " << e.what() << "\n\n" << COLOR_RESET;
         throw;
     }
 }
@@ -430,6 +515,11 @@ void WebServer::handleEvents(int eventCount)
             }
             return false;
         };
+        auto updateClientActivity = [this](int clientSocket) {
+            auto it = _clientInfoMap.find(clientSocket);
+            if (it != _clientInfoMap.end())
+                it->second.lastActivity = std::chrono::steady_clock::now();
+        };
 
         for (int i = 0; i < eventCount; ++i)
         {
@@ -447,10 +537,12 @@ void WebServer::handleEvents(int eventCount)
             {
                 if (_events[i].events & EPOLLIN)
                 {
+                    updateClientActivity(_currentEventFd);
                     handleIncomingData(_currentEventFd);
                 }
                 else if (_events[i].events & EPOLLOUT)
                 {
+                    updateClientActivity(_currentEventFd);
                     handleOutgoingData(_currentEventFd);
                 }
             }
@@ -489,7 +581,7 @@ void WebServer::start()
             }
             if (eventCount > 0)
                 handleEvents(eventCount);
-            CGITimeoutChecker();
+            timeoutChecker();
         }
         catch (const std::exception &e)
         {

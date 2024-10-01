@@ -9,7 +9,7 @@ Request::Request()
 {
 }
 
-Request::Request(const std::string& rawRequest, const std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap)
+Request::Request(const std::string& rawRequest, std::vector<Server>& servers, const std::unordered_map<std::string, addrinfo*>& proxyInfoMap)
     : _rawRequest(rawRequest), _server(nullptr), _location(nullptr), _proxyInfo(nullptr)
 {
     try
@@ -173,7 +173,7 @@ const std::string&  Request::getRawRequest() const { return _rawRequest; }
 
 const RequestData&  Request::getRequestData() const { return _requestData; }
 
-const Server*       Request::getServer() const { return _server; }
+Server*             &Request::getServer() { return _server; }
 
 const Location*     Request::getLocation() const { return _location; }
 
