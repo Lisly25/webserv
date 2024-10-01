@@ -488,7 +488,6 @@ void WebServer::timeoutChecker(void)
                     ++it;
             }
         };
-
         checkCGITimeouts();
         checkClientTimeouts();
     }
