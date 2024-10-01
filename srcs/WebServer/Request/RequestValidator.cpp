@@ -65,7 +65,7 @@ bool Request::RequestValidator::validate() const
                         _request._errorCode = URI_TOO_LONG;
                         return true;
                     }
-                    if (_request._location->type != PROXY)
+                    if (_request._location->type != PROXY && _request._location->type != HTTP_REDIR)
                     {
                         if (!isExistingMethod())
                         {
@@ -220,8 +220,6 @@ bool Request::RequestValidator::isPathValid() const
             _request._requestData.uri = fullPath;
             return std::filesystem::exists(fullPath);
         };
-
-
 
         if (_request._location->type == ALIAS)
             return handleAlias();

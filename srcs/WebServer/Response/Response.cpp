@@ -34,6 +34,16 @@ std::string Response::generate(const Request &request)
             ErrorHandler(request).handleError(response, request.getErrorCode());
             return response;
         }
+        else if (request.getLocation()->type == LocationType::HTTP_REDIR)
+        {
+            std::cout << "Redirecting to: " << request.getLocation()->target << std::endl;
+            const std::string& redirectUrl = request.getLocation()->target;
+            response += "HTTP/1.1 302 Found\r\n";
+            response += "Location: " + redirectUrl + "\r\n";
+            response += "Content-Length: 0\r\n";
+            response += "\r\n";
+            return response;
+        }
         else if (request.getLocation()->type == LocationType::PROXY)
         {
             ProxyHandler(request).passRequest(response);

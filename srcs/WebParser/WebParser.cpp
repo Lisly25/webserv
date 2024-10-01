@@ -700,7 +700,9 @@ void    WebParser::extractRedirectionAndTarget(size_t contextStart, size_t conte
         _servers.back().locations.back().target = removeDirectiveKey(_configFile[httpRedirLocation], "return");
         if (_servers.back().locations.back().target.size() == 0)
             throw WebErrors::ConfigFormatException("Error: 'return' directive cannot be empty");
-        _servers.back().locations.back().type = HTTP;
+        _servers.back().locations.back().type = HTTP_REDIR;
+        if (_servers.back().locations.back().target.find("https://")!= 0 && _servers.back().locations.back().target.find("http://") != 0)
+            throw WebErrors::ConfigFormatException( "Error: 'return' directive must start with 'http://' or 'https://'" );
         return ;
     }
     //since there is no redirection, create location.target from server_root + location.root + location.uri

@@ -13,7 +13,7 @@
 #include <cstring>
 #include <regex>
 
-enum LocationType { HTTP, CGI, PROXY, ALIAS, STANDARD };
+enum LocationType { HTTP_REDIR, CGI, PROXY, ALIAS, STANDARD };
 
 struct Location {
     LocationType                type;
