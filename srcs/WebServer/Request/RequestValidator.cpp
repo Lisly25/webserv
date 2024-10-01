@@ -60,7 +60,11 @@ bool Request::RequestValidator::validate() const
                 if (matchLocationSetData(srv))
                 {
                     _request._server = &srv;
-
+                    if (_request._requestData.uri.length() > 2048)
+                    {
+                        _request._errorCode = URI_TOO_LONG;
+                        return true;
+                    }
                     if (_request._location->type != PROXY)
                     {
                         if (!isExistingMethod())
