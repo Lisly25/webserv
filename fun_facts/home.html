@@ -57,6 +57,20 @@
         #nameEntryBox button:hover {
             background-color: #45a049;
         }
+        #redirectButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #redirectButton:hover {
+            background-color: #0b7dda;
+        }
     </style>
 </head>
 <body>
@@ -81,6 +95,10 @@
         <li><a href="plants.html">Plants</a></li>
         <li><a href="fungi.html">Fun-gi</a></li>
     </div>
+    <div>
+        <button id="redirectButton" onclick="redirectToTest()">Test HTTP Redirection</button>
+    </div>
+
     <div>
         <p>Feeling adventurous? Check out the fun facts our visitors submitted!</p>
         <p>Beware! These facts are moderated by the community and might be untruthful—or worse, un-fun!</p>
@@ -125,6 +143,10 @@
             } else {
                 greetingElement.innerText = "Welcome to webserv!";
             }
+        }
+
+        function redirectToTest() {
+            window.location.href = '/test_http_redirection/';
         }
 
         function timeLeftForCookie() {
