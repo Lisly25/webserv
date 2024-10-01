@@ -6,7 +6,7 @@
 #include "WebServer.hpp"
 #include <fcntl.h>
 
-CGIHandler::CGIHandler(const Request& request, WebServer &webServer) : _webServer(webServer), _request(request), _response(""), _path(_request.getRequestData().uri)
+CGIHandler::CGIHandler(const Request& request, WebServer &webServer) : _webServer(webServer), _request(request), _response(""), _scriptPath(_request.getRequestData().uri)
 {
     std::cout << COLOR_YELLOW_CGI << "  CGIHandler: " << _request.getRequestData().method << " " <<  " 🐍\n\n" << COLOR_RESET;
     executeScript();
@@ -18,7 +18,7 @@ void CGIHandler::executeScript(void)
     {
         pid_t   pid;
 
-        if (access(_path.c_str(), R_OK) != 0)
+        if (access(_scriptPath.c_str(), R_OK) != 0)
         {
             ErrorHandler(_request).handleError(_response, 500);
             return WebErrors::printerror("CGIHandler::executeScript", "Error accessing script file") , void();
@@ -53,7 +53,19 @@ void CGIHandler::child(void)
 {
     try
     {
-        char const *argv[] = {PYTHON3, _path.c_str(), NULL};
+        size_t      lastSlashPos = _scriptPath.find_last_of('/');
+        std::string scriptDir;
+
+        if (lastSlashPos != std::string::npos)
+            scriptDir = _scriptPath.substr(0, lastSlashPos);
+        else
+            scriptDir = ".";
+        if (chdir(scriptDir.c_str()) != 0)
+        {
+            std::cout << WebParser::getErrorPage(500, _request.getServer());
+            exit(EXIT_FAILURE);
+        }
+        char const *argv[] = {PYTHON3, _scriptPath.c_str(), NULL};
         char const *envp[9];
 
         close(_toCgi_pipe[WRITEND]);
@@ -69,7 +81,7 @@ void CGIHandler::child(void)
         execve(PYTHON3, (char *const *)argv, (char *const *)envp);
 
         WebErrors::printerror("CGIHandler::child", "Error executing script");
-        std::cout <<  WebParser::getErrorPage(500, _request.getServer());
+        std::cout << WebParser::getErrorPage(500, _request.getServer());
         std::terminate();
     }
     catch (const std::exception &e)
@@ -79,6 +91,7 @@ void CGIHandler::child(void)
         exit(EXIT_FAILURE);
     }
 }
+
 
 void CGIHandler::parent(pid_t pid)
 {
@@ -127,8 +140,8 @@ void CGIHandler::childSetEnvp(char const *envp[])
         env[2] = "CONTENT_TYPE=" + reqData->content_type;
         env[3] = "CONTENT_LENGTH=" + reqData->content_length;
         env[4] = "DOCUMENT_ROOT=" + reqData->absoluteRootPath;
-        env[5] = "SCRIPT_FILENAME=" + _path;
-        env[6] = "SCRIPT_NAME=" + _path;
+        env[5] = "SCRIPT_FILENAME=" + _scriptPath;
+        env[6] = "SCRIPT_NAME=" + _scriptPath;
         env[7] = "REDIRECT_STATUS=200";
         env[8] = "UPLOAD_FOLDER="  + _request.getLocation()->upload_folder;
 

@@ -42,7 +42,7 @@ class   CGIHandler
         WebServer       &_webServer;
         const Request&   _request;
         std::string      _response;
-        std::string      _path;
+        std::string      _scriptPath;
         int              _fromCgi_pipe[PIPES];
         int              _toCgi_pipe[PIPES];
 
