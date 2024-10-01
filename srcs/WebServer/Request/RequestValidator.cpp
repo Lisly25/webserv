@@ -107,6 +107,16 @@ bool Request::RequestValidator::validate() const
                             _request._errorCode = INSUFFICIENT_STORAGE;
                             return true;
                         }
+                        if (_request._location->type == CGI)
+                        {
+                            if (!isUploadDirAccessible())
+                            {
+                                std::cerr << COLOR_RED_ERROR << \
+                                    "  Error: no needed permissions for the cgi script to work on the upload folder\n\n" << COLOR_RESET;
+                                _request._errorCode = FORBIDDEN;
+                                return true;
+                            }
+                        }
                     }
                     return true;
                 }
@@ -119,6 +129,43 @@ bool Request::RequestValidator::validate() const
         throw ;
     }
 }
+
+bool Request::RequestValidator::isUploadDirAccessible() const
+{
+    std::string scriptPath = _request._requestData.uri;
+    size_t      lastSlashPos = scriptPath.find_last_of('/');
+    std::string uploadFolder = _request._location->upload_folder;
+    std::string scriptDir;
+    struct stat sb;
+
+    if (lastSlashPos != std::string::npos)
+        scriptDir = scriptPath.substr(0, lastSlashPos);
+    else
+        scriptDir = ".";
+
+    if (uploadFolder.empty())
+        uploadFolder = "uploads";
+
+    const std::string uploadDirPath = scriptDir + "/" + uploadFolder;
+
+    if (stat(uploadDirPath.c_str(), &sb) == 0)
+    {
+        if (S_ISDIR(sb.st_mode))
+        {
+            if (access(uploadDirPath.c_str(), W_OK) != 0 || access(uploadDirPath.c_str(), R_OK) != 0)
+                return false;
+            else
+                return true;
+        }
+        else
+            return false;
+    }
+    else
+        return true;
+}
+
+
+
 
 bool Request::RequestValidator::isAllowedMethod() const
 {

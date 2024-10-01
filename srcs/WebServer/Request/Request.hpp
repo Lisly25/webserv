@@ -100,6 +100,7 @@ public:
         bool isServerMatch(const Server& server) const;
         bool matchLocationSetData(const Server& server) const;
         bool isServerFull() const;
+        bool isUploadDirAccessible() const;
     };
 };
 
