@@ -189,6 +189,8 @@ void WebServer::acceptAddClientToEpoll(int clientSocketFd)
 
 void WebServer::handleIncomingData(int clientSocket)
 {
+    bool stopProcessing = false;
+
     auto cleanupClient = [this](int clientSocket)
     {
         epollController(clientSocket, EPOLL_CTL_DEL, 0, FdType::CLIENT);
@@ -196,8 +198,37 @@ void WebServer::handleIncomingData(int clientSocket)
         _requestMap.erase(clientSocket);
     };
 
-    auto isRequestComplete = [](const std::string &request) -> bool
+    auto isRequestComplete = [this, clientSocket, &stopProcessing](const std::string &request) -> bool
     {
+        auto checkMaxBodySize = [&, this](const size_t &content_length, const std::string &request, int clientSocket) -> bool
+        {
+            auto hostIt = request.find("Host: ");
+            if (hostIt == std::string::npos) return false;
+
+            std::string host = request.substr(hostIt + 6, request.find("\r\n", hostIt) - hostIt - 6);
+
+            for (const auto &server : _parser.getServers())
+            {
+                for (const auto &server_name : server.server_name)
+                {
+                    const std::string server_name_ports = server_name + ":" + std::to_string(server.port);
+                    if (server_name_ports == host && static_cast<long>(content_length) > server.client_max_body_size)
+                    {
+                        std::cout << COLOR_RED_ERROR << "  Request body size exceeds client_max_body_size limit\n\n" << COLOR_RESET;
+                        ErrorHandler(&server).handleError(_partialRequests[clientSocket], 413);
+                        const int ret = send (clientSocket, _partialRequests[clientSocket].c_str(), _partialRequests[clientSocket].length(), 0);
+                        if (ret == -1)
+                            std::cerr << COLOR_RED_ERROR << "Error sending 413 response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                        else if (ret == 0)
+                            std::cerr << COLOR_RED_ERROR << "Error sending 413 response to client, Connection closed by the client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+                        stopProcessing = true;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
         size_t              headerEnd = request.find("\r\n\r\n");
 
         if (headerEnd == std::string::npos)
@@ -212,6 +243,8 @@ void WebServer::handleIncomingData(int clientSocket)
             if (line.find("Content-Length:") != std::string::npos)
             {
                 contentLength = std::stoul(line.substr(15));
+                if (checkMaxBodySize(contentLength, request, clientSocket))
+                    return true;
                 break;
             }
         }
@@ -242,7 +275,7 @@ void WebServer::handleIncomingData(int clientSocket)
         return buffer.substr(0, totalLength);
     };
 
-        auto processRequest = [this](int clientSocket, const std::string &requestStr)
+    auto processRequest = [this](int clientSocket, const std::string &requestStr)
     {
         Request request(requestStr, _parser.getServers(), _proxyInfoMap);
         _requestMap[clientSocket] = request;
@@ -274,6 +307,11 @@ void WebServer::handleIncomingData(int clientSocket)
 
             while (isRequestComplete(_partialRequests[clientSocket]))
             {
+                if (stopProcessing)
+                {
+                    cleanupClient(clientSocket);
+                    break;
+                }
                 std::string completeRequest = extractCompleteRequest(_partialRequests[clientSocket]);
                 _partialRequests[clientSocket].erase(0, completeRequest.length());
                 processRequest(clientSocket, completeRequest);
