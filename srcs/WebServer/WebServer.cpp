@@ -390,7 +390,7 @@ void WebServer::CGITimeoutChecker(void)
                 if (it->clientSocket >= 0 && fcntl(it->clientSocket, F_GETFD) != -1)
                 {  
                     std::string response;
-                    ErrorHandler(_requestMap[it->clientSocket]).handleError(response, 504);
+                    ErrorHandler(_requestMap[it->clientSocket].getServer()).handleError(response, 504);
                     const int   ret = send(it->clientSocket, response.c_str(), response.length(), 0);
                     if (ret == -1)
                         std::cerr << COLOR_RED_ERROR << "Error sending 504 response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;

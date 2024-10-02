@@ -20,12 +20,12 @@ void CGIHandler::executeScript(void)
 
         if (access(_scriptPath.c_str(), R_OK) != 0)
         {
-            ErrorHandler(_request).handleError(_response, 500);
+            ErrorHandler(_request.getServer()).handleError(_response, 500);
             return WebErrors::printerror("CGIHandler::executeScript", "Error accessing script file") , void();
         }
         if (pipe(_fromCgi_pipe) == -1 || pipe(_toCgi_pipe) == -1)
         {
-            ErrorHandler(_request).handleError(_response, 500);
+            ErrorHandler(_request.getServer()).handleError(_response, 500);
             return WebErrors::printerror("CGIHandler::executeScript", "Error creating pipes") , void();
         }
         WebServer::setFdNonBlocking(_fromCgi_pipe[READEND]);
@@ -33,7 +33,7 @@ void CGIHandler::executeScript(void)
         pid = fork();
         if (pid < 0)
         {
-            ErrorHandler(_request).handleError(_response, 500);
+            ErrorHandler(_request.getServer()).handleError(_response, 500);
             return WebErrors::printerror("CGIHandler::executeScript", "Error forking process") , void();
         }
         else if (pid == 0)
@@ -44,7 +44,7 @@ void CGIHandler::executeScript(void)
     }
     catch (const std::exception &e)
     {
-        ErrorHandler(_request).handleError(_response, 500);
+        ErrorHandler(_request.getServer()).handleError(_response, 500);
         WebErrors::printerror("CGIHandler::executeScript", e.what());
     }
 }
@@ -86,7 +86,7 @@ void CGIHandler::child(void)
     }
     catch (const std::exception &e)
     {
-        ErrorHandler(_request).handleError(_response, 500);
+        ErrorHandler(_request.getServer()).handleError(_response, 500);
         std::cout << _response << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -123,7 +123,7 @@ void CGIHandler::parent(pid_t pid)
     }
     catch (const std::exception &e)
     {
-        ErrorHandler(_request).handleError(_response, 500);
+        ErrorHandler(_request.getServer()).handleError(_response, 500);
     }
 }
 
@@ -158,7 +158,7 @@ void CGIHandler::childSetEnvp(char const *envp[])
     }
     catch (const std::exception &e)
     {
-        ErrorHandler(_request).handleError(_response, 500);
+        ErrorHandler(_request.getServer()).handleError(_response, 500);
         std::cout <<  _response << std::endl;
         exit(EXIT_FAILURE);
     }
