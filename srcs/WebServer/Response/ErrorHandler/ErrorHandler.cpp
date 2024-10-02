@@ -57,7 +57,7 @@ std::string ErrorHandler::getErrorMessage(int errorCode) const
     case 408: return "Request Timeout";
     case 411: return "Length Required";
     case 413: return "Content Too Large";
-    case 414: return "URI too long";
+    case 414: return "URI Too Long";
     case 431: return "Request Header Fields Too Large";
     case 501: return "Not Implemented";
     case 502: return "Bad Gateway";
