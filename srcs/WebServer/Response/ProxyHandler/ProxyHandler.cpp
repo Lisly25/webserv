@@ -85,8 +85,12 @@ void ProxyHandler::passRequest(std::string &response)
         std::string modifiedRequest = modifyRequestForProxy();
         char        buffer[8192];
         ssize_t     bytesRead = 0;
+        ssize_t     bytesSent = 0;
 
-        if (send(proxySocket.getFd(), modifiedRequest.c_str(), modifiedRequest.length(), 0) < 0)
+        bytesSent = send(proxySocket.getFd(), modifiedRequest.c_str(), modifiedRequest.length(), 0);
+        if (bytesSent == 0)
+            throw WebErrors::ProxyException("Error sending to proxy server, connection was closed by proxy server");
+        else if (bytesSent < 0)
             throw WebErrors::ProxyException("Error sending to proxy server");
 
         while (isDataAvailable(proxySocket.getFd(), 20000)) // 2ms timeout
