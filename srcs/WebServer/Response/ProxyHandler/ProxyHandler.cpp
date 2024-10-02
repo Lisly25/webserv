@@ -98,7 +98,7 @@ void ProxyHandler::passRequest(std::string &response)
             }
             else if (bytesRead == 0)
                 break;
-            else if (bytesRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+            else if (bytesRead < 0)
                 throw WebErrors::ProxyException("Error reading from proxy server");
         }
     }
