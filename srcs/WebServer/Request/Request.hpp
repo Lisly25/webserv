@@ -42,7 +42,7 @@ inline std::ostream& operator<<(std::ostream& os, const RequestData& requestData
 }
 
 enum ErrorCodes { INVALID_METHOD = 405, NOT_FOUND = 404, HTTP_VERSION_NOT_SUPPORTED = 505,\
-    BAD_REQUEST = 400, REQUEST_BODY_TOO_LARGE = 413, URI_TOO_LONG = 414, FORBIDDEN = 403, INSUFFICIENT_STORAGE = 507,\
+    BAD_REQUEST = 400, REQUEST_BODY_TOO_LARGE = 413, URI_TOO_LONG = 414, FORBIDDEN = 403, REQUEST_HEADER_FIELDS_TOO_LARGE = 431, INSUFFICIENT_STORAGE = 507,\
     NOT_IMPLEMENTED = 501, SERVER_ERROR = 500};
 
 class Request
@@ -64,6 +64,7 @@ private:
     const Server*   _server = nullptr;
     const Location* _location = nullptr;
     addrinfo*       _proxyInfo;
+    size_t          _totalHeaderSize;
 
     int             _errorCode = 0;
 

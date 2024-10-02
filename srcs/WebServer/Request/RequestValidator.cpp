@@ -65,6 +65,11 @@ bool Request::RequestValidator::validate() const
                         _request._errorCode = URI_TOO_LONG;
                         return true;
                     }
+                    if (_request._totalHeaderSize > 5000)
+                    {
+                        _request._errorCode = REQUEST_HEADER_FIELDS_TOO_LARGE;
+                        return true;
+                    }
                     if (_request._location->type != PROXY && _request._location->type != HTTP_REDIR)
                     {
                         if (!isExistingMethod())

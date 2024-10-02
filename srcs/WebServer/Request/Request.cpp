@@ -75,6 +75,7 @@ void Request::parseRequestLine(const std::string& requestLine)
 
 void Request::parseHeadersAndBody(std::istringstream& stream)
 {
+    _totalHeaderSize = 0;
     try
     {
         std::string line;
@@ -116,6 +117,8 @@ void Request::parseHeaderLine(const std::string& line)
 
         key.erase(key.find_last_not_of(" \t") + 1);
         value.erase(0, value.find_first_not_of(" \t"));
+        _totalHeaderSize += key.length();
+        _totalHeaderSize += value.length();
         _requestData.headers[key] = value;
     }
     catch (const std::exception& e)
