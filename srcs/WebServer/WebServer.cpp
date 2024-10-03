@@ -329,8 +329,19 @@ void WebServer::handleIncomingData(int clientSocket)
     }
     catch (const std::exception &e)
     {
-        cleanupClient(clientSocket);
-        throw;
+        try {
+            ErrorHandler(&_parser.getServers().front()).handleError(_partialRequests[clientSocket], 400);
+            const int ret = send(clientSocket, _partialRequests[clientSocket].c_str(), _partialRequests[clientSocket].length(), 0);
+            if (ret == -1)
+                std::cerr << COLOR_RED_ERROR << "Error sending 400 response to client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+            else if (ret == 0)
+                std::cerr << COLOR_RED_ERROR << "Error sending 400 response to client, Connection closed by the client: " << strerror(errno) << "\n\n" << COLOR_RESET;
+            cleanupClient(clientSocket);
+        } catch (const std::exception &inner_e) {
+            WebErrors::combineExceptions(e, inner_e);
+            throw e;
+        }
+        throw ;
     }
 }
 
