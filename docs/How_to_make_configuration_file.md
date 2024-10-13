@@ -119,7 +119,7 @@ The codes must be valid http error codes (400-599). If the path is incorrect, no
 
 ```
 	error_page 404 ./example-site/errors/404.html;
-  error_page 500 ./example-site/errors/Internal_server_error.html;
+  	error_page 500 ./example-site/errors/Internal_server_error.html;
 ```
 
 The path to the page should be a single string, including at least one '/'
@@ -168,7 +168,7 @@ Optional. It can be used to set up how a request ending with '/' (a directory) i
 Can be used inside non-cgi (for what a cgi is, see redirections) location context: is set to off by default, and as such, is not mandatory. It is used to turn on or off directory listing. If turned on, it will take effect if no files defined by the 'index' directive can be found
 
 ```
-  autoindex on;
+  	autoindex on;
 ```
 
 ### upload_folder
@@ -178,7 +178,7 @@ Currently, file uploads can only be implemented by using cgi scripts. If a direc
 Moreover, the directory will be passed onto the child process executing cgi scripts as the value of the environment variable `UPLOAD_FOLDER`.
 
 ```
-  upload_folder site_uploads;
+ 	upload_folder site_uploads;
 ```
 
 ## Redirections
@@ -205,7 +205,7 @@ If this directory does not exist, and exception will be thrown
 In this case, requests will be redirected to an entirely different server, with our server acting as a reverse proxy. This server can be defined as servername + port.
 
 ```
-  proxy_pass localhost:4646;
+  	proxy_pass localhost:4646;
 ```
 
 ### cgi_pass
@@ -213,10 +213,10 @@ In this case, requests will be redirected to an entirely different server, with 
 This redirection is used for cgi scripts. Currently, it works by executing a specific script if the location is matched.
 
 ```
-location /delete/ {
-  allowed_methods DELETE HEAD;
-  cgi_pass /cgi-scripts/delete.py;
-}
+	location /delete/ {
+  		allowed_methods DELETE HEAD;
+  		cgi_pass /cgi-scripts/delete.py;
+	}
 ```
 
 ### return
@@ -224,5 +224,5 @@ location /delete/ {
 In this case, a different website's address, not necessarily running on our server, can be specified, where the client will be redirected with an HTTP 300-type rediection
 
 ```
-  return https://catoftheday.com;
+ 	 return https://catoftheday.com;
 ```
