@@ -1,6 +1,6 @@
 # WebServ &nbsp; &nbsp; <img src="assets/apache.png" alt="Apache" width="30"/> &nbsp;<img src="assets/caddy.png" alt="Caddy" width="100"/> &nbsp;<img src="assets/gunicorn.png" alt="Gunicorn" width="50"/> &nbsp;<img src="assets/litespeed.png" alt="LiteSpeed" width="60"/> &nbsp;<img src="assets/nginx.webp" alt="NGINX" width="60"/> &nbsp;<img src="assets/openresty.png" alt="OpenResty" width="100"/>
 
-WebServ is a custom-built web server developed as part of the school project. While inspired by the configuration syntax of NGINX, WebServ is a unique implementation designed to handle core HTTP functionalities such as request handling, CGI execution, file uploads, proxying, and more.
+WebServ is a custom-built web server developed in a team of 3 as a project for the Hive curriculum. While inspired by the configuration syntax of NGINX, WebServ is a unique implementation designed to handle core HTTP functionalities such as request handling, CGI execution, file uploads, proxying, and more.
 
 ## Features
 
@@ -14,6 +14,8 @@ WebServ is a custom-built web server developed as part of the school project. Wh
 - **Request size limiting**: Limit the size of incoming request bodies.
 
 ## Example Configuration
+
+NOTE: for a more detailed description of configuration file usage, look at [this document](https://github.com/Lisly25/webserv/blob/main/docs/How_to_make_configuration_file.md) in the repository.
 
 ```nginx
 server {
@@ -62,11 +64,12 @@ server {
 + root or alias: Specifies the document root or alias for the location.
 + cgi_pass: Executes CGI scripts.
 + proxy_pass: Forwards requests to other servers.
++ return: HTTP redirection
 
 ## Getting Started
 + Clone the repository.
 ```bash
-git clone https://github.com/61l65k/webserv.git
+git clone git@github.com:Lisly25/webserv.git
 ```
 
 + Compile and run the server.
