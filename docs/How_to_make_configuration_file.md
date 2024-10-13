@@ -219,7 +219,7 @@ location /delete/ {
 }
 ```
 
-### HTTP redirection
+### return
 
 In this case, a different website's address, not necessarily running on our server, can be specified, where the client will be redirected with an HTTP 300-type rediection
 
